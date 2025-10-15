@@ -116,10 +116,11 @@ jobs:
     steps:
     - name: Slack Notification
       uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       with:
         status: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
         channel: '#deployments'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
         custom_payload: |
           {
             "text": "Frontend Deployment ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Succeeded ✅' }}",
