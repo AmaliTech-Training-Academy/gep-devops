@@ -91,22 +91,22 @@ jobs:
           fi
         done
 
-  notify-health-issues:
+  notify-health-status:
     needs: [health-checks, ecs-service-health]
-    if: failure()
+    if: always()
     runs-on: ubuntu-latest
     steps:
-    - name: Slack Health Alert
+    - name: Slack Health Status
       uses: 8398a7/action-slack@v3
       with:
-        status: failure
-        channel: '#alerts'
+        status: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
+        channel: '#monitoring'
         webhook_url: ${{ secrets.SLACK_WEBHOOK }}
         custom_payload: |
           {
-            "text": "🚨 Health Check Failed",
+            "text": "Health Check ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Passed ✅' }}",
             "attachments": [{
-              "color": "danger",
+              "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
               "fields": [{
                 "title": "Repository",
                 "value": "${{ github.repository }}",
@@ -115,6 +115,15 @@ jobs:
                 "title": "Check Time",
                 "value": "$(date -u)",
                 "short": true
+              }, {
+                "title": "Status",
+                "value": "${{ contains(needs.*.result, 'failure') && 'Services Down' || 'All Services Up' }}",
+                "short": true
+              }],
+              "actions": [{
+                "type": "button",
+                "text": "View Details",
+                "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               }]
             }]
           }
