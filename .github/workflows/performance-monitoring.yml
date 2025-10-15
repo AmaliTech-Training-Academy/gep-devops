@@ -115,7 +115,7 @@ jobs:
       with:
         status: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
         channel: '#performance'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
         custom_payload: |
           {
             "text": "Performance Tests ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Completed ✅' }}",
