@@ -107,6 +107,10 @@ jobs:
                 "title": "Status",
                 "value": "${{ contains(needs.*.result, 'failure') && 'Issues Found' || 'All Clear' }}",
                 "short": true
+              }, {
+                "title": "Triggered By",
+                "value": "${{ github.actor }}",
+                "short": true
               }],
               "actions": [{
                 "type": "button",

@@ -142,6 +142,10 @@ jobs:
                 "title": "Commit",
                 "value": "${{ env.COMMIT_SHA }}",
                 "short": true
+              }, {
+                "title": "Triggered By",
+                "value": "${{ github.actor }}",
+                "short": true
               }]
             }]
           }
