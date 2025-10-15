@@ -98,10 +98,11 @@ jobs:
     steps:
     - name: Slack Health Status
       uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       with:
         status: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
         channel: '#monitoring'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
         custom_payload: |
           {
             "text": "Health Check ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Passed ✅' }}",

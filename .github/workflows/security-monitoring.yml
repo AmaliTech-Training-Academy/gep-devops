@@ -85,10 +85,11 @@ jobs:
     steps:
     - name: Slack Security Status
       uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       with:
         status: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
         channel: '#security-alerts'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
         custom_payload: |
           {
             "text": "Security Scan ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Completed ✅' }}",
