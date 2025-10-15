@@ -119,8 +119,7 @@ jobs:
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       with:
-        status: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
-        channel: '#deployments'
+        status: custom
         custom_payload: |
           {
             "text": "Frontend Deployment ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Succeeded ✅' }}",

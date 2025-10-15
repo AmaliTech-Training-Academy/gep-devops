@@ -101,8 +101,7 @@ jobs:
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       with:
-        status: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
-        channel: '#monitoring'
+        status: custom
         custom_payload: |
           {
             "text": "Health Check ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Passed ✅' }}",
