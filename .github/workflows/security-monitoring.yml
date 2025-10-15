@@ -88,8 +88,7 @@ jobs:
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       with:
-        status: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
-        channel: '#security-alerts'
+        status: custom
         custom_payload: |
           {
             "text": "Security Scan ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Completed ✅' }}",
