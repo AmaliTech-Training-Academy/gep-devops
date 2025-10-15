@@ -38,12 +38,6 @@ gep_devops/
 │       │   ├── terraform.tfvars
 │       │   ├── backend.tf
 │       │   └── outputs.tf
-│       ├── staging/
-│       │   ├── main.tf
-│       │   ├── variables.tf
-│       │   ├── terraform.tfvars
-│       │   ├── backend.tf
-│       │   └── outputs.tf
 │       └── prod/
 │           ├── main.tf
 │           ├── variables.tf
