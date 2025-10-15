@@ -105,30 +105,39 @@ jobs:
           --period 300 \
           --statistics Average
 
-  notify-performance-issues:
+  notify-performance-status:
     needs: [load-testing, lighthouse-audit, database-performance]
-    if: failure()
+    if: always()
     runs-on: ubuntu-latest
     steps:
-    - name: Slack Performance Alert
+    - name: Slack Performance Status
       uses: 8398a7/action-slack@v3
       with:
-        status: failure
+        status: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
         channel: '#performance'
         webhook_url: ${{ secrets.SLACK_WEBHOOK }}
         custom_payload: |
           {
-            "text": "⚠️ Performance Issues Detected",
+            "text": "Performance Tests ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Completed ✅' }}",
             "attachments": [{
-              "color": "warning",
+              "color": "${{ contains(needs.*.result, 'failure') && 'warning' || 'good' }}",
               "fields": [{
                 "title": "Repository",
                 "value": "${{ github.repository }}",
                 "short": true
               }, {
                 "title": "Test Date",
-                "value": "$(date)",
+                "value": "$(date -u)",
                 "short": true
+              }, {
+                "title": "Status",
+                "value": "${{ contains(needs.*.result, 'failure') && 'Performance Issues' || 'All Good' }}",
+                "short": true
+              }],
+              "actions": [{
+                "type": "button",
+                "text": "View Results",
+                "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               }]
             }]
           }

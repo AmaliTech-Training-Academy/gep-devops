@@ -110,24 +110,32 @@ jobs:
         path: lighthouse-report.json
 
   notify:
-    needs: [deploy-to-s3, performance-audit]
+    needs: [build-and-test, deploy-to-s3, performance-audit]
     if: always()
     runs-on: ubuntu-latest
     steps:
     - name: Slack Notification
       uses: 8398a7/action-slack@v3
       with:
-        status: ${{ job.status }}
+        status: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
         channel: '#deployments'
         webhook_url: ${{ secrets.SLACK_WEBHOOK }}
         custom_payload: |
           {
-            "text": "Frontend Deployment ${{ job.status }}",
+            "text": "Frontend Deployment ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Succeeded ✅' }}",
             "attachments": [{
-              "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
+              "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
               "fields": [{
-                "title": "Environment",
+                "title": "Repository",
+                "value": "event-planner-frontend",
+                "short": true
+              }, {
+                "title": "Environment", 
                 "value": "${{ env.ENVIRONMENT }}",
+                "short": true
+              }, {
+                "title": "Branch",
+                "value": "${{ github.event.client_payload.branch || 'manual' }}",
                 "short": true
               }, {
                 "title": "Commit",
