@@ -2,6 +2,7 @@
 # ==============================================================================
 # Development Environment Variables
 # ==============================================================================
+# Updated to test pipeline trigger
 
 variable "aws_region" {
   description = "AWS region for infrastructure deployment"
