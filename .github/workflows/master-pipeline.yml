@@ -41,6 +41,7 @@ on:
         default: false
         type: boolean
 
+
 jobs:
   pipeline-start:
     runs-on: ubuntu-latest
@@ -87,6 +88,10 @@ jobs:
                 "title": "Infrastructure",
                 "value": "${{ inputs.run_infrastructure && '✅' || '❌' }}",
                 "short": true
+              }, {
+                "title": "Deployment Strategy",
+                "value": "${{ inputs.environment == 'prod' && '🔵🟢 Blue-Green' || '🔄 Rolling' }}",
+                "short": true
               }]
             }]
           }
@@ -104,9 +109,10 @@ jobs:
       action: apply
     secrets: inherit
 
+  # Rolling deployment for dev and staging
   backend-pipeline:
     needs: [pipeline-start, infrastructure-pipeline]
-    if: inputs.run_backend && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
+    if: inputs.run_backend && inputs.environment != 'prod' && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
     uses: ./.github/workflows/backend-ci-cd.yml
     with:
       environment: ${{ inputs.environment }}
@@ -114,10 +120,33 @@ jobs:
 
   frontend-pipeline:
     needs: [pipeline-start, infrastructure-pipeline]
-    if: inputs.run_frontend && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
+    if: inputs.run_frontend && inputs.environment != 'prod' && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
     uses: ./.github/workflows/frontend-ci-cd.yml
     with:
       environment: ${{ inputs.environment }}
+    secrets: inherit
+
+  # Blue-green deployment for production only
+  backend-blue-green:
+    needs: [pipeline-start, infrastructure-pipeline]
+    if: inputs.run_backend && inputs.environment == 'prod' && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
+    strategy:
+      matrix:
+        service: [user-service, event-service, notification-service, gateway-service]
+    uses: ./.github/workflows/backend-blue-green.yml
+    with:
+      environment: ${{ inputs.environment }}
+      service: ${{ matrix.service }}
+      image_tag: ${{ inputs.environment }}-${{ github.sha }}
+    secrets: inherit
+
+  frontend-blue-green:
+    needs: [pipeline-start, infrastructure-pipeline]
+    if: inputs.run_frontend && inputs.environment == 'prod' && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
+    uses: ./.github/workflows/frontend-blue-green.yml
+    with:
+      environment: ${{ inputs.environment }}
+      build_artifact: dist-${{ inputs.environment }}
     secrets: inherit
 
   security-monitoring:
@@ -139,7 +168,7 @@ jobs:
     secrets: inherit
 
   pipeline-summary:
-    needs: [pipeline-start, backend-pipeline, frontend-pipeline, security-monitoring, performance-monitoring, health-monitoring, infrastructure-pipeline]
+    needs: [pipeline-start, backend-pipeline, frontend-pipeline, backend-blue-green, frontend-blue-green, security-monitoring, performance-monitoring, health-monitoring, infrastructure-pipeline]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -151,8 +180,8 @@ jobs:
         echo "**Triggered By:** ${{ github.actor }}" >> pipeline-report.md
         echo "" >> pipeline-report.md
         echo "## Pipeline Results" >> pipeline-report.md
-        echo "- Backend Pipeline: ${{ needs.backend-pipeline.result || 'skipped' }}" >> pipeline-report.md
-        echo "- Frontend Pipeline: ${{ needs.frontend-pipeline.result || 'skipped' }}" >> pipeline-report.md
+        echo "- Backend Pipeline: ${{ needs.backend-pipeline.result || needs.backend-blue-green.result || 'skipped' }}" >> pipeline-report.md
+        echo "- Frontend Pipeline: ${{ needs.frontend-pipeline.result || needs.frontend-blue-green.result || 'skipped' }}" >> pipeline-report.md
         echo "- Security Monitoring: ${{ needs.security-monitoring.result || 'skipped' }}" >> pipeline-report.md
         echo "- Performance Monitoring: ${{ needs.performance-monitoring.result || 'skipped' }}" >> pipeline-report.md
         echo "- Health Monitoring: ${{ needs.health-monitoring.result || 'skipped' }}" >> pipeline-report.md
@@ -185,11 +214,11 @@ jobs:
                 "short": true
               }, {
                 "title": "Backend",
-                "value": "${{ needs.backend-pipeline.result == 'success' && '✅ Success' || needs.backend-pipeline.result == 'failure' && '❌ Failed' || needs.backend-pipeline.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
+                "value": "${{ (needs.backend-pipeline.result == 'success' || needs.backend-blue-green.result == 'success') && '✅ Success' || (needs.backend-pipeline.result == 'failure' || needs.backend-blue-green.result == 'failure') && '❌ Failed' || (needs.backend-pipeline.result == 'skipped' && needs.backend-blue-green.result == 'skipped') && '⏭️ Skipped' || '⏳ Running' }}",
                 "short": true
               }, {
                 "title": "Frontend", 
-                "value": "${{ needs.frontend-pipeline.result == 'success' && '✅ Success' || needs.frontend-pipeline.result == 'failure' && '❌ Failed' || needs.frontend-pipeline.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
+                "value": "${{ (needs.frontend-pipeline.result == 'success' || needs.frontend-blue-green.result == 'success') && '✅ Success' || (needs.frontend-pipeline.result == 'failure' || needs.frontend-blue-green.result == 'failure') && '❌ Failed' || (needs.frontend-pipeline.result == 'skipped' && needs.frontend-blue-green.result == 'skipped') && '⏭️ Skipped' || '⏳ Running' }}",
                 "short": true
               }, {
                 "title": "Security",
