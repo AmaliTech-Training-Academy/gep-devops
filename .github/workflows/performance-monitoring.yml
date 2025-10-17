@@ -105,43 +105,43 @@ jobs:
           --period 300 \
           --statistics Average
 
-  notify-performance-status:
-    needs: [load-testing, lighthouse-audit, database-performance]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-    - name: Slack Performance Status
-      uses: 8398a7/action-slack@v3
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      with:
-        status: custom
-        custom_payload: |
-          {
-            "text": "Performance Tests ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Completed ✅' }}",
-            "attachments": [{
-              "color": "${{ contains(needs.*.result, 'failure') && 'warning' || 'good' }}",
-              "fields": [{
-                "title": "Repository",
-                "value": "${{ github.repository }}",
-                "short": true
-              }, {
-                "title": "Test Date",
-                "value": "$(date -u)",
-                "short": true
-              }, {
-                "title": "Status",
-                "value": "${{ contains(needs.*.result, 'failure') && 'Performance Issues' || 'All Good' }}",
-                "short": true
-              }, {
-                "title": "Triggered By",
-                "value": "${{ github.actor }}",
-                "short": true
-              }],
-              "actions": [{
-                "type": "button",
-                "text": "View Results",
-                "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              }]
-            }]
-          }
+  # notify-performance-status:
+  #   needs: [load-testing, lighthouse-audit, database-performance]
+  #   if: always()
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Slack Performance Status
+  #     uses: 8398a7/action-slack@v3
+  #     env:
+  #       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  #     with:
+  #       status: custom
+  #       custom_payload: |
+  #         {
+  #           "text": "Performance Tests ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Completed ✅' }}",
+  #           "attachments": [{
+  #             "color": "${{ contains(needs.*.result, 'failure') && 'warning' || 'good' }}",
+  #             "fields": [{
+  #               "title": "Repository",
+  #               "value": "${{ github.repository }}",
+  #               "short": true
+  #             }, {
+  #               "title": "Test Date",
+  #               "value": "$(date -u)",
+  #               "short": true
+  #             }, {
+  #               "title": "Status",
+  #               "value": "${{ contains(needs.*.result, 'failure') && 'Performance Issues' || 'All Good' }}",
+  #               "short": true
+  #             }, {
+  #               "title": "Triggered By",
+  #               "value": "${{ github.actor }}",
+  #               "short": true
+  #             }],
+  #             "actions": [{
+  #               "type": "button",
+  #               "text": "View Results",
+  #               "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  #             }]
+  #           }]
+  #         }
