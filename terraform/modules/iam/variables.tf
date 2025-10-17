@@ -30,3 +30,18 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "github_repository" {
+  description = "GitHub repository in format 'owner/repo' for OIDC trust policy"
+  type        = string
+}
+
+variable "terraform_state_bucket_arn" {
+  description = "ARN of the S3 bucket storing Terraform state"
+  type        = string
+}
+
+variable "terraform_lock_table_arn" {
+  description = "ARN of the DynamoDB table for Terraform state locking"
+  type        = string
+}

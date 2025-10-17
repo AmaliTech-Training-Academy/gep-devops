@@ -24,7 +24,7 @@ on:
 
 env:
   TF_VERSION: '1.6.0'
-  AWS_DEFAULT_REGION: eu-west-1
+  AWS_REGION: eu-west-1
 
 jobs:
   terraform-validate:
@@ -130,7 +130,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+        aws-region: ${{ env.AWS_REGION }}
 
     - name: Terraform Init
       run: |
@@ -206,7 +206,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+        aws-region: ${{ env.AWS_REGION }}
 
     - name: Terraform Init
       run: |
@@ -257,7 +257,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+        aws-region: ${{ env.AWS_REGION }}
 
     - name: Terraform Init
       run: |
@@ -313,7 +313,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+        aws-region: ${{ env.AWS_REGION }}
 
     - name: Terraform Init
       run: |
@@ -399,7 +399,7 @@ jobs:
                 "short": true
               }, {
                 "title": "AWS Region",
-                "value": "${{ env.AWS_DEFAULT_REGION }}",
+                "value": "${{ env.AWS_REGION }}",
                 "short": true
               }, {
                 "title": "Triggered By",
