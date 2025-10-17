@@ -60,8 +60,34 @@ variable "enable_flow_logs" {
 variable "tags" {
   description = "Additional tags for all resources"
   type        = map(string)
-  default     = {
+  default = {
     CostCenter = "Engineering"
     Owner      = "DevOps Team"
   }
+}
+
+# Secrets variables
+variable "db_master_password" {
+  description = "Master password for RDS databases"
+  type        = string
+  sensitive   = true
+}
+
+variable "docdb_master_password" {
+  description = "Master password for DocumentDB"
+  type        = string
+  sensitive   = true
+}
+
+variable "jwt_secret_key" {
+  description = "JWT signing secret key"
+  type        = string
+  sensitive   = true
+}
+
+# GitHub OIDC variables
+variable "github_repository" {
+  description = "GitHub repository in format 'owner/repo'"
+  type        = string
+  default     = "your-org/event-planner"
 }
