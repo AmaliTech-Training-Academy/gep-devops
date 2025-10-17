@@ -5,42 +5,41 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy'
+        description: "Environment to deploy"
         required: true
-        default: 'dev'
+        default: "dev"
         type: choice
         options: [dev, staging, prod]
       run_backend:
-        description: 'Run Backend Pipeline'
+        description: "Run Backend Pipeline"
         required: false
         default: true
         type: boolean
       run_frontend:
-        description: 'Run Frontend Pipeline'
+        description: "Run Frontend Pipeline"
         required: false
         default: true
         type: boolean
       run_security:
-        description: 'Run Security Monitoring'
+        description: "Run Security Monitoring"
         required: false
         default: true
         type: boolean
       run_performance:
-        description: 'Run Performance Tests'
+        description: "Run Performance Tests"
         required: false
         default: false
         type: boolean
       run_health:
-        description: 'Run Health Checks'
+        description: "Run Health Checks"
         required: false
         default: true
         type: boolean
       run_infrastructure:
-        description: 'Run Infrastructure Pipeline'
+        description: "Run Infrastructure Pipeline"
         required: false
         default: false
         type: boolean
-
 
 jobs:
   pipeline-start:
@@ -49,56 +48,56 @@ jobs:
       environment: ${{ inputs.environment }}
       timestamp: ${{ steps.timestamp.outputs.timestamp }}
     steps:
-    - name: Pipeline Start Notification
-      uses: 8398a7/action-slack@v3
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      with:
-        status: custom
-        custom_payload: |
-          {
-            "text": "🚀 Master Pipeline Started",
-            "attachments": [{
-              "color": "good",
-              "fields": [{
-                "title": "Environment",
-                "value": "${{ inputs.environment }}",
-                "short": true
-              }, {
-                "title": "Triggered By",
-                "value": "${{ github.actor }}",
-                "short": true
-              }, {
-                "title": "Backend",
-                "value": "${{ inputs.run_backend && '✅' || '❌' }}",
-                "short": true
-              }, {
-                "title": "Frontend",
-                "value": "${{ inputs.run_frontend && '✅' || '❌' }}",
-                "short": true
-              }, {
-                "title": "Security",
-                "value": "${{ inputs.run_security && '✅' || '❌' }}",
-                "short": true
-              }, {
-                "title": "Performance",
-                "value": "${{ inputs.run_performance && '✅' || '❌' }}",
-                "short": true
-              }, {
-                "title": "Infrastructure",
-                "value": "${{ inputs.run_infrastructure && '✅' || '❌' }}",
-                "short": true
-              }, {
-                "title": "Deployment Strategy",
-                "value": "${{ inputs.environment == 'prod' && '🔵🟢 Blue-Green' || '🔄 Rolling' }}",
-                "short": true
+      - name: Pipeline Start Notification
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "🚀 Master Pipeline Started",
+              "attachments": [{
+                "color": "good",
+                "fields": [{
+                  "title": "Environment",
+                  "value": "${{ inputs.environment }}",
+                  "short": true
+                }, {
+                  "title": "Triggered By",
+                  "value": "${{ github.actor }}",
+                  "short": true
+                }, {
+                  "title": "Backend",
+                  "value": "${{ inputs.run_backend && '✅' || '❌' }}",
+                  "short": true
+                }, {
+                  "title": "Frontend",
+                  "value": "${{ inputs.run_frontend && '✅' || '❌' }}",
+                  "short": true
+                }, {
+                  "title": "Security",
+                  "value": "${{ inputs.run_security && '✅' || '❌' }}",
+                  "short": true
+                }, {
+                  "title": "Performance",
+                  "value": "${{ inputs.run_performance && '✅' || '❌' }}",
+                  "short": true
+                }, {
+                  "title": "Infrastructure",
+                  "value": "${{ inputs.run_infrastructure && '✅' || '❌' }}",
+                  "short": true
+                }, {
+                  "title": "Deployment Strategy",
+                  "value": "${{ inputs.environment == 'prod' && '🔵🟢 Blue-Green' || '🔄 Rolling' }}",
+                  "short": true
+                }]
               }]
-            }]
-          }
+            }
 
-    - name: Generate Timestamp
-      id: timestamp
-      run: echo "timestamp=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+      - name: Generate Timestamp
+        id: timestamp
+        run: echo "timestamp=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
 
   infrastructure-pipeline:
     needs: pipeline-start
@@ -132,7 +131,8 @@ jobs:
     if: inputs.run_backend && inputs.environment == 'prod' && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
     strategy:
       matrix:
-        service: [user-service, event-service, notification-service, gateway-service]
+        service:
+          [user-service, event-service, notification-service, gateway-service]
     uses: ./.github/workflows/backend-blue-green.yml
     with:
       environment: ${{ inputs.environment }}
@@ -168,83 +168,94 @@ jobs:
     secrets: inherit
 
   pipeline-summary:
-    needs: [pipeline-start, backend-pipeline, frontend-pipeline, backend-blue-green, frontend-blue-green, security-monitoring, performance-monitoring, health-monitoring, infrastructure-pipeline]
+    needs:
+      [
+        pipeline-start,
+        backend-pipeline,
+        frontend-pipeline,
+        backend-blue-green,
+        frontend-blue-green,
+        security-monitoring,
+        performance-monitoring,
+        health-monitoring,
+        infrastructure-pipeline,
+      ]
     if: always()
     runs-on: ubuntu-latest
     steps:
-    - name: Generate Pipeline Report
-      run: |
-        echo "# Master Pipeline Report" > pipeline-report.md
-        echo "**Environment:** ${{ inputs.environment }}" >> pipeline-report.md
-        echo "**Timestamp:** ${{ needs.pipeline-start.outputs.timestamp }}" >> pipeline-report.md
-        echo "**Triggered By:** ${{ github.actor }}" >> pipeline-report.md
-        echo "" >> pipeline-report.md
-        echo "## Pipeline Results" >> pipeline-report.md
-        echo "- Backend Pipeline: ${{ needs.backend-pipeline.result || needs.backend-blue-green.result || 'skipped' }}" >> pipeline-report.md
-        echo "- Frontend Pipeline: ${{ needs.frontend-pipeline.result || needs.frontend-blue-green.result || 'skipped' }}" >> pipeline-report.md
-        echo "- Security Monitoring: ${{ needs.security-monitoring.result || 'skipped' }}" >> pipeline-report.md
-        echo "- Performance Monitoring: ${{ needs.performance-monitoring.result || 'skipped' }}" >> pipeline-report.md
-        echo "- Health Monitoring: ${{ needs.health-monitoring.result || 'skipped' }}" >> pipeline-report.md
-        echo "- Infrastructure Pipeline: ${{ needs.infrastructure-pipeline.result || 'skipped' }}" >> pipeline-report.md
+      - name: Generate Pipeline Report
+        run: |
+          echo "# Master Pipeline Report" > pipeline-report.md
+          echo "**Environment:** ${{ inputs.environment }}" >> pipeline-report.md
+          echo "**Timestamp:** ${{ needs.pipeline-start.outputs.timestamp }}" >> pipeline-report.md
+          echo "**Triggered By:** ${{ github.actor }}" >> pipeline-report.md
+          echo "" >> pipeline-report.md
+          echo "## Pipeline Results" >> pipeline-report.md
+          echo "- Backend Pipeline: ${{ needs.backend-pipeline.result || needs.backend-blue-green.result || 'skipped' }}" >> pipeline-report.md
+          echo "- Frontend Pipeline: ${{ needs.frontend-pipeline.result || needs.frontend-blue-green.result || 'skipped' }}" >> pipeline-report.md
+          echo "- Security Monitoring: ${{ needs.security-monitoring.result || 'skipped' }}" >> pipeline-report.md
+          echo "- Performance Monitoring: ${{ needs.performance-monitoring.result || 'skipped' }}" >> pipeline-report.md
+          echo "- Health Monitoring: ${{ needs.health-monitoring.result || 'skipped' }}" >> pipeline-report.md
+          echo "- Infrastructure Pipeline: ${{ needs.infrastructure-pipeline.result || 'skipped' }}" >> pipeline-report.md
 
-    - name: Upload Pipeline Report
-      uses: actions/upload-artifact@v4
-      with:
-        name: pipeline-report-${{ needs.pipeline-start.outputs.timestamp }}
-        path: pipeline-report.md
+      - name: Upload Pipeline Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-report-${{ needs.pipeline-start.outputs.timestamp }}
+          path: pipeline-report.md
 
-    - name: Final Pipeline Status
-      uses: 8398a7/action-slack@v3
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      with:
-        status: custom
-        custom_payload: |
-          {
-            "text": "Master Pipeline ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Completed ✅' }}",
-            "attachments": [{
-              "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
-              "fields": [{
-                "title": "Environment",
-                "value": "${{ inputs.environment }}",
-                "short": true
-              }, {
-                "title": "Duration",
-                "value": "${{ github.event.workflow_run.conclusion && github.event.workflow_run.updated_at || 'In Progress' }}",
-                "short": true
-              }, {
-                "title": "Backend",
-                "value": "${{ (needs.backend-pipeline.result == 'success' || needs.backend-blue-green.result == 'success') && '✅ Success' || (needs.backend-pipeline.result == 'failure' || needs.backend-blue-green.result == 'failure') && '❌ Failed' || (needs.backend-pipeline.result == 'skipped' && needs.backend-blue-green.result == 'skipped') && '⏭️ Skipped' || '⏳ Running' }}",
-                "short": true
-              }, {
-                "title": "Frontend", 
-                "value": "${{ (needs.frontend-pipeline.result == 'success' || needs.frontend-blue-green.result == 'success') && '✅ Success' || (needs.frontend-pipeline.result == 'failure' || needs.frontend-blue-green.result == 'failure') && '❌ Failed' || (needs.frontend-pipeline.result == 'skipped' && needs.frontend-blue-green.result == 'skipped') && '⏭️ Skipped' || '⏳ Running' }}",
-                "short": true
-              }, {
-                "title": "Security",
-                "value": "${{ needs.security-monitoring.result == 'success' && '✅ Success' || needs.security-monitoring.result == 'failure' && '❌ Failed' || needs.security-monitoring.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
-                "short": true
-              }, {
-                "title": "Performance",
-                "value": "${{ needs.performance-monitoring.result == 'success' && '✅ Success' || needs.performance-monitoring.result == 'failure' && '❌ Failed' || needs.performance-monitoring.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
-                "short": true
-              }, {
-                "title": "Health",
-                "value": "${{ needs.health-monitoring.result == 'success' && '✅ Success' || needs.health-monitoring.result == 'failure' && '❌ Failed' || needs.health-monitoring.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
-                "short": true
-              }, {
-                "title": "Infrastructure",
-                "value": "${{ needs.infrastructure-pipeline.result == 'success' && '✅ Success' || needs.infrastructure-pipeline.result == 'failure' && '❌ Failed' || needs.infrastructure-pipeline.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
-                "short": true
-              }, {
-                "title": "Triggered By",
-                "value": "${{ github.actor }}",
-                "short": true
-              }],
-              "actions": [{
-                "type": "button",
-                "text": "View Full Report",
-                "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      - name: Final Pipeline Status
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "Master Pipeline ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Completed ✅' }}",
+              "attachments": [{
+                "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
+                "fields": [{
+                  "title": "Environment",
+                  "value": "${{ inputs.environment }}",
+                  "short": true
+                }, {
+                  "title": "Duration",
+                  "value": "${{ github.event.workflow_run.conclusion && github.event.workflow_run.updated_at || 'In Progress' }}",
+                  "short": true
+                }, {
+                  "title": "Backend",
+                  "value": "${{ (needs.backend-pipeline.result == 'success' || needs.backend-blue-green.result == 'success') && '✅ Success' || (needs.backend-pipeline.result == 'failure' || needs.backend-blue-green.result == 'failure') && '❌ Failed' || (needs.backend-pipeline.result == 'skipped' && needs.backend-blue-green.result == 'skipped') && '⏭️ Skipped' || '⏳ Running' }}",
+                  "short": true
+                }, {
+                  "title": "Frontend", 
+                  "value": "${{ (needs.frontend-pipeline.result == 'success' || needs.frontend-blue-green.result == 'success') && '✅ Success' || (needs.frontend-pipeline.result == 'failure' || needs.frontend-blue-green.result == 'failure') && '❌ Failed' || (needs.frontend-pipeline.result == 'skipped' && needs.frontend-blue-green.result == 'skipped') && '⏭️ Skipped' || '⏳ Running' }}",
+                  "short": true
+                }, {
+                  "title": "Security",
+                  "value": "${{ needs.security-monitoring.result == 'success' && '✅ Success' || needs.security-monitoring.result == 'failure' && '❌ Failed' || needs.security-monitoring.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
+                  "short": true
+                }, {
+                  "title": "Performance",
+                  "value": "${{ needs.performance-monitoring.result == 'success' && '✅ Success' || needs.performance-monitoring.result == 'failure' && '❌ Failed' || needs.performance-monitoring.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
+                  "short": true
+                }, {
+                  "title": "Health",
+                  "value": "${{ needs.health-monitoring.result == 'success' && '✅ Success' || needs.health-monitoring.result == 'failure' && '❌ Failed' || needs.health-monitoring.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
+                  "short": true
+                }, {
+                  "title": "Infrastructure",
+                  "value": "${{ needs.infrastructure-pipeline.result == 'success' && '✅ Success' || needs.infrastructure-pipeline.result == 'failure' && '❌ Failed' || needs.infrastructure-pipeline.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
+                  "short": true
+                }, {
+                  "title": "Triggered By",
+                  "value": "${{ github.actor }}",
+                  "short": true
+                }],
+                "actions": [{
+                  "type": "button",
+                  "text": "View Full Report",
+                  "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                }]
               }]
-            }]
-          }
+            }
