@@ -114,7 +114,78 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-    - name: Slack Notification
+    - name: Checkout for notification context
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ env.FRONTEND_REPO }}
+        ref: ${{ env.COMMIT_SHA }}
+        token: ${{ secrets.FRONTEND_REPO_TOKEN }}
+        fetch-depth: 0
+
+    - name: Get commit details
+      id: commit_info
+      run: |
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
+        COMMIT_TIME=$(git log -1 --pretty=format:'%ci')
+        
+        # Escape special characters for JSON
+        COMMIT_MSG=$(echo "$COMMIT_MSG" | head -n 1 | sed 's/"/\\"/g')
+        
+        echo "message=$COMMIT_MSG" >> $GITHUB_OUTPUT
+        echo "author=$COMMIT_AUTHOR" >> $GITHUB_OUTPUT
+        echo "time=$COMMIT_TIME" >> $GITHUB_OUTPUT
+
+    - name: Get job durations
+      id: durations
+      run: |
+        echo "workflow_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+
+    - name: Download Lighthouse Report (if exists)
+      if: needs.performance-audit.result == 'success'
+      uses: actions/download-artifact@v4
+      continue-on-error: true
+      with:
+        name: lighthouse-report-${{ env.ENVIRONMENT }}
+        path: ./reports
+
+    - name: Parse Lighthouse Scores
+      id: lighthouse
+      if: needs.performance-audit.result == 'success'
+      run: |
+        if [ -f "./reports/lighthouse-report.json" ]; then
+          PERFORMANCE=$(jq -r '.categories.performance.score * 100 | floor' ./reports/lighthouse-report.json)
+          ACCESSIBILITY=$(jq -r '.categories.accessibility.score * 100 | floor' ./reports/lighthouse-report.json)
+          BEST_PRACTICES=$(jq -r '.categories["best-practices"].score * 100 | floor' ./reports/lighthouse-report.json)
+          SEO=$(jq -r '.categories.seo.score * 100 | floor' ./reports/lighthouse-report.json)
+          
+          echo "performance=$PERFORMANCE" >> $GITHUB_OUTPUT
+          echo "accessibility=$ACCESSIBILITY" >> $GITHUB_OUTPUT
+          echo "best_practices=$BEST_PRACTICES" >> $GITHUB_OUTPUT
+          echo "seo=$SEO" >> $GITHUB_OUTPUT
+          echo "has_scores=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_scores=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Determine overall status
+      id: status
+      run: |
+        if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+          echo "result=failure" >> $GITHUB_OUTPUT
+          echo "emoji=❌" >> $GITHUB_OUTPUT
+          echo "color=danger" >> $GITHUB_OUTPUT
+        elif [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+          echo "result=cancelled" >> $GITHUB_OUTPUT
+          echo "emoji=⚠️" >> $GITHUB_OUTPUT
+          echo "color=warning" >> $GITHUB_OUTPUT
+        else
+          echo "result=success" >> $GITHUB_OUTPUT
+          echo "emoji=✅" >> $GITHUB_OUTPUT
+          echo "color=good" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Enhanced Slack Notification
       uses: 8398a7/action-slack@v3
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -122,29 +193,133 @@ jobs:
         status: custom
         custom_payload: |
           {
-            "text": "Frontend Deployment ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Succeeded ✅' }}",
-            "attachments": [{
-              "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
-              "fields": [{
-                "title": "Repository",
-                "value": "event-planner-frontend",
-                "short": true
-              }, {
-                "title": "Environment", 
-                "value": "${{ env.ENVIRONMENT }}",
-                "short": true
-              }, {
-                "title": "Branch",
-                "value": "${{ github.event.client_payload.branch || 'manual' }}",
-                "short": true
-              }, {
-                "title": "Commit",
-                "value": "${{ env.COMMIT_SHA }}",
-                "short": true
-              }, {
-                "title": "Triggered By",
-                "value": "${{ github.actor }}",
-                "short": true
-              }]
-            }]
+            "text": "Frontend Deployment ${{ steps.status.outputs.result == 'success' && 'Succeeded ✅' || steps.status.outputs.result == 'cancelled' && 'Cancelled ⚠️' || 'Failed ❌' }}",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "${{ steps.status.outputs.emoji }} Frontend Deployment ${{ steps.status.outputs.result == 'success' && 'Succeeded' || steps.status.outputs.result == 'cancelled' && 'Cancelled' || 'Failed' }}",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Environment:*\n`${{ env.ENVIRONMENT }}`"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Repository:*\nevent-planner-frontend"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Branch:*\n${{ github.event.client_payload.branch || 'manual' }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Triggered By:*\n${{ github.actor }}"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Commit:*\n<${{ github.server_url }}/${{ env.FRONTEND_REPO }}/commit/${{ env.COMMIT_SHA }}|`${{ env.COMMIT_SHA }}`>"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Author:*\n${{ steps.commit_info.outputs.author }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Commit Message:*\n${{ steps.commit_info.outputs.message }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Commit Time:*\n${{ steps.commit_info.outputs.time }}"
+                  }
+                ]
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Job Status:*"
+                },
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "${{ needs.build-and-test.result == 'success' && '✅' || needs.build-and-test.result == 'failure' && '❌' || '⚠️' }} Build & Test"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "${{ needs.deploy-to-s3.result == 'success' && '✅' || needs.deploy-to-s3.result == 'failure' && '❌' || '⚠️' }} Deploy to S3"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "${{ needs.performance-audit.result == 'success' && '✅' || needs.performance-audit.result == 'failure' && '❌' || needs.performance-audit.result == 'skipped' && '⏭️' || '⚠️' }} Performance Audit"
+                  }
+                ]
+              }
+              ${{ steps.lighthouse.outputs.has_scores == 'true' && format(',{{
+                "type": "divider"
+              }},{{
+                "type": "section",
+                "text": {{
+                  "type": "mrkdwn",
+                  "text": "*Lighthouse Scores:*"
+                }},
+                "fields": [
+                  {{
+                    "type": "mrkdwn",
+                    "text": "🚀 *Performance:* {0}/100"
+                  }},
+                  {{
+                    "type": "mrkdwn",
+                    "text": "♿ *Accessibility:* {1}/100"
+                  }},
+                  {{
+                    "type": "mrkdwn",
+                    "text": "✨ *Best Practices:* {2}/100"
+                  }},
+                  {{
+                    "type": "mrkdwn",
+                    "text": "🔍 *SEO:* {3}/100"
+                  }}
+                ]
+              }}', steps.lighthouse.outputs.performance, steps.lighthouse.outputs.accessibility, steps.lighthouse.outputs.best_practices, steps.lighthouse.outputs.seo) || '' }},
+              {
+                "type": "divider"
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Deployment URL:*\n${{ env.ENVIRONMENT == 'prod' && 'https://gep.com' || env.ENVIRONMENT == 'staging' && 'https://staging.gep.com' || 'https://dev.gep.com' }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Workflow Run:*\n<${{ steps.durations.outputs.workflow_url }}|View Details>"
+                  }
+                ]
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "⏱️ Workflow completed at <!date^${{ github.event.repository.updated_at }}^{date_short_pretty} {time}|unknown time>"
+                  }
+                ]
+              }
+            ]
           }
