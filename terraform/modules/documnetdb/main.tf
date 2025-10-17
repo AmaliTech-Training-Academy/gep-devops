@@ -66,14 +66,14 @@
 #   backup_retention_period = var.backup_retention_period
 #   preferred_backup_window = var.preferred_backup_window
 #   skip_final_snapshot     = var.skip_final_snapshot
-  
+
 #   db_subnet_group_name            = aws_docdb_subnet_group.main.name
 #   db_cluster_parameter_group_name = aws_docdb_cluster_parameter_group.main.name
 #   vpc_security_group_ids          = var.vpc_security_group_ids
-  
+
 #   storage_encrypted = true
 #   kms_key_id        = var.kms_key_id
-  
+
 #   enabled_cloudwatch_logs_exports = ["audit", "profiler"]
 
 #   tags = merge(

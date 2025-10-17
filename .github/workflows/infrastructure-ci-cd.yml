@@ -31,7 +31,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        environment: [dev, staging, prod]
+        environment: |
+          ${{ 
+            github.ref == 'refs/heads/dev' && '["dev"]' ||
+            github.ref == 'refs/heads/staging' && '["staging"]' ||
+            github.ref == 'refs/heads/main' && '["prod"]' ||
+            github.event_name == 'workflow_dispatch' && format('[{0}]', toJSON(inputs.environment)) ||
+            '["dev", "staging", "prod"]'
+          }}
     
     steps:
     - name: Checkout code
@@ -114,7 +121,15 @@ jobs:
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'plan')
     strategy:
       matrix:
-        environment: [dev, staging, prod]
+        environment: |
+          ${{ 
+            github.ref == 'refs/heads/dev' && '["dev"]' ||
+            github.ref == 'refs/heads/staging' && '["staging"]' ||
+            github.ref == 'refs/heads/main' && '["prod"]' ||
+            github.event_name == 'workflow_dispatch' && format('[{0}]', toJSON(inputs.environment)) ||
+            github.event_name == 'pull_request' && '["dev", "staging", "prod"]' ||
+            '["dev"]'
+          }}
     
     steps:
     - name: Checkout code
