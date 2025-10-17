@@ -194,12 +194,12 @@ output "acm_certificate_status" {
 output "database_connection_strings" {
   description = "Database connection strings for microservices"
   value = {
-    auth_db = "postgresql://postgres:${module.rds_auth.endpoint}/auth"
-    event_db = "postgresql://postgres:${module.rds_event.endpoint}/event"
+    auth_db    = "postgresql://postgres:${module.rds_auth.endpoint}/auth"
+    event_db   = "postgresql://postgres:${module.rds_event.endpoint}/event"
     booking_db = "postgresql://postgres:${module.rds_booking.endpoint}/booking"
     payment_db = "postgresql://postgres:${module.rds_payment.endpoint}/payment"
     documentdb = "mongodb://${module.documentdb.endpoint}:27017/audit_logs"
-    redis = "redis://${module.elasticache.cache_nodes[0].address}:6379"
+    redis      = "redis://${module.elasticache.cache_nodes[0].address}:6379"
   }
   sensitive = true
 }
@@ -219,7 +219,7 @@ output "service_discovery_endpoints" {
 # Cost Optimization Information
 output "cost_optimization_tips" {
   description = "Tips for reducing costs in development environment"
-  value = <<-EOT
+  value       = <<-EOT
     Development Environment Cost Optimization:
     
     1. Stop ECS services when not in use:
@@ -245,7 +245,7 @@ output "cost_optimization_tips" {
 # Deployment Instructions
 output "deployment_instructions" {
   description = "Instructions for deploying applications"
-  value = <<-EOT
+  value       = <<-EOT
     Deployment Instructions:
     
     FRONTEND DEPLOYMENT:

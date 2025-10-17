@@ -12,7 +12,7 @@
 
 terraform {
   required_version = ">= 1.5.0"
-  
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -29,7 +29,7 @@ terraform {
 
 resource "aws_iam_role" "ecs_task_execution" {
   name_prefix = "${var.project_name}-${var.environment}-ecs-execution-"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -42,7 +42,7 @@ resource "aws_iam_role" "ecs_task_execution" {
       }
     ]
   })
-  
+
   tags = merge(
     var.tags,
     {
@@ -61,7 +61,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
 resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
   name_prefix = "secrets-access-"
   role        = aws_iam_role.ecs_task_execution.id
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -83,7 +83,7 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
 # Auth Service Task Role
 resource "aws_iam_role" "auth_service_task" {
   name_prefix = "${var.project_name}-${var.environment}-auth-task-"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -96,7 +96,7 @@ resource "aws_iam_role" "auth_service_task" {
       }
     ]
   })
-  
+
   tags = merge(
     var.tags,
     {
@@ -108,7 +108,7 @@ resource "aws_iam_role" "auth_service_task" {
 resource "aws_iam_role_policy" "auth_service_task" {
   name_prefix = "auth-service-permissions-"
   role        = aws_iam_role.auth_service_task.id
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -137,7 +137,7 @@ resource "aws_iam_role_policy" "auth_service_task" {
 # Event Service Task Role
 resource "aws_iam_role" "event_service_task" {
   name_prefix = "${var.project_name}-${var.environment}-event-task-"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -150,7 +150,7 @@ resource "aws_iam_role" "event_service_task" {
       }
     ]
   })
-  
+
   tags = merge(
     var.tags,
     {
@@ -162,7 +162,7 @@ resource "aws_iam_role" "event_service_task" {
 resource "aws_iam_role_policy" "event_service_task" {
   name_prefix = "event-service-permissions-"
   role        = aws_iam_role.event_service_task.id
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
