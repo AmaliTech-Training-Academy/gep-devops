@@ -1,6 +1,7 @@
 name: Master Pipeline Orchestrator
 
 on:
+  # Manual trigger (primary method)
   workflow_dispatch:
     inputs:
       environment:
@@ -33,6 +34,11 @@ on:
         description: 'Run Health Checks'
         required: false
         default: true
+        type: boolean
+      run_infrastructure:
+        description: 'Run Infrastructure Pipeline'
+        required: false
+        default: false
         type: boolean
 
 jobs:
@@ -77,6 +83,10 @@ jobs:
                 "title": "Performance",
                 "value": "${{ inputs.run_performance && '✅' || '❌' }}",
                 "short": true
+              }, {
+                "title": "Infrastructure",
+                "value": "${{ inputs.run_infrastructure && '✅' || '❌' }}",
+                "short": true
               }]
             }]
           }
@@ -85,42 +95,51 @@ jobs:
       id: timestamp
       run: echo "timestamp=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
 
-  backend-pipeline:
+  infrastructure-pipeline:
     needs: pipeline-start
-    if: inputs.run_backend
+    if: inputs.run_infrastructure
+    uses: ./.github/workflows/infrastructure-ci-cd.yml
+    with:
+      environment: ${{ inputs.environment }}
+      action: apply
+    secrets: inherit
+
+  backend-pipeline:
+    needs: [pipeline-start, infrastructure-pipeline]
+    if: inputs.run_backend && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
     uses: ./.github/workflows/backend-ci-cd.yml
     with:
       environment: ${{ inputs.environment }}
     secrets: inherit
 
   frontend-pipeline:
-    needs: pipeline-start
-    if: inputs.run_frontend
+    needs: [pipeline-start, infrastructure-pipeline]
+    if: inputs.run_frontend && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
     uses: ./.github/workflows/frontend-ci-cd.yml
     with:
       environment: ${{ inputs.environment }}
     secrets: inherit
 
   security-monitoring:
-    needs: pipeline-start
-    if: inputs.run_security
+    needs: [pipeline-start, infrastructure-pipeline]
+    if: inputs.run_security && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
     uses: ./.github/workflows/security-monitoring.yml
     secrets: inherit
 
   performance-monitoring:
-    needs: pipeline-start
-    if: inputs.run_performance
+    needs: [pipeline-start, infrastructure-pipeline]
+    if: inputs.run_performance && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
     uses: ./.github/workflows/performance-monitoring.yml
     secrets: inherit
 
   health-monitoring:
-    needs: pipeline-start
-    if: inputs.run_health
+    needs: [pipeline-start, infrastructure-pipeline]
+    if: inputs.run_health && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
     uses: ./.github/workflows/health-monitoring.yml
     secrets: inherit
 
   pipeline-summary:
-    needs: [pipeline-start, backend-pipeline, frontend-pipeline, security-monitoring, performance-monitoring, health-monitoring]
+    needs: [pipeline-start, backend-pipeline, frontend-pipeline, security-monitoring, performance-monitoring, health-monitoring, infrastructure-pipeline]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -137,6 +156,7 @@ jobs:
         echo "- Security Monitoring: ${{ needs.security-monitoring.result || 'skipped' }}" >> pipeline-report.md
         echo "- Performance Monitoring: ${{ needs.performance-monitoring.result || 'skipped' }}" >> pipeline-report.md
         echo "- Health Monitoring: ${{ needs.health-monitoring.result || 'skipped' }}" >> pipeline-report.md
+        echo "- Infrastructure Pipeline: ${{ needs.infrastructure-pipeline.result || 'skipped' }}" >> pipeline-report.md
 
     - name: Upload Pipeline Report
       uses: actions/upload-artifact@v4
@@ -182,6 +202,10 @@ jobs:
               }, {
                 "title": "Health",
                 "value": "${{ needs.health-monitoring.result == 'success' && '✅ Success' || needs.health-monitoring.result == 'failure' && '❌ Failed' || needs.health-monitoring.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
+                "short": true
+              }, {
+                "title": "Infrastructure",
+                "value": "${{ needs.infrastructure-pipeline.result == 'success' && '✅ Success' || needs.infrastructure-pipeline.result == 'failure' && '❌ Failed' || needs.infrastructure-pipeline.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
                 "short": true
               }, {
                 "title": "Triggered By",
