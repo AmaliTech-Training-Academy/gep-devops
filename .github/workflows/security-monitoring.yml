@@ -78,43 +78,43 @@ jobs:
           fi
         done
 
-  notify-security-status:
-    needs: [vulnerability-scan, infrastructure-compliance, secrets-scan, ssl-certificate-check]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-    - name: Slack Security Status
-      uses: 8398a7/action-slack@v3
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      with:
-        status: custom
-        custom_payload: |
-          {
-            "text": "Security Scan ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Completed ✅' }}",
-            "attachments": [{
-              "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
-              "fields": [{
-                "title": "Repository",
-                "value": "${{ github.repository }}",
-                "short": true
-              }, {
-                "title": "Scan Date",
-                "value": "$(date -u)",
-                "short": true
-              }, {
-                "title": "Status",
-                "value": "${{ contains(needs.*.result, 'failure') && 'Issues Found' || 'All Clear' }}",
-                "short": true
-              }, {
-                "title": "Triggered By",
-                "value": "${{ github.actor }}",
-                "short": true
-              }],
-              "actions": [{
-                "type": "button",
-                "text": "View Details",
-                "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              }]
-            }]
-          }
+  # notify-security-status:
+  #   needs: [vulnerability-scan, infrastructure-compliance, secrets-scan, ssl-certificate-check]
+  #   if: always()
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Slack Security Status
+  #     uses: 8398a7/action-slack@v3
+  #     env:
+  #       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  #     with:
+  #       status: custom
+  #       custom_payload: |
+  #         {
+  #           "text": "Security Scan ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Completed ✅' }}",
+  #           "attachments": [{
+  #             "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
+  #             "fields": [{
+  #               "title": "Repository",
+  #               "value": "${{ github.repository }}",
+  #               "short": true
+  #             }, {
+  #               "title": "Scan Date",
+  #               "value": "$(date -u)",
+  #               "short": true
+  #             }, {
+  #               "title": "Status",
+  #               "value": "${{ contains(needs.*.result, 'failure') && 'Issues Found' || 'All Clear' }}",
+  #               "short": true
+  #             }, {
+  #               "title": "Triggered By",
+  #               "value": "${{ github.actor }}",
+  #               "short": true
+  #             }],
+  #             "actions": [{
+  #               "type": "button",
+  #               "text": "View Details",
+  #               "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  #             }]
+  #           }]
+  #         }
