@@ -41,7 +41,7 @@ output "aws_account_id" {
 # Output backend configuration for copy-paste
 output "backend_config" {
   description = "Terraform backend configuration block (for reference)"
-  value = <<-EOT
+  value       = <<-EOT
     terraform {
       backend "s3" {
         bucket         = "${aws_s3_bucket.terraform_state.id}"

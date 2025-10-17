@@ -32,7 +32,7 @@ variable "alert_email" {
 variable "tags" {
   description = "Additional tags to apply to all resources"
   type        = map(string)
-  default     = {
+  default = {
     Owner       = "DevOps"
     Environment = "bootstrap"
   }
