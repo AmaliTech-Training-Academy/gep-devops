@@ -1,4 +1,18 @@
 # terraform/modules/security-groups/main.tf
+# ==============================================================================
+# Security Groups Module
+# ==============================================================================
+# This module creates security groups for all infrastructure components following
+# the principle of least privilege. Each resource type has its own security group
+# with minimal required access.
+#
+# Security Groups:
+# - ALB Security Group: HTTPS/HTTP from internet
+# - ECS Security Group: Application ports from ALB + inter-service communication
+# - RDS Security Group: PostgreSQL from ECS only
+# - DocumentDB Security Group: MongoDB from ECS only
+# - ElastiCache Security Group: Redis from ECS only
+# ==============================================================================
 
 terraform {
   required_version = ">= 1.5.0"
@@ -11,25 +25,52 @@ terraform {
   }
 }
 
+# ==============================================================================
+# Local Variables
+# ==============================================================================
+
 locals {
-  common_tags = merge(var.tags, {
-    Module = "SecurityGroups"
-  })
+  common_tags = merge(
+    var.tags,
+    {
+      Module      = "security-groups"
+      Environment = var.environment
+    }
+  )
+  
+  # Microservice ports
+  microservice_ports = {
+    auth_service         = 8081
+    event_service        = 8082
+    booking_service      = 8083
+    payment_service      = 8084
+    notification_service = 8085
+  }
 }
 
+# ==============================================================================
 # ALB Security Group
+# ==============================================================================
+
+# Security group for Application Load Balancer
 resource "aws_security_group" "alb" {
-  name        = "${var.environment}-gep-alb-sg"
+  name_prefix = "${var.project_name}-${var.environment}-alb-"
   description = "Security group for Application Load Balancer"
   vpc_id      = var.vpc_id
-
-  tags = merge(local.common_tags, {
-    Name = "${var.environment}-gep-alb-sg"
-    Component = "LoadBalancer"
-  })
+  
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-alb-sg"
+    }
+  )
+  
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
-# ALB Ingress Rules
+# Allow HTTPS from internet
 resource "aws_vpc_security_group_ingress_rule" "alb_https" {
   security_group_id = aws_security_group.alb.id
   description       = "Allow HTTPS from internet"
@@ -40,10 +81,11 @@ resource "aws_vpc_security_group_ingress_rule" "alb_https" {
   cidr_ipv4   = "0.0.0.0/0"
   
   tags = {
-    Name = "allow-https-inbound"
+    Name = "allow-https-from-internet"
   }
 }
 
+# Allow HTTP from internet (redirect to HTTPS)
 resource "aws_vpc_security_group_ingress_rule" "alb_http" {
   security_group_id = aws_security_group.alb.id
   description       = "Allow HTTP from internet (redirect to HTTPS)"
@@ -54,70 +96,79 @@ resource "aws_vpc_security_group_ingress_rule" "alb_http" {
   cidr_ipv4   = "0.0.0.0/0"
   
   tags = {
-    Name = "allow-http-inbound"
+    Name = "allow-http-from-internet"
   }
 }
 
-# ALB Egress Rules
+# Allow all outbound to ECS
 resource "aws_vpc_security_group_egress_rule" "alb_to_ecs" {
-  security_group_id = aws_security_group.alb.id
-  description       = "Allow traffic to ECS tasks"
+  security_group_id            = aws_security_group.alb.id
+  description                  = "Allow all traffic to ECS"
   
-  from_port                    = 8080
-  to_port                      = 8085
-  ip_protocol                  = "tcp"
+  ip_protocol                  = "-1"
   referenced_security_group_id = aws_security_group.ecs.id
   
   tags = {
-    Name = "allow-to-ecs"
+    Name = "allow-all-to-ecs"
   }
 }
 
+# ==============================================================================
 # ECS Security Group
+# ==============================================================================
+
+# Security group for ECS tasks
 resource "aws_security_group" "ecs" {
-  name        = "${var.environment}-gep-ecs-sg"
+  name_prefix = "${var.project_name}-${var.environment}-ecs-"
   description = "Security group for ECS Fargate tasks"
   vpc_id      = var.vpc_id
-
-  tags = merge(local.common_tags, {
-    Name = "${var.environment}-gep-ecs-sg"
-    Component = "ECS"
-  })
+  
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-ecs-sg"
+    }
+  )
+  
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
-# ECS Ingress Rules
+# Allow traffic from ALB on application ports
 resource "aws_vpc_security_group_ingress_rule" "ecs_from_alb" {
-  security_group_id = aws_security_group.ecs.id
-  description       = "Allow traffic from ALB"
+  for_each = local.microservice_ports
   
-  from_port                    = 8080
-  to_port                      = 8085
+  security_group_id            = aws_security_group.ecs.id
+  description                  = "Allow ${each.key} traffic from ALB"
+  
+  from_port                    = each.value
+  to_port                      = each.value
   ip_protocol                  = "tcp"
   referenced_security_group_id = aws_security_group.alb.id
   
   tags = {
-    Name = "allow-from-alb"
+    Name = "allow-${each.key}-from-alb"
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "ecs_inter_service" {
-  security_group_id = aws_security_group.ecs.id
-  description       = "Allow inter-service communication"
+# Allow inter-service communication within ECS
+resource "aws_vpc_security_group_ingress_rule" "ecs_internal" {
+  security_group_id            = aws_security_group.ecs.id
+  description                  = "Allow inter-service communication within ECS"
   
-  from_port                    = 0
-  to_port                      = 65535
-  ip_protocol                  = "tcp"
+  ip_protocol                  = "-1"
   referenced_security_group_id = aws_security_group.ecs.id
   
   tags = {
-    Name = "allow-inter-service"
+    Name = "allow-ecs-internal"
   }
 }
 
-# ECS Egress Rules
+# Allow outbound to RDS
 resource "aws_vpc_security_group_egress_rule" "ecs_to_rds" {
-  security_group_id = aws_security_group.ecs.id
-  description       = "Allow traffic to RDS PostgreSQL"
+  security_group_id            = aws_security_group.ecs.id
+  description                  = "Allow PostgreSQL to RDS"
   
   from_port                    = 5432
   to_port                      = 5432
@@ -125,42 +176,44 @@ resource "aws_vpc_security_group_egress_rule" "ecs_to_rds" {
   referenced_security_group_id = aws_security_group.rds.id
   
   tags = {
-    Name = "allow-to-rds"
+    Name = "allow-postgres-to-rds"
   }
 }
 
-resource "aws_vpc_security_group_egress_rule" "ecs_to_redis" {
-  security_group_id = aws_security_group.ecs.id
-  description       = "Allow traffic to ElastiCache Redis"
-  
-  from_port                    = 6379
-  to_port                      = 6379
-  ip_protocol                  = "tcp"
-  referenced_security_group_id = aws_security_group.redis.id
-  
-  tags = {
-    Name = "allow-to-redis"
-  }
-}
-
-resource "aws_vpc_security_group_egress_rule" "ecs_to_docdb" {
-  count             = var.enable_docdb ? 1 : 0
-  security_group_id = aws_security_group.ecs.id
-  description       = "Allow traffic to DocumentDB"
+# Allow outbound to DocumentDB
+resource "aws_vpc_security_group_egress_rule" "ecs_to_documentdb" {
+  security_group_id            = aws_security_group.ecs.id
+  description                  = "Allow MongoDB to DocumentDB"
   
   from_port                    = 27017
   to_port                      = 27017
   ip_protocol                  = "tcp"
-  referenced_security_group_id = aws_security_group.docdb[0].id
+  referenced_security_group_id = aws_security_group.documentdb.id
   
   tags = {
-    Name = "allow-to-docdb"
+    Name = "allow-mongodb-to-documentdb"
   }
 }
 
-resource "aws_vpc_security_group_egress_rule" "ecs_to_internet" {
+# Allow outbound to ElastiCache
+resource "aws_vpc_security_group_egress_rule" "ecs_to_elasticache" {
+  security_group_id            = aws_security_group.ecs.id
+  description                  = "Allow Redis to ElastiCache"
+  
+  from_port                    = 6379
+  to_port                      = 6379
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.elasticache.id
+  
+  tags = {
+    Name = "allow-redis-to-elasticache"
+  }
+}
+
+# Allow outbound HTTPS for AWS APIs and external services
+resource "aws_vpc_security_group_egress_rule" "ecs_https" {
   security_group_id = aws_security_group.ecs.id
-  description       = "Allow HTTPS to internet (AWS APIs, external services)"
+  description       = "Allow HTTPS for AWS APIs and external services"
   
   from_port   = 443
   to_port     = 443
@@ -172,21 +225,32 @@ resource "aws_vpc_security_group_egress_rule" "ecs_to_internet" {
   }
 }
 
+# ==============================================================================
 # RDS Security Group
-resource "aws_security_group" "rds" {
-  name        = "${var.environment}-gep-rds-sg"
-  description = "Security group for RDS PostgreSQL instances"
-  vpc_id      = var.vpc_id
+# ==============================================================================
 
-  tags = merge(local.common_tags, {
-    Name = "${var.environment}-gep-rds-sg"
-    Component = "RDS"
-  })
+# Security group for RDS instances
+resource "aws_security_group" "rds" {
+  name_prefix = "${var.project_name}-${var.environment}-rds-"
+  description = "Security group for RDS PostgreSQL databases"
+  vpc_id      = var.vpc_id
+  
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-rds-sg"
+    }
+  )
+  
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
+# Allow PostgreSQL from ECS only
 resource "aws_vpc_security_group_ingress_rule" "rds_from_ecs" {
-  security_group_id = aws_security_group.rds.id
-  description       = "Allow PostgreSQL from ECS tasks"
+  security_group_id            = aws_security_group.rds.id
+  description                  = "Allow PostgreSQL from ECS tasks"
   
   from_port                    = 5432
   to_port                      = 5432
@@ -198,21 +262,71 @@ resource "aws_vpc_security_group_ingress_rule" "rds_from_ecs" {
   }
 }
 
-# ElastiCache Redis Security Group
-resource "aws_security_group" "redis" {
-  name        = "${var.environment}-gep-redis-sg"
-  description = "Security group for ElastiCache Redis cluster"
-  vpc_id      = var.vpc_id
+# No outbound rules (databases don't initiate connections)
 
-  tags = merge(local.common_tags, {
-    Name = "${var.environment}-gep-redis-sg"
-    Component = "ElastiCache"
-  })
+# ==============================================================================
+# DocumentDB Security Group
+# ==============================================================================
+
+# Security group for DocumentDB cluster
+resource "aws_security_group" "documentdb" {
+  name_prefix = "${var.project_name}-${var.environment}-documentdb-"
+  description = "Security group for DocumentDB cluster"
+  vpc_id      = var.vpc_id
+  
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-documentdb-sg"
+    }
+  )
+  
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "redis_from_ecs" {
-  security_group_id = aws_security_group.redis.id
-  description       = "Allow Redis from ECS tasks"
+# Allow MongoDB from ECS only
+resource "aws_vpc_security_group_ingress_rule" "documentdb_from_ecs" {
+  security_group_id            = aws_security_group.documentdb.id
+  description                  = "Allow MongoDB from ECS tasks"
+  
+  from_port                    = 27017
+  to_port                      = 27017
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.ecs.id
+  
+  tags = {
+    Name = "allow-mongodb-from-ecs"
+  }
+}
+
+# ==============================================================================
+# ElastiCache Security Group
+# ==============================================================================
+
+# Security group for ElastiCache cluster
+resource "aws_security_group" "elasticache" {
+  name_prefix = "${var.project_name}-${var.environment}-elasticache-"
+  description = "Security group for ElastiCache Redis cluster"
+  vpc_id      = var.vpc_id
+  
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-elasticache-sg"
+    }
+  )
+  
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Allow Redis from ECS only
+resource "aws_vpc_security_group_ingress_rule" "elasticache_from_ecs" {
+  security_group_id            = aws_security_group.elasticache.id
+  description                  = "Allow Redis from ECS tasks"
   
   from_port                    = 6379
   to_port                      = 6379
@@ -224,30 +338,5 @@ resource "aws_vpc_security_group_ingress_rule" "redis_from_ecs" {
   }
 }
 
-# DocumentDB Security Group
-resource "aws_security_group" "docdb" {
-  count       = var.enable_docdb ? 1 : 0
-  name        = "${var.environment}-gep-docdb-sg"
-  description = "Security group for DocumentDB cluster"
-  vpc_id      = var.vpc_id
 
-  tags = merge(local.common_tags, {
-    Name = "${var.environment}-gep-docdb-sg"
-    Component = "DocumentDB"
-  })
-}
 
-resource "aws_vpc_security_group_ingress_rule" "docdb_from_ecs" {
-  count             = var.enable_docdb ? 1 : 0
-  security_group_id = aws_security_group.docdb[0].id
-  description       = "Allow MongoDB from ECS tasks"
-  
-  from_port                    = 27017
-  to_port                      = 27017
-  ip_protocol                  = "tcp"
-  referenced_security_group_id = aws_security_group.ecs.id
-  
-  tags = {
-    Name = "allow-mongodb-from-ecs"
-  }
-}
