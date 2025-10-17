@@ -1,21 +1,21 @@
 {
-  "family": "event-planner-dev-event-service",
+  "family": "event-planner-dev-auth-service",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "256",
   "memory": "512",
   "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/event-planner-dev-ecs-execution-role",
-  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/event-planner-dev-event-service-task-role",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/event-planner-dev-auth-service-task-role",
   "containerDefinitions": [
     {
-      "name": "event-service",
-      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/event-planner/event-service:latest",
+      "name": "auth-service",
+      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/event-planner/auth-service:latest",
       "essential": true,
       "portMappings": [
         {
-          "containerPort": 8082,
+          "containerPort": 8081,
           "protocol": "tcp",
-          "name": "event-service-8082-tcp",
+          "name": "auth-service-8081-tcp",
           "appProtocol": "http"
         }
       ],
@@ -26,15 +26,15 @@
         },
         {
           "name": "SERVER_PORT",
-          "value": "8082"
+          "value": "8081"
         },
         {
           "name": "SPRING_APPLICATION_NAME",
-          "value": "event-service"
+          "value": "auth-service"
         },
         {
           "name": "DB_HOST",
-          "value": "event-planner-dev-event-db.XXXXX.us-east-1.rds.amazonaws.com"
+          "value": "event-planner-dev-auth-db.XXXXX.us-east-1.rds.amazonaws.com"
         },
         {
           "name": "DB_PORT",
@@ -42,7 +42,7 @@
         },
         {
           "name": "DB_NAME",
-          "value": "event"
+          "value": "auth"
         },
         {
           "name": "DB_USERNAME",
@@ -65,22 +65,22 @@
           "value": "27017"
         },
         {
+          "name": "DOCUMENTDB_DATABASE",
+          "value": "audit_logs"
+        },
+        {
           "name": "AWS_REGION",
           "value": "us-east-1"
         },
         {
-          "name": "SNS_EVENT_TOPIC_ARN",
-          "value": "arn:aws:sns:us-east-1:ACCOUNT_ID:event-planner-event-topic"
-        },
-        {
-          "name": "AUTH_SERVICE_URL",
-          "value": "http://auth-service.eventplanner.local:8081"
+          "name": "CLOUDMAP_NAMESPACE",
+          "value": "eventplanner.local"
         }
       ],
       "secrets": [
         {
           "name": "DB_PASSWORD",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:event-planner/dev/rds/event-db/master-password:password::"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:event-planner/dev/rds/auth-db/master-password:password::"
         },
         {
           "name": "JWT_SECRET",
@@ -98,7 +98,7 @@
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "/ecs/event-planner/event-service",
+          "awslogs-group": "/ecs/event-planner/auth-service",
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs",
           "awslogs-create-group": "true"
@@ -107,14 +107,21 @@
       "healthCheck": {
         "command": [
           "CMD-SHELL",
-          "curl -f http://localhost:8082/actuator/health || exit 1"
+          "curl -f http://localhost:8081/actuator/health || exit 1"
         ],
         "interval": 30,
         "timeout": 5,
         "retries": 3,
         "startPeriod": 60
       },
-      "stopTimeout": 30
+      "stopTimeout": 30,
+      "ulimits": [
+        {
+          "name": "nofile",
+          "softLimit": 65536,
+          "hardLimit": 65536
+        }
+      ]
     }
   ],
   "tags": [
@@ -124,7 +131,7 @@
     },
     {
       "key": "Service",
-      "value": "event-service"
+      "value": "auth-service"
     },
     {
       "key": "ManagedBy",
@@ -132,3 +139,5 @@
     }
   ]
 }
+
+

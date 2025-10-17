@@ -1,13 +1,16 @@
 # terraform/modules/vpc/variables.tf
+# ==============================================================================
+# VPC Module Variables
+# ==============================================================================
+
+variable "project_name" {
+  description = "Project name for resource naming"
+  type        = string
+}
 
 variable "environment" {
   description = "Environment name (dev, staging, prod)"
   type        = string
-  
-  validation {
-    condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "Environment must be dev, staging, or prod."
-  }
 }
 
 variable "vpc_cidr" {
@@ -24,11 +27,11 @@ variable "vpc_cidr" {
 variable "availability_zones" {
   description = "List of availability zones"
   type        = list(string)
-  
-  validation {
-    condition     = length(var.availability_zones) >= 1 && length(var.availability_zones) <= 3
-    error_message = "Must specify between 1 and 3 availability zones."
-  }
+}
+
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
 }
 
 variable "enable_nat_gateway" {
@@ -37,8 +40,14 @@ variable "enable_nat_gateway" {
   default     = true
 }
 
+variable "single_nat_gateway" {
+  description = "Use single NAT Gateway for all AZs (cost optimization)"
+  type        = bool
+  default     = false
+}
+
 variable "enable_vpc_endpoints" {
-  description = "Enable VPC endpoints for cost optimization"
+  description = "Enable VPC endpoints for AWS services"
   type        = bool
   default     = true
 }
@@ -46,22 +55,34 @@ variable "enable_vpc_endpoints" {
 variable "enable_flow_logs" {
   description = "Enable VPC Flow Logs"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "flow_logs_retention_days" {
-  description = "Retention period for VPC Flow Logs"
+  description = "Retention period for VPC Flow Logs (days)"
   type        = number
-  default     = 7
+  default     = 30
+}
+
+variable "flow_logs_traffic_type" {
+  description = "Type of traffic to log (ACCEPT, REJECT, ALL)"
+  type        = string
+  default     = "ALL"
   
   validation {
-    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653], var.flow_logs_retention_days)
-    error_message = "Flow logs retention must be a valid CloudWatch Logs retention value."
+    condition     = contains(["ACCEPT", "REJECT", "ALL"], var.flow_logs_traffic_type)
+    error_message = "Flow logs traffic type must be ACCEPT, REJECT, or ALL."
   }
 }
 
+variable "flow_logs_kms_key_arn" {
+  description = "KMS key ARN for encrypting flow logs"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
-  description = "Additional tags for all resources"
+  description = "Additional tags for resources"
   type        = map(string)
   default     = {}
 }
