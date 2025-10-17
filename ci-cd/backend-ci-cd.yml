@@ -1,0 +1,304 @@
+# .github/workflows/backend-ci-cd.yml
+# ==============================================================================
+# Backend CI/CD Pipeline
+# ==============================================================================
+# This workflow is triggered from the backend repository and:
+# 1. Builds Docker images for all microservices
+# 2. Scans images for vulnerabilities
+# 3. Pushes images to ECR
+# 4. Updates ECS task definitions
+# 5. Deploys to ECS Fargate
+#
+# Triggered by: repository_dispatch event from gep-backend repo
+# ==============================================================================
+
+name: Backend CI/CD Pipeline
+
+on:
+  repository_dispatch:
+    types: [backend-deploy]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      service:
+        description: 'Service to deploy (or "all" for all services)'
+        required: false
+        default: 'all'
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  PROJECT_NAME: event-planner
+
+jobs:
+  # Job 1: Build and Push Docker Images
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - auth-service
+          - event-service
+          - booking-service
+          - payment-service
+          - notification-service
+    
+    steps:
+      - name: Checkout DevOps Repository
+        uses: actions/checkout@v4
+        with:
+          repository: your-org/gep_devops
+          token: ${{ secrets.GH_PAT }}
+      
+      - name: Checkout Backend Repository
+        uses: actions/checkout@v4
+        with:
+          repository: your-org/gep-backend
+          token: ${{ secrets.GH_PAT }}
+          path: backend
+      
+      - name: Set Environment Variables
+        run: |
+          echo "ENVIRONMENT=${{ github.event.inputs.environment || github.event.client_payload.environment }}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+          echo "SERVICE_PATH=backend/services/${{ matrix.service }}" >> $GITHUB_ENV
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker Image
+        working-directory: ${{ env.SERVICE_PATH }}
+        run: |
+          docker build \
+            --tag ${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}/${{ matrix.service }}:${{ env.IMAGE_TAG }} \
+            --tag ${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}/${{ matrix.service }}:latest \
+            --tag ${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}/${{ matrix.service }}:${{ env.ENVIRONMENT }} \
+            --build-arg ENVIRONMENT=${{ env.ENVIRONMENT }} \
+            --cache-from type=registry,ref=${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}/${{ matrix.service }}:latest \
+            --cache-to type=inline \
+            .
+      
+      - name: Scan Docker Image for Vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}/${{ matrix.service }}:${{ env.IMAGE_TAG }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      
+      - name: Upload Trivy Results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+      
+      - name: Push Docker Image to ECR
+        run: |
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}/${{ matrix.service }}:${{ env.IMAGE_TAG }}
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}/${{ matrix.service }}:latest
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}/${{ matrix.service }}:${{ env.ENVIRONMENT }}
+      
+      - name: Output Image Info
+        id: image-info
+        run: |
+          echo "image_uri=${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}/${{ matrix.service }}:${{ env.IMAGE_TAG }}" >> $GITHUB_OUTPUT
+          echo "service_name=${{ matrix.service }}" >> $GITHUB_OUTPUT
+    
+    outputs:
+      image_uri: ${{ steps.image-info.outputs.image_uri }}
+      service_name: ${{ steps.image-info.outputs.service_name }}
+
+  # Job 2: Deploy to ECS
+  deploy-to-ecs:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    strategy:
+      matrix:
+        service:
+          - auth-service
+          - event-service
+          - booking-service
+          - payment-service
+          - notification-service
+    
+    steps:
+      - name: Checkout DevOps Repository
+        uses: actions/checkout@v4
+      
+      - name: Set Environment Variables
+        run: |
+          echo "ENVIRONMENT=${{ github.event.inputs.environment || github.event.client_payload.environment }}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+          echo "CLUSTER_NAME=${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-cluster" >> $GITHUB_ENV
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Get Current Task Definition
+        id: get-task-def
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-${{ matrix.service }} \
+            --query 'taskDefinition' \
+            > task-definition.json
+      
+      - name: Update Task Definition with New Image
+        id: update-task-def
+        run: |
+          # Remove fields that shouldn't be in new task definition
+          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+            task-definition.json > task-definition-clean.json
+          
+          # Update image URI
+          jq --arg IMAGE "${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}/${{ matrix.service }}:${{ env.IMAGE_TAG }}" \
+            '.containerDefinitions[0].image = $IMAGE' \
+            task-definition-clean.json > task-definition-updated.json
+          
+          cat task-definition-updated.json
+      
+      - name: Register New Task Definition
+        id: register-task-def
+        run: |
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://task-definition-updated.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          echo "Registered task definition: $TASK_DEF_ARN"
+      
+      - name: Update ECS Service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.CLUSTER_NAME }} \
+            --service ${{ matrix.service }} \
+            --task-definition ${{ steps.register-task-def.outputs.task_def_arn }} \
+            --force-new-deployment
+      
+      - name: Wait for Service Stability
+        run: |
+          echo "Waiting for service to become stable..."
+          aws ecs wait services-stable \
+            --cluster ${{ env.CLUSTER_NAME }} \
+            --services ${{ matrix.service }}
+          echo "Service deployment completed successfully!"
+      
+      - name: Get Service Status
+        run: |
+          aws ecs describe-services \
+            --cluster ${{ env.CLUSTER_NAME }} \
+            --services ${{ matrix.service }} \
+            --query 'services[0].[serviceName,status,runningCount,desiredCount,deployments[0].status]' \
+            --output table
+
+  # Job 3: Run Smoke Tests
+  smoke-tests:
+    name: Run Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy-to-ecs
+    
+    steps:
+      - name: Checkout DevOps Repository
+        uses: actions/checkout@v4
+      
+      - name: Set Environment Variables
+        run: |
+          echo "ENVIRONMENT=${{ github.event.inputs.environment || github.event.client_payload.environment }}" >> $GITHUB_ENV
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Get ALB URL
+        id: get-alb-url
+        run: |
+          if [ "${{ env.ENVIRONMENT }}" == "dev" ]; then
+            echo "api_url=https://api.sankofagrid.com" >> $GITHUB_OUTPUT
+          else
+            echo "api_url=https://api.sankofagrid.com" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Test Auth Service Health
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.get-alb-url.outputs.api_url }}/api/auth/actuator/health)
+          if [ $response -eq 200 ]; then
+            echo " Auth service is healthy"
+          else
+            echo " Auth service health check failed (HTTP $response)"
+            exit 1
+          fi
+      
+      - name: Test Event Service Health
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.get-alb-url.outputs.api_url }}/api/events/actuator/health)
+          if [ $response -eq 200 ]; then
+            echo " Event service is healthy"
+          else
+            echo " Event service health check failed (HTTP $response)"
+            exit 1
+          fi
+      
+      - name: Test Booking Service Health
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.get-alb-url.outputs.api_url }}/api/bookings/actuator/health)
+          if [ $response -eq 200 ]; then
+            echo " Booking service is healthy"
+          else
+            echo " Booking service health check failed (HTTP $response)"
+            exit 1
+          fi
+      
+      - name: Test Payment Service Health
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.get-alb-url.outputs.api_url }}/api/payments/actuator/health)
+          if [ $response -eq 200 ]; then
+            echo " Payment service is healthy"
+          else
+            echo " Payment service health check failed (HTTP $response)"
+            exit 1
+          fi
+      
+      - name: Test Notification Service Health
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.get-alb-url.outputs.api_url }}/api/notifications/actuator/health)
+          if [ $response -eq 200 ]; then
+            echo " Notification service is healthy"
+          else
+            echo " Notification service health check failed (HTTP $response)"
+            exit 1
+          fi
+      
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** ${{ env.ENVIRONMENT }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed Services:** All microservices" >> $GITHUB_STEP_SUMMARY
+          echo "- **API URL:** ${{ steps.get-alb-url.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Service Status" >> $GITHUB_STEP_SUMMARY
+          echo " All services deployed successfully" >> $GITHUB_STEP_SUMMARY

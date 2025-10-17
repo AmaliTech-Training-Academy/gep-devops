@@ -9,7 +9,7 @@
 variable "aws_region" {
   description = "AWS region to deploy the Terraform backend resources (e.g., us-east-1)"
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-1"
 }
 
 variable "project_name" {
@@ -32,7 +32,7 @@ variable "alert_email" {
 variable "tags" {
   description = "Additional tags to apply to all resources"
   type        = map(string)
-  default     = {
+  default = {
     Owner       = "DevOps"
     Environment = "bootstrap"
   }

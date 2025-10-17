@@ -1,21 +1,21 @@
 {
-  "family": "event-planner-notification-service",
+  "family": "event-planner-payment-service",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
-  "cpu": "256",
-  "memory": "512",
+  "cpu": "512",
+  "memory": "1024",
   "executionRoleArn": "${TASK_EXECUTION_ROLE_ARN}",
   "taskRoleArn": "${TASK_ROLE_ARN}",
   "containerDefinitions": [
     {
-      "name": "notification-service",
-      "image": "${ECR_REPOSITORY_URL}/notification-service:${IMAGE_TAG}",
+      "name": "payment-service",
+      "image": "${ECR_REPOSITORY_URL}/payment-service:${IMAGE_TAG}",
       "essential": true,
       "portMappings": [
         {
-          "containerPort": 3001,
+          "containerPort": 3002,
           "protocol": "tcp",
-          "name": "notification-service"
+          "name": "payment-service"
         }
       ],
       "environment": [
@@ -25,23 +25,19 @@
         },
         {
           "name": "PORT",
-          "value": "3001"
+          "value": "3002"
         },
         {
           "name": "SERVICE_NAME",
-          "value": "notification-service"
+          "value": "payment-service"
         },
         {
           "name": "AWS_REGION",
           "value": "${AWS_REGION}"
         },
         {
-          "name": "SQS_QUEUE_URL",
-          "value": "${NOTIFICATION_QUEUE_URL}"
-        },
-        {
-          "name": "SNS_TOPIC_ARN",
-          "value": "${NOTIFICATION_TOPIC_ARN}"
+          "name": "PAYMENT_CALLBACK_URL",
+          "value": "${PAYMENT_CALLBACK_URL}"
         }
       ],
       "secrets": [
@@ -70,36 +66,32 @@
           "valueFrom": "${REDIS_SECRET_ARN}:auth_token::"
         },
         {
-          "name": "SMTP_HOST",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/smtp-host"
+          "name": "STRIPE_SECRET_KEY",
+          "valueFrom": "${PARAMETER_STORE_PREFIX}/stripe-secret-key"
         },
         {
-          "name": "SMTP_PORT",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/smtp-port"
+          "name": "STRIPE_PUBLISHABLE_KEY",
+          "valueFrom": "${PARAMETER_STORE_PREFIX}/stripe-publishable-key"
         },
         {
-          "name": "SMTP_USER",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/smtp-user"
+          "name": "STRIPE_WEBHOOK_SECRET",
+          "valueFrom": "${PARAMETER_STORE_PREFIX}/stripe-webhook-secret"
         },
         {
-          "name": "SMTP_PASSWORD",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/smtp-password"
+          "name": "PAYPAL_CLIENT_ID",
+          "valueFrom": "${PARAMETER_STORE_PREFIX}/paypal-client-id"
         },
         {
-          "name": "SENDGRID_API_KEY",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/sendgrid-api-key"
+          "name": "PAYPAL_CLIENT_SECRET",
+          "valueFrom": "${PARAMETER_STORE_PREFIX}/paypal-client-secret"
         },
         {
-          "name": "TWILIO_ACCOUNT_SID",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/twilio-account-sid"
+          "name": "PAYPAL_MODE",
+          "valueFrom": "${PARAMETER_STORE_PREFIX}/paypal-mode"
         },
         {
-          "name": "TWILIO_AUTH_TOKEN",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/twilio-auth-token"
-        },
-        {
-          "name": "TWILIO_PHONE_NUMBER",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/twilio-phone-number"
+          "name": "ENCRYPTION_KEY",
+          "valueFrom": "${PARAMETER_STORE_PREFIX}/encryption-key"
         }
       ],
       "logConfiguration": {
@@ -107,14 +99,14 @@
         "options": {
           "awslogs-group": "/ecs/${PROJECT_NAME}-${ENVIRONMENT}",
           "awslogs-region": "${AWS_REGION}",
-          "awslogs-stream-prefix": "notification-service",
+          "awslogs-stream-prefix": "payment-service",
           "awslogs-create-group": "true"
         }
       },
       "healthCheck": {
         "command": [
           "CMD-SHELL",
-          "curl -f http://localhost:3001/api/health || exit 1"
+          "curl -f http://localhost:3002/api/health || exit 1"
         ],
         "interval": 30,
         "timeout": 5,
@@ -141,7 +133,7 @@
   "tags": [
     {
       "key": "Name",
-      "value": "${PROJECT_NAME}-${ENVIRONMENT}-notification-service"
+      "value": "${PROJECT_NAME}-${ENVIRONMENT}-payment-service"
     },
     {
       "key": "Environment",
@@ -149,7 +141,7 @@
     },
     {
       "key": "Service",
-      "value": "notification-service"
+      "value": "payment-service"
     },
     {
       "key": "ManagedBy",
