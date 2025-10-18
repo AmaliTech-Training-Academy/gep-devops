@@ -19,8 +19,7 @@ env:
 
 jobs:
   build-and-test:
-    runs-on: self-hosted
-    labels: [frontend]
+    runs-on: [self-hosted, frontend]
     steps:
     - name: Checkout Frontend Code
       uses: actions/checkout@v4
@@ -94,8 +93,7 @@ jobs:
 
   deploy-to-s3:
     needs: build-and-test
-    runs-on: self-hosted
-    labels: [frontend]
+    runs-on: [self-hosted, frontend]
     steps:
     - name: Download Build Artifacts
       uses: actions/download-artifact@v4
@@ -130,8 +128,7 @@ jobs:
 
   performance-audit:
     needs: deploy-to-s3
-    runs-on: self-hosted
-    labels: [frontend]
+    runs-on: [self-hosted, frontend]
     if: github.event.client_payload.environment != 'dev'
     steps:
     - name: Lighthouse Audit
@@ -152,8 +149,7 @@ jobs:
   notify:
     needs: [build-and-test, deploy-to-s3, performance-audit]
     if: always()
-    runs-on: self-hosted
-    labels: [frontend]
+    runs-on: [self-hosted, frontend]
     steps:
     - name: Checkout for notification context
       uses: actions/checkout@v4
