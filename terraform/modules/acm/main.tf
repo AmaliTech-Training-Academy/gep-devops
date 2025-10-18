@@ -3,6 +3,19 @@
 # ACM Module - SSL/TLS Certificate Management
 # ==============================================================================
 
+# Declare that this module accepts provider configurations
+terraform {
+  required_version = ">= 1.5.0"
+  
+  required_providers {
+    aws = {
+      source                = "hashicorp/aws"
+      version               = "~> 5.0"
+      configuration_aliases = [aws.us_east_1]
+    }
+  }
+}
+
 # ACM Certificate for ALB (Regional)
 resource "aws_acm_certificate" "alb" {
   count = var.create_alb_certificate ? 1 : 0
@@ -158,4 +171,3 @@ resource "aws_cloudwatch_metric_alarm" "cloudfront_cert_expiration" {
 
   tags = var.common_tags
 }
-
