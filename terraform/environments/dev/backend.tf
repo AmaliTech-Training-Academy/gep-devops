@@ -15,18 +15,9 @@
 
 terraform {
   backend "s3" {
-    # S3 bucket for state storage (created by bootstrap module)
-    bucket = "event-planner-terraform-state-us-east-1-ACCOUNT_ID"
-
+    #other sensitve info is configured via environment variables in github actions.
     # State file path within the bucket
     key = "dev/terraform.tfstate"
-
-    # AWS region
-    region = "us-east-1"
-
-    # DynamoDB table for state locking (created by bootstrap module)
-    dynamodb_table = "event-planner-terraform-locks"
-
     # Enable encryption at rest
     encrypt = true
 
