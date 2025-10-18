@@ -30,7 +30,7 @@ env:
 
 jobs:
   terraform-validate:
-    runs-on: [self-hosted, infra]
+    runs-on: [self-hosted, Linux, X64]
     strategy:
       matrix:
         environment: ${{ github.ref == 'refs/heads/dev' && fromJSON('["dev"]') || github.ref == 'refs/heads/staging' && fromJSON('["staging"]') || github.ref == 'refs/heads/main' && fromJSON('["prod"]') || github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.environment)) || fromJSON('["dev", "staging", "prod"]') }}
@@ -38,7 +38,7 @@ jobs:
     steps:
     - name: Free Disk Space
       run: |
-        echo " Cleaning previous Terraform caches..."
+        echo "🧹 Cleaning previous Terraform caches..."
         sudo rm -rf $HOME/.terraform.d/plugin-cache || true
         sudo rm -rf terraform/.terraform || true
         sudo rm -rf /tmp/* || true
@@ -82,7 +82,7 @@ jobs:
       run: |
         echo "Testing AWS credentials..."
         aws sts get-caller-identity
-        echo " AWS credentials verified"
+        echo "✅ AWS credentials verified"
 
     - name: Terraform Init (environment)
       run: |
@@ -112,7 +112,7 @@ jobs:
       continue-on-error: true
 
   # terraform-security-scan:
-  #   runs-on: [self-hosted, infra]
+  #   runs-on: [self-hosted, Linux, X64]
   #   needs: terraform-validate
     
   #   steps:
@@ -142,7 +142,7 @@ jobs:
   #       soft_fail: true
 
   terraform-plan:
-    runs-on: [self-hosted, infra]
+    runs-on: [self-hosted, Linux, X64]
     needs: [terraform-validate, terraform-security-scan]
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'plan')
     strategy:
@@ -227,7 +227,7 @@ jobs:
         retention-days: 30
 
   terraform-apply-dev:
-    runs-on: [self-hosted, infra]
+    runs-on: [self-hosted, Linux, X64]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/dev' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev' && inputs.action == 'apply')
     environment: development
@@ -267,7 +267,7 @@ jobs:
       run: |
         echo "Testing AWS credentials..."
         aws sts get-caller-identity
-        echo " AWS credentials verified"
+        echo "✅ AWS credentials verified"
 
     - name: Terraform Init
       run: |
@@ -292,7 +292,7 @@ jobs:
     - name: Verify State Storage
       run: |
         cd terraform/environments/dev
-        echo " Terraform state management:"
+        echo "📦 Terraform state management:"
         echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/dev/terraform.tfstate"
         echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
         echo ""
@@ -318,7 +318,7 @@ jobs:
         retention-days: 90
 
   terraform-apply-staging:
-    runs-on: [self-hosted, infra]
+    runs-on: [self-hosted, Linux, X64]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/staging' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging' && inputs.action == 'apply')
     environment: staging
@@ -326,6 +326,20 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y unzip curl wget
+        # Install AWS CLI v2
+        if ! command -v aws &> /dev/null; then
+          echo "Installing AWS CLI..."
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          rm -rf aws awscliv2.zip
+        fi
+        aws --version
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -339,6 +353,12 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Verify AWS Credentials
+      run: |
+        echo "Testing AWS credentials..."
+        aws sts get-caller-identity
+        echo "✅ AWS credentials verified"
 
     - name: Terraform Init
       run: |
@@ -358,12 +378,12 @@ jobs:
     - name: Terraform Apply
       run: |
         cd terraform/environments/staging
-        terraform apply tfplan
+        terraform apply -auto-approve tfplan
 
     - name: Verify State Storage
       run: |
         cd terraform/environments/staging
-        echo " Terraform state management:"
+        echo "📦 Terraform state management:"
         echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/staging/terraform.tfstate"
         echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
         echo ""
@@ -389,7 +409,7 @@ jobs:
         retention-days: 90
 
   terraform-apply-prod:
-    runs-on: [self-hosted, infra]
+    runs-on: [self-hosted, Linux, X64]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && inputs.action == 'apply')
     environment: production
@@ -397,6 +417,20 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y unzip curl wget
+        # Install AWS CLI v2
+        if ! command -v aws &> /dev/null; then
+          echo "Installing AWS CLI..."
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          rm -rf aws awscliv2.zip
+        fi
+        aws --version
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -410,6 +444,12 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Verify AWS Credentials
+      run: |
+        echo "Testing AWS credentials..."
+        aws sts get-caller-identity
+        echo "✅ AWS credentials verified"
 
     - name: Terraform Init
       run: |
@@ -429,12 +469,12 @@ jobs:
     - name: Terraform Apply
       run: |
         cd terraform/environments/prod
-        terraform apply tfplan
+        terraform apply -auto-approve tfplan
 
     - name: Verify State Storage
       run: |
         cd terraform/environments/prod
-        echo " Terraform state management:"
+        echo "📦 Terraform state management:"
         echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/prod/terraform.tfstate"
         echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
         echo ""
@@ -462,10 +502,10 @@ jobs:
     - name: Post-deployment validation
       run: |
         echo "Running post-deployment validation..."
-        echo " Deployment completed successfully"
+        echo "✅ Deployment completed successfully"
 
   notify:
-    runs-on: [self-hosted, infra]
+    runs-on: [self-hosted, Linux, X64]
     needs: [terraform-apply-dev, terraform-apply-staging, terraform-apply-prod]
     if: always() && (needs.terraform-apply-dev.result != 'skipped' || needs.terraform-apply-staging.result != 'skipped' || needs.terraform-apply-prod.result != 'skipped')
     env:
@@ -531,7 +571,7 @@ jobs:
 
     - name: Create Deployment Summary
       run: |
-        echo "##  Infrastructure Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## 🚀 Infrastructure Deployment Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Environment:** ${{ steps.env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
         echo "**Status:** ${{ steps.env.outputs.status }}" >> $GITHUB_STEP_SUMMARY
