@@ -30,7 +30,7 @@ env:
 
 jobs:
   terraform-validate:
-    runs-on: [self-hosted, frontend]
+    runs-on: [self-hosted, infra]
     strategy:
       matrix:
         environment: ${{ github.ref == 'refs/heads/dev' && fromJSON('["dev"]') || github.ref == 'refs/heads/staging' && fromJSON('["staging"]') || github.ref == 'refs/heads/main' && fromJSON('["prod"]') || github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.environment)) || fromJSON('["dev", "staging", "prod"]') }}
@@ -111,38 +111,38 @@ jobs:
         tflint
       continue-on-error: true
 
-  # terraform-security-scan:
-  #   runs-on: [self-hosted, frontend]
-  #   needs: terraform-validate
+  terraform-security-scan:
+    runs-on: [self-hosted, infra]
+    needs: terraform-validate
     
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-  #   - name: Run Checkov
-  #     uses: bridgecrewio/checkov-action@master
-  #     with:
-  #       directory: terraform/
-  #       framework: terraform
-  #       output_format: sarif
-  #       output_file_path: checkov-report.sarif
-  #       soft_fail: true
+    - name: Run Checkov
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: terraform/
+        framework: terraform
+        output_format: sarif
+        output_file_path: checkov-report.sarif
+        soft_fail: true
 
-  #   - name: Upload Checkov scan results
-  #     uses: github/codeql-action/upload-sarif@v3
-  #     if: always()
-  #     with:
-  #       sarif_file: checkov-report.sarif
+    - name: Upload Checkov scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: checkov-report.sarif
 
-  #   - name: Run TFSec
-  #     uses: aquasecurity/tfsec-action@v1.0.3
-  #     with:
-  #       working_directory: terraform/
-  #       format: sarif
-  #       soft_fail: true
+    - name: Run TFSec
+      uses: aquasecurity/tfsec-action@v1.0.3
+      with:
+        working_directory: terraform/
+        format: sarif
+        soft_fail: true
 
   terraform-plan:
-    runs-on: [self-hosted, frontend]
+    runs-on: [self-hosted, infra]
     needs: [terraform-validate, terraform-security-scan]
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'plan')
     strategy:
@@ -227,7 +227,7 @@ jobs:
         retention-days: 30
 
   terraform-apply-dev:
-    runs-on: [self-hosted, frontend]
+    runs-on: [self-hosted, infra]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/dev' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev' && inputs.action == 'apply')
     environment: development
@@ -318,7 +318,7 @@ jobs:
         retention-days: 90
 
   terraform-apply-staging:
-    runs-on: [self-hosted, frontend]
+    runs-on: [self-hosted, infra]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/staging' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging' && inputs.action == 'apply')
     environment: staging
@@ -389,7 +389,7 @@ jobs:
         retention-days: 90
 
   terraform-apply-prod:
-    runs-on: [self-hosted, frontend]
+    runs-on: [self-hosted, infra]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && inputs.action == 'apply')
     environment: production
@@ -465,7 +465,7 @@ jobs:
         echo " Deployment completed successfully"
 
   notify:
-    runs-on: [self-hosted, frontend]
+    runs-on: [self-hosted, infra]
     needs: [terraform-apply-dev, terraform-apply-staging, terraform-apply-prod]
     if: always() && (needs.terraform-apply-dev.result != 'skipped' || needs.terraform-apply-staging.result != 'skipped' || needs.terraform-apply-prod.result != 'skipped')
     env:
