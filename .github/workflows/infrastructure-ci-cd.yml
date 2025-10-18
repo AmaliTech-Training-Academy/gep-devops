@@ -30,7 +30,7 @@ env:
 
 jobs:
   terraform-validate:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, infrastructure]
     strategy:
       matrix:
         environment: ${{ github.ref == 'refs/heads/dev' && fromJSON('["dev"]') || github.ref == 'refs/heads/staging' && fromJSON('["staging"]') || github.ref == 'refs/heads/main' && fromJSON('["prod"]') || github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.environment)) || fromJSON('["dev", "staging", "prod"]') }}
@@ -112,7 +112,7 @@ jobs:
       continue-on-error: true
 
   # terraform-security-scan:
-  #   runs-on: [self-hosted, Linux, X64]
+  #   runs-on: [self-hosted, infrastructure]
   #   needs: terraform-validate
     
   #   steps:
@@ -142,7 +142,7 @@ jobs:
   #       soft_fail: true
 
   terraform-plan:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, infrastructure]
     needs: [terraform-validate, terraform-security-scan]
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'plan')
     strategy:
@@ -227,7 +227,7 @@ jobs:
         retention-days: 30
 
   terraform-apply-dev:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, infrastructure]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/dev' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev' && inputs.action == 'apply')
     environment: development
@@ -318,7 +318,7 @@ jobs:
         retention-days: 90
 
   terraform-apply-staging:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, infrastructure]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/staging' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging' && inputs.action == 'apply')
     environment: staging
@@ -409,7 +409,7 @@ jobs:
         retention-days: 90
 
   terraform-apply-prod:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, infrastructure]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && inputs.action == 'apply')
     environment: production
@@ -502,10 +502,10 @@ jobs:
     - name: Post-deployment validation
       run: |
         echo "Running post-deployment validation..."
-        echo "✅ Deployment completed successfully"
+        echo " Deployment completed successfully"
 
   notify:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, infrastructure]
     needs: [terraform-apply-dev, terraform-apply-staging, terraform-apply-prod]
     if: always() && (needs.terraform-apply-dev.result != 'skipped' || needs.terraform-apply-staging.result != 'skipped' || needs.terraform-apply-prod.result != 'skipped')
     env:
