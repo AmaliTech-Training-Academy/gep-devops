@@ -3,6 +3,8 @@
 # Terraform Backend Bootstrap Configuration - FIXED
 # ==============================================================================
 
+# Terraform Settings
+
 terraform {
   required_version = ">= 1.5.0"
 
