@@ -1,10 +1,12 @@
-
-
-# ==============================================================================
 # terraform/environments/dev/outputs.tf
 # ==============================================================================
+# Development Environment Outputs
+# ==============================================================================
 
+# ==============================================================================
 # VPC Outputs
+# ==============================================================================
+
 output "vpc_id" {
   description = "ID of the VPC"
   value       = module.vpc.vpc_id
@@ -13,6 +15,11 @@ output "vpc_id" {
 output "vpc_cidr" {
   description = "CIDR block of the VPC"
   value       = module.vpc.vpc_cidr
+}
+
+output "vpc_arn" {
+  description = "ARN of the VPC"
+  value       = module.vpc.vpc_arn
 }
 
 output "public_subnet_ids" {
@@ -35,7 +42,22 @@ output "nat_gateway_public_ips" {
   value       = module.vpc.nat_gateway_public_ips
 }
 
+output "vpc_endpoints" {
+  description = "VPC endpoints information"
+  value = {
+    s3_endpoint_id             = module.vpc.vpc_endpoint_s3_id
+    ecr_api_endpoint_id        = module.vpc.vpc_endpoint_ecr_api_id
+    ecr_dkr_endpoint_id        = module.vpc.vpc_endpoint_ecr_dkr_id
+    logs_endpoint_id           = module.vpc.vpc_endpoint_logs_id
+    secretsmanager_endpoint_id = module.vpc.vpc_endpoint_secretsmanager_id
+    ssm_endpoint_id            = module.vpc.vpc_endpoint_ssm_id
+  }
+}
+
+# ==============================================================================
 # Security Group Outputs
+# ==============================================================================
+
 output "alb_security_group_id" {
   description = "ID of the ALB security group"
   value       = module.security_groups.alb_security_group_id
@@ -51,124 +73,138 @@ output "rds_security_group_id" {
   value       = module.security_groups.rds_security_group_id
 }
 
-# Database Outputs
-output "rds_auth_endpoint" {
-  description = "Endpoint of Auth RDS instance"
-  value       = module.rds_auth.endpoint
-  sensitive   = true
+output "documentdb_security_group_id" {
+  description = "ID of the DocumentDB security group"
+  value       = module.security_groups.documentdb_security_group_id
 }
 
-output "rds_event_endpoint" {
-  description = "Endpoint of Event RDS instance"
-  value       = module.rds_event.endpoint
-  sensitive   = true
+output "elasticache_security_group_id" {
+  description = "ID of the ElastiCache security group"
+  value       = module.security_groups.elasticache_security_group_id
 }
 
-output "rds_booking_endpoint" {
-  description = "Endpoint of Booking RDS instance"
-  value       = module.rds_booking.endpoint
-  sensitive   = true
+# ==============================================================================
+# S3 Outputs
+# ==============================================================================
+
+output "assets_bucket_id" {
+  description = "S3 assets bucket ID"
+  value       = module.s3.assets_bucket_id
 }
 
-output "rds_payment_endpoint" {
-  description = "Endpoint of Payment RDS instance"
-  value       = module.rds_payment.endpoint
-  sensitive   = true
+output "assets_bucket_arn" {
+  description = "S3 assets bucket ARN"
+  value       = module.s3.assets_bucket_arn
 }
 
-output "documentdb_endpoint" {
-  description = "Endpoint of DocumentDB cluster"
-  value       = module.documentdb.endpoint
-  sensitive   = true
+output "assets_bucket_domain_name" {
+  description = "S3 assets bucket domain name"
+  value       = module.s3.assets_bucket_domain_name
 }
 
-output "elasticache_endpoint" {
-  description = "Endpoint of ElastiCache cluster"
-  value       = module.elasticache.cache_nodes[0].address
-  sensitive   = true
+output "backups_bucket_id" {
+  description = "S3 backups bucket ID"
+  value       = module.s3.backups_bucket_id
 }
 
-# ECS Outputs
-output "ecs_cluster_id" {
-  description = "ID of the ECS cluster"
-  value       = module.ecs.cluster_id
+output "backups_bucket_arn" {
+  description = "S3 backups bucket ARN"
+  value       = module.s3.backups_bucket_arn
 }
 
-output "ecs_cluster_name" {
-  description = "Name of the ECS cluster"
-  value       = module.ecs.cluster_name
+output "logs_bucket_id" {
+  description = "S3 logs bucket ID"
+  value       = module.s3.logs_bucket_id
 }
 
-output "ecs_cluster_arn" {
-  description = "ARN of the ECS cluster"
-  value       = module.ecs.cluster_arn
+# ==============================================================================
+# ACM Outputs
+# ==============================================================================
+
+output "alb_certificate_arn" {
+  description = "ARN of the ALB SSL certificate"
+  value       = module.acm.alb_certificate_arn
 }
 
-# CloudMap Outputs
-output "cloudmap_namespace_id" {
-  description = "ID of the CloudMap namespace"
-  value       = module.cloudmap.namespace_id
+output "alb_certificate_status" {
+  description = "Status of the ALB SSL certificate"
+  value       = module.acm.alb_certificate_status
 }
 
-output "cloudmap_namespace_name" {
-  description = "Name of the CloudMap namespace"
-  value       = module.cloudmap.namespace_name
+output "cloudfront_certificate_arn" {
+  description = "ARN of the CloudFront SSL certificate"
+  value       = module.acm.cloudfront_certificate_arn
 }
 
-# Frontend Outputs
-output "frontend_bucket_name" {
-  description = "Name of the frontend S3 bucket"
-  value       = module.s3.frontend_bucket_id
+output "cloudfront_certificate_status" {
+  description = "Status of the CloudFront SSL certificate"
+  value       = module.acm.cloudfront_certificate_status
 }
 
-output "frontend_bucket_website_endpoint" {
-  description = "Website endpoint of the frontend S3 bucket"
-  value       = module.s3.frontend_bucket_website_endpoint
-}
+# ==============================================================================
+# CloudFront Outputs
+# ==============================================================================
 
 output "cloudfront_distribution_id" {
-  description = "ID of the CloudFront distribution"
+  description = "CloudFront distribution ID"
   value       = module.cloudfront.distribution_id
 }
 
-output "cloudfront_distribution_domain" {
-  description = "Domain name of the CloudFront distribution"
+output "cloudfront_distribution_arn" {
+  description = "CloudFront distribution ARN"
+  value       = module.cloudfront.distribution_arn
+}
+
+output "cloudfront_distribution_domain_name" {
+  description = "CloudFront distribution domain name"
   value       = module.cloudfront.distribution_domain_name
 }
 
-output "frontend_url" {
-  description = "Frontend application URL"
-  value       = "https://${var.frontend_domain}"
+output "cloudfront_distribution_hosted_zone_id" {
+  description = "CloudFront distribution hosted zone ID"
+  value       = module.cloudfront.distribution_hosted_zone_id
 }
 
-# Backend Outputs
-output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = module.alb.dns_name
-}
-
-output "alb_zone_id" {
-  description = "Zone ID of the Application Load Balancer"
-  value       = module.alb.zone_id
-}
-
-output "backend_url" {
-  description = "Backend API URL"
-  value       = "https://${var.backend_domain}"
-}
-
+# ==============================================================================
 # Route53 Outputs
-output "route53_zone_id" {
-  description = "ID of the Route53 hosted zone"
-  value       = module.route53.zone_id
+# ==============================================================================
+
+output "route53_hosted_zone_id" {
+  description = "Route53 hosted zone ID"
+  value       = module.route53.hosted_zone_id
 }
 
 output "route53_nameservers" {
-  description = "Nameservers for the Route53 hosted zone"
-  value       = module.route53.nameservers
+  description = "Route53 nameservers"
+  value       = module.route53.hosted_zone_name_servers
 }
 
+# ==============================================================================
+# CloudWatch Outputs
+# ==============================================================================
+
+output "cloudwatch_sns_topic_arn" {
+  description = "CloudWatch SNS topic ARN for alerts"
+  value       = module.cloudwatch.sns_topic_arn
+}
+
+output "cloudwatch_dashboard_name" {
+  description = "CloudWatch dashboard name"
+  value       = module.cloudwatch.dashboard_name
+}
+
+output "cloudwatch_log_groups" {
+  description = "CloudWatch log group names"
+  value = {
+    application = module.cloudwatch.application_log_group_name
+    lambda      = module.cloudwatch.lambda_log_group_name
+  }
+}
+
+# ==============================================================================
 # IAM Outputs
+# ==============================================================================
+
 output "ecs_task_execution_role_arn" {
   description = "ARN of the ECS task execution role"
   value       = module.iam.ecs_task_execution_role_arn
@@ -179,96 +215,95 @@ output "ecs_task_role_arns" {
   value       = module.iam.ecs_task_role_arns
 }
 
-# Certificate Outputs
-output "acm_certificate_arn" {
-  description = "ARN of the ACM certificate"
-  value       = module.acm.certificate_arn
+# GitHub OIDC outputs removed - not using OIDC authentication
+# Using AWS Access Keys instead for GitHub Actions
+
+# ==============================================================================
+# Application URLs
+# ==============================================================================
+
+output "frontend_url" {
+  description = "Frontend application URL"
+  value       = "https://${var.frontend_domain}"
 }
 
-output "acm_certificate_status" {
-  description = "Status of the ACM certificate"
-  value       = module.acm.certificate_status
+output "backend_url" {
+  description = "Backend API URL (will be active once ALB is deployed)"
+  value       = "https://${var.backend_domain}"
 }
 
-# Connection Strings (for application configuration)
-output "database_connection_strings" {
-  description = "Database connection strings for microservices"
+# ==============================================================================
+# Resource Summary
+# ==============================================================================
+
+output "resource_summary" {
+  description = "Summary of deployed resources"
   value = {
-    auth_db    = "postgresql://postgres:${module.rds_auth.endpoint}/auth"
-    event_db   = "postgresql://postgres:${module.rds_event.endpoint}/event"
-    booking_db = "postgresql://postgres:${module.rds_booking.endpoint}/booking"
-    payment_db = "postgresql://postgres:${module.rds_payment.endpoint}/payment"
-    documentdb = "mongodb://${module.documentdb.endpoint}:27017/audit_logs"
-    redis      = "redis://${module.elasticache.cache_nodes[0].address}:6379"
+    vpc = {
+      id                 = module.vpc.vpc_id
+      cidr               = module.vpc.vpc_cidr
+      availability_zones = var.availability_zones
+      nat_gateways       = length(module.vpc.nat_gateway_ids)
+    }
+    s3 = {
+      assets_bucket  = module.s3.assets_bucket_id
+      backups_bucket = module.s3.backups_bucket_id
+      logs_bucket    = module.s3.logs_bucket_id
+    }
+    cloudfront = {
+      distribution_id = module.cloudfront.distribution_id
+      domain_name     = module.cloudfront.distribution_domain_name
+    }
+    route53 = {
+      hosted_zone_id = module.route53.hosted_zone_id
+    }
+    certificates = {
+      alb_arn        = module.acm.alb_certificate_arn
+      cloudfront_arn = module.acm.cloudfront_certificate_arn
+    }
   }
-  sensitive = true
 }
 
-# Service Discovery
-output "service_discovery_endpoints" {
-  description = "Service discovery endpoints for microservices"
-  value = {
-    auth_service         = "auth-service.eventplanner.local:8081"
-    event_service        = "event-service.eventplanner.local:8082"
-    booking_service      = "booking-service.eventplanner.local:8083"
-    payment_service      = "payment-service.eventplanner.local:8084"
-    notification_service = "notification-service.eventplanner.local:8085"
-  }
-}
+# ==============================================================================
+# Deployment Instructions Output
+# ==============================================================================
 
-# Cost Optimization Information
-output "cost_optimization_tips" {
-  description = "Tips for reducing costs in development environment"
-  value       = <<-EOT
-    Development Environment Cost Optimization:
-    
-    1. Stop ECS services when not in use:
-       aws ecs update-service --cluster ${module.ecs.cluster_name} --service <service-name> --desired-count 0
-    
-    2. Stop RDS instances during off-hours:
-       aws rds stop-db-instance --db-instance-identifier <db-identifier>
-    
-    3. Remove NAT Gateway when not needed (requires Terraform apply):
-       Set enable_nat_gateway = false in terraform.tfvars
-    
-    4. Estimated monthly cost (24/7): ~$248
-    5. Estimated monthly cost (weekday-only): ~$75-95
-    
-    Current Configuration:
-    - Single AZ deployment
-    - No read replicas
-    - Minimal instance sizes
-    - Single NAT Gateway
-  EOT
-}
-
-# Deployment Instructions
 output "deployment_instructions" {
-  description = "Instructions for deploying applications"
+  description = "Quick deployment guide"
   value       = <<-EOT
-    Deployment Instructions:
+    ========================================
+    DEPLOYMENT INSTRUCTIONS
+    ========================================
     
     FRONTEND DEPLOYMENT:
-    1. Build Angular application: npm run build --prod
-    2. Upload to S3: aws s3 sync dist/ s3://${module.s3.frontend_bucket_id}/
-    3. Invalidate CloudFront cache: aws cloudfront create-invalidation --distribution-id ${module.cloudfront.distribution_id} --paths "/*"
-    4. Access frontend: https://${var.frontend_domain}
+    --------------------
+    1. Build: npm run build --prod
+    2. Upload: aws s3 sync dist/ s3://${module.s3.assets_bucket_id}/ --delete
+    3. Invalidate: aws cloudfront create-invalidation --distribution-id ${module.cloudfront.distribution_id} --paths "/*"
+    4. Access: https://${var.frontend_domain}
     
-    BACKEND DEPLOYMENT:
-    1. Build Docker images for each microservice
-    2. Push to ECR (create ECR repositories first)
-    3. Update ECS task definitions with new image tags
-    4. Update ECS services to use new task definitions
-    5. Access backend: https://${var.backend_domain}
+    DNS CONFIGURATION:
+    ------------------
+    ${module.route53.hosted_zone_name_servers != null ? "Update your domain registrar with these nameservers:\n${join("\n", formatlist("    - %s", module.route53.hosted_zone_name_servers))}" : "Using existing hosted zone"}
     
-    DATABASE ACCESS:
-    - RDS instances are in private subnets (no direct internet access)
-    - Use AWS Systems Manager Session Manager or bastion host
-    - Connection strings are available in Secrets Manager
+    SSL CERTIFICATES:
+    -----------------
+    - ALB Certificate: ${module.acm.alb_certificate_status}
+    - CloudFront Certificate: ${module.acm.cloudfront_certificate_status}
+    ${module.acm.alb_certificate_status != "ISSUED" || module.acm.cloudfront_certificate_status != "ISSUED" ? "\n⚠️  Certificates pending validation. Check Route53 for validation DNS records." : "\n✅ All certificates issued successfully!"}
     
-    SERVICE DISCOVERY:
-    - Services communicate via CloudMap DNS
-    - Internal domain: eventplanner.local
-    - Example: auth-service.eventplanner.local:8081
+    ESTIMATED MONTHLY COST:
+    ----------------------
+    Phase 1 Infrastructure: $50-75/month
+    - NAT Gateway: $32/month
+    - S3 Storage: $5-10/month
+    - CloudFront: $5-10/month
+    - VPC Endpoints: $7-15/month
+    - Route53: $0.50/month
+    - CloudWatch: $3-5/month
+    
+    NEXT STEPS:
+    -----------
+    Add Phase 2 infrastructure (ECS, RDS, ElastiCache, etc.)
   EOT
 }
