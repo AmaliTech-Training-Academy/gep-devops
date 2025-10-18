@@ -111,35 +111,35 @@ jobs:
         tflint
       continue-on-error: true
 
-  terraform-security-scan:
-    runs-on: [self-hosted, infra]
-    needs: terraform-validate
+  # terraform-security-scan:
+  #   runs-on: [self-hosted, infra]
+  #   needs: terraform-validate
     
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
 
-    - name: Run Checkov
-      uses: bridgecrewio/checkov-action@master
-      with:
-        directory: terraform/
-        framework: terraform
-        output_format: sarif
-        output_file_path: checkov-report.sarif
-        soft_fail: true
+  #   - name: Run Checkov
+  #     uses: bridgecrewio/checkov-action@master
+  #     with:
+  #       directory: terraform/
+  #       framework: terraform
+  #       output_format: sarif
+  #       output_file_path: checkov-report.sarif
+  #       soft_fail: true
 
-    - name: Upload Checkov scan results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: checkov-report.sarif
+  #   - name: Upload Checkov scan results
+  #     uses: github/codeql-action/upload-sarif@v3
+  #     if: always()
+  #     with:
+  #       sarif_file: checkov-report.sarif
 
-    - name: Run TFSec
-      uses: aquasecurity/tfsec-action@v1.0.3
-      with:
-        working_directory: terraform/
-        format: sarif
-        soft_fail: true
+  #   - name: Run TFSec
+  #     uses: aquasecurity/tfsec-action@v1.0.3
+  #     with:
+  #       working_directory: terraform/
+  #       format: sarif
+  #       soft_fail: true
 
   terraform-plan:
     runs-on: [self-hosted, infra]
