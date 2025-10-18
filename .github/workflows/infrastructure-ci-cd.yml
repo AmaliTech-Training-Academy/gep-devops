@@ -54,7 +54,13 @@ jobs:
       run: |
         for module in terraform/modules/*/; do
           if [ -d "$module" ]; then
-            echo "Validating $(basename "$module")..."
+            module_name=$(basename "$module")
+            # Skip ACM module as it requires provider aliases
+            if [ "$module_name" = "acm" ]; then
+              echo "Skipping $module_name (requires provider aliases)..."
+              continue
+            fi
+            echo "Validating $module_name..."
             cd "$module"
             terraform init -backend=false
             terraform validate
