@@ -454,7 +454,7 @@ jobs:
     steps:
     - name: Free Disk Space
       run: |
-        echo "🧹 Cleaning previous Terraform caches..."
+        echo " Cleaning previous Terraform caches..."
         sudo rm -rf $HOME/.terraform.d/plugin-cache || true
         sudo rm -rf terraform/.terraform || true
         sudo rm -rf /tmp/* || true
@@ -483,7 +483,13 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Verify AWS Credentials
+      run: |
+        echo "Testing AWS credentials..."
+        aws sts get-caller-identity
+        echo " AWS credentials verified"
 
     - name: Terraform Init (environment)
       run: |
@@ -564,7 +570,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
     - name: Terraform Init
       run: |
@@ -648,7 +654,13 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Verify AWS Credentials
+      run: |
+        echo "Testing AWS credentials..."
+        aws sts get-caller-identity
+        echo " AWS credentials verified"
 
     - name: Terraform Init
       run: |
@@ -673,7 +685,7 @@ jobs:
     - name: Verify State Storage
       run: |
         cd terraform/environments/dev
-        echo "✅ Terraform state management:"
+        echo " Terraform state management:"
         echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/dev/terraform.tfstate"
         echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
         echo ""
@@ -719,7 +731,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
     - name: Terraform Init
       run: |
@@ -744,7 +756,7 @@ jobs:
     - name: Verify State Storage
       run: |
         cd terraform/environments/staging
-        echo "✅ Terraform state management:"
+        echo " Terraform state management:"
         echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/staging/terraform.tfstate"
         echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
         echo ""
@@ -790,7 +802,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
     - name: Terraform Init
       run: |
@@ -815,7 +827,7 @@ jobs:
     - name: Verify State Storage
       run: |
         cd terraform/environments/prod
-        echo "✅ Terraform state management:"
+        echo " Terraform state management:"
         echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/prod/terraform.tfstate"
         echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
         echo ""
@@ -843,8 +855,7 @@ jobs:
     - name: Post-deployment validation
       run: |
         echo "Running post-deployment validation..."
-        # Add specific health checks for your infrastructure
-        echo "✅ Deployment completed successfully"
+        echo " Deployment completed successfully"
 
   notify:
     runs-on: [self-hosted, frontend]
@@ -911,7 +922,7 @@ jobs:
 
     - name: Create Deployment Summary
       run: |
-        echo "## 🚀 Infrastructure Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "##  Infrastructure Deployment Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Environment:** ${{ steps.env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
         echo "**Status:** ${{ steps.env.outputs.status }}" >> $GITHUB_STEP_SUMMARY
