@@ -2,7 +2,7 @@
 # ==============================================================================
 # Development Environment Variables
 # ==============================================================================
-# Updated to test pipeline trigger
+# Updated to test pipeline trigger - fix unzip dependency
 
 variable "aws_region" {
   description = "AWS region for infrastructure deployment"
