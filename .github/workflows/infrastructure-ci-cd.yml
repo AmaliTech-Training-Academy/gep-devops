@@ -73,6 +73,8 @@ jobs:
             cd "$module"
             terraform init -backend=false
             terraform validate
+            # Immediate cleanup after each module
+            rm -rf .terraform .terraform.lock.hcl
             cd - > /dev/null
           fi
         done
