@@ -2,7 +2,7 @@
 # ==============================================================================
 # Development Environment Variables
 # ==============================================================================
-# Updated to test pipeline trigger - fix duplicate provider config
+# Updated to test pipeline trigger - skip ACM module validation
 
 variable "aws_region" {
   description = "AWS region for infrastructure deployment"
