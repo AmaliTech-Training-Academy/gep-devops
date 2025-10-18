@@ -36,14 +36,18 @@ jobs:
         environment: ${{ github.ref == 'refs/heads/dev' && fromJSON('["dev"]') || github.ref == 'refs/heads/staging' && fromJSON('["staging"]') || github.ref == 'refs/heads/main' && fromJSON('["prod"]') || github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.environment)) || fromJSON('["dev", "staging", "prod"]') }}
     
     steps:
-    - name: Free Disk Space
+    - name: Clean Workspace
       run: |
-        echo "🧹 Cleaning previous Terraform caches..."
+        echo " Cleaning workspace..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
         sudo rm -rf $HOME/.terraform.d/plugin-cache || true
-        sudo rm -rf terraform/.terraform || true
         sudo rm -rf /tmp/* || true
         sudo apt-get clean
         df -h
+        
+    - name: Checkout code
+      uses: actions/checkout@v4
         
     - name: Install Dependencies
       run: |
@@ -58,9 +62,6 @@ jobs:
           rm -rf aws awscliv2.zip
         fi
         aws --version
-        
-    - name: Checkout code
-      uses: actions/checkout@v4
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -82,7 +83,7 @@ jobs:
       run: |
         echo "Testing AWS credentials..."
         aws sts get-caller-identity
-        echo "✅ AWS credentials verified"
+        echo " AWS credentials verified"
 
     - name: Terraform Init (environment)
       run: |
@@ -116,6 +117,13 @@ jobs:
     needs: terraform-validate
     
     steps:
+    - name: Clean Workspace
+      run: |
+        echo " Cleaning workspace and previous scan reports..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        df -h
+        
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -141,6 +149,15 @@ jobs:
         format: sarif
         soft_fail: true
 
+    - name: Cleanup Scan Reports
+      if: always()
+      run: |
+        echo " Cleaning up scan reports..."
+        sudo rm -rf checkov-report.sarif || true
+        sudo rm -rf tfsec-report.sarif || true
+        sudo rm -rf ${{ github.workspace }}/checkov-report.sarif || true
+        sudo rm -rf ${{ github.workspace }}/results.sarif || true
+
   terraform-plan:
     runs-on: [self-hosted, infrastructure]
     needs: [terraform-validate, terraform-security-scan]
@@ -150,6 +167,13 @@ jobs:
         environment: ${{ github.ref == 'refs/heads/dev' && fromJSON('["dev"]') || github.ref == 'refs/heads/staging' && fromJSON('["staging"]') || github.ref == 'refs/heads/main' && fromJSON('["prod"]') || github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.environment)) || github.event_name == 'pull_request' && fromJSON('["dev", "staging", "prod"]') || fromJSON('["dev"]') }}
     
     steps:
+    - name: Clean Workspace
+      run: |
+        echo " Cleaning workspace..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        df -h
+        
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -233,6 +257,14 @@ jobs:
     environment: development
     
     steps:
+    - name: Clean Workspace
+      run: |
+        echo " Cleaning workspace..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        sudo rm -rf $HOME/.terraform.d/plugin-cache || true
+        df -h
+        
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -267,7 +299,7 @@ jobs:
       run: |
         echo "Testing AWS credentials..."
         aws sts get-caller-identity
-        echo "✅ AWS credentials verified"
+        echo " AWS credentials verified"
 
     - name: Terraform Init
       run: |
@@ -292,7 +324,7 @@ jobs:
     - name: Verify State Storage
       run: |
         cd terraform/environments/dev
-        echo "📦 Terraform state management:"
+        echo " Terraform state management:"
         echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/dev/terraform.tfstate"
         echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
         echo ""
@@ -324,6 +356,14 @@ jobs:
     environment: staging
     
     steps:
+    - name: Clean Workspace
+      run: |
+        echo " Cleaning workspace..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        sudo rm -rf $HOME/.terraform.d/plugin-cache || true
+        df -h
+        
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -358,7 +398,7 @@ jobs:
       run: |
         echo "Testing AWS credentials..."
         aws sts get-caller-identity
-        echo "✅ AWS credentials verified"
+        echo " AWS credentials verified"
 
     - name: Terraform Init
       run: |
@@ -383,7 +423,7 @@ jobs:
     - name: Verify State Storage
       run: |
         cd terraform/environments/staging
-        echo "📦 Terraform state management:"
+        echo " Terraform state management:"
         echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/staging/terraform.tfstate"
         echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
         echo ""
@@ -415,6 +455,14 @@ jobs:
     environment: production
     
     steps:
+    - name: Clean Workspace
+      run: |
+        echo " Cleaning workspace..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        sudo rm -rf $HOME/.terraform.d/plugin-cache || true
+        df -h
+        
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -449,7 +497,7 @@ jobs:
       run: |
         echo "Testing AWS credentials..."
         aws sts get-caller-identity
-        echo "✅ AWS credentials verified"
+        echo " AWS credentials verified"
 
     - name: Terraform Init
       run: |
@@ -474,7 +522,7 @@ jobs:
     - name: Verify State Storage
       run: |
         cd terraform/environments/prod
-        echo "📦 Terraform state management:"
+        echo " Terraform state management:"
         echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/prod/terraform.tfstate"
         echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
         echo ""
