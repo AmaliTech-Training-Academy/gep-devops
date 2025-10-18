@@ -1,9 +1,9 @@
 name: Performance Monitoring
 
 on:
-  schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
-  workflow_dispatch:
+  # schedule:
+  #   - cron: '0 */6 * * *'  # Every 6 hours - DISABLED
+  workflow_dispatch:  # Manual activation only
 
 jobs:
   load-testing:

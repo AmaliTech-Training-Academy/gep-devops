@@ -27,7 +27,7 @@ resource "aws_cloudfront_cache_policy" "main" {
 
     headers_config {
       header_behavior = var.forward_headers_enabled ? "whitelist" : "none"
-      
+
       dynamic "headers" {
         for_each = var.forward_headers_enabled ? [1] : []
         content {
@@ -213,8 +213,8 @@ resource "aws_cloudfront_distribution" "main" {
       cached_methods         = ["GET", "HEAD"]
       compress               = true
 
-      cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
-      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
+      cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled.id
+      origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.all_viewer.id
       response_headers_policy_id = aws_cloudfront_response_headers_policy.security_headers.id
     }
   }
@@ -232,9 +232,9 @@ resource "aws_cloudfront_distribution" "main" {
 
   # SSL/TLS Certificate
   viewer_certificate {
-    acm_certificate_arn      = var.acm_certificate_arn
-    ssl_support_method       = var.acm_certificate_arn != "" ? "sni-only" : null
-    minimum_protocol_version = "TLSv1.2_2021"
+    acm_certificate_arn            = var.acm_certificate_arn
+    ssl_support_method             = var.acm_certificate_arn != "" ? "sni-only" : null
+    minimum_protocol_version       = "TLSv1.2_2021"
     cloudfront_default_certificate = var.acm_certificate_arn == "" ? true : false
   }
 

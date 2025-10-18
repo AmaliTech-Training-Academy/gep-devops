@@ -1,15 +1,3 @@
-# terraform/modules/acm/providers.tf
-# Provider configuration for us-east-1 (required for CloudFront certificates)
-terraform {
-  required_providers {
-    aws = {
-      source                = "hashicorp/aws"
-      version               = ">= 5.0"
-      configuration_aliases = [aws.us_east_1]
-    }
-  }
-}
-
 # terraform/modules/acm/outputs.tf
 output "alb_certificate_arn" {
   description = "ARN of the ALB certificate"

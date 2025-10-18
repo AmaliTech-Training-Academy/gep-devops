@@ -1,9 +1,9 @@
 name: Health Monitoring
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'  # Every 15 minutes
-  workflow_dispatch:
+  # schedule:
+  #   - cron: '*/15 * * * *'  # Every 15 minutes - DISABLED
+  workflow_dispatch:  # Manual activation only
 
 jobs:
   health-checks:

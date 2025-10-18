@@ -17,7 +17,7 @@ variable "vpc_cidr" {
   description = "CIDR block for VPC"
   type        = string
   default     = "10.0.0.0/16"
-  
+
   validation {
     condition     = can(cidrhost(var.vpc_cidr, 0))
     error_message = "VPC CIDR must be a valid IPv4 CIDR block."
@@ -68,7 +68,7 @@ variable "flow_logs_traffic_type" {
   description = "Type of traffic to log (ACCEPT, REJECT, ALL)"
   type        = string
   default     = "ALL"
-  
+
   validation {
     condition     = contains(["ACCEPT", "REJECT", "ALL"], var.flow_logs_traffic_type)
     error_message = "Flow logs traffic type must be ACCEPT, REJECT, or ALL."

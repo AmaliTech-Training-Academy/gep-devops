@@ -12,7 +12,7 @@
 
 # terraform {
 #   required_version = ">= 1.5.0"
-  
+
 #   required_providers {
 #     aws = {
 #       source  = "hashicorp/aws"
@@ -34,7 +34,7 @@
 #     "payment-service",
 #     "notification-service"
 #   ]
-  
+
 #   # Common tags
 #   common_tags = merge(
 #     var.tags,
@@ -52,20 +52,20 @@
 # # Create ECR repository for each microservice
 # resource "aws_ecr_repository" "services" {
 #   for_each = toset(local.microservices)
-  
+
 #   name                 = "${var.project_name}/${each.value}"
 #   image_tag_mutability = "MUTABLE"
-  
+
 #   # Enable image scanning for security vulnerabilities
 #   image_scanning_configuration {
 #     scan_on_push = true
 #   }
-  
+
 #   # Enable encryption at rest
 #   encryption_configuration {
 #     encryption_type = "AES256"  # Use KMS for production
 #   }
-  
+
 #   tags = merge(
 #     local.common_tags,
 #     {
@@ -83,7 +83,7 @@
 # resource "aws_ecr_lifecycle_policy" "services" {
 #   for_each   = aws_ecr_repository.services
 #   repository = each.value.name
-  
+
 #   policy = jsonencode({
 #     rules = [
 #       {
@@ -124,7 +124,7 @@
 # resource "aws_ecr_repository_policy" "services" {
 #   for_each   = aws_ecr_repository.services
 #   repository = each.value.name
-  
+
 #   policy = jsonencode({
 #     Version = "2012-10-17"
 #     Statement = [
@@ -159,14 +159,14 @@
 # # Replication configuration for disaster recovery
 # resource "aws_ecr_replication_configuration" "main" {
 #   count = var.enable_replication ? 1 : 0
-  
+
 #   replication_configuration {
 #     rule {
 #       destination {
 #         region      = var.replication_region
 #         registry_id = data.aws_caller_identity.current.account_id
 #       }
-      
+
 #       repository_filter {
 #         filter      = "${var.project_name}/*"
 #         filter_type = "PREFIX_MATCH"
