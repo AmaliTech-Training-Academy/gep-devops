@@ -29,10 +29,10 @@ enable_flow_logs = true
 # Monitoring Configuration
 # Add email addresses for CloudWatch alerts
 alert_email_addresses = [
-  # "devops@sankofagrid.com",
+   "devops@sankofagrid.com",
   # "alerts@sankofagrid.com"
 ]
-
+#alert_email_addresses = ["mangucletus@gmail.com"]
 
 # Tags
 tags = {
