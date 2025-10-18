@@ -34,6 +34,15 @@ jobs:
         environment: ${{ github.ref == 'refs/heads/dev' && fromJSON('["dev"]') || github.ref == 'refs/heads/staging' && fromJSON('["staging"]') || github.ref == 'refs/heads/main' && fromJSON('["prod"]') || github.event_name == 'workflow_dispatch' && fromJSON(format('[{0}]', toJSON(inputs.environment))) || fromJSON('["dev", "staging", "prod"]') }}
     
     steps:
+    - name: Free Disk Space
+      run: |
+        echo "🧹 Cleaning previous Terraform caches..."
+        sudo rm -rf $HOME/.terraform.d/plugin-cache || true
+        sudo rm -rf terraform/.terraform || true
+        sudo rm -rf /tmp/* || true
+        sudo apt-get clean
+        df -h
+        
     - name: Install Dependencies
       run: |
         sudo apt-get update
@@ -88,6 +97,13 @@ jobs:
         cd terraform/environments/${{ matrix.environment }}
         tflint --init
         tflint
+
+    - name: Post Validation Cleanup
+      if: always()
+      run: |
+        echo "🧹 Removing .terraform folders to free space..."
+        find terraform -type d -name ".terraform" -exec rm -rf {} +
+        df -h
 
   terraform-security-scan:
     runs-on: [self-hosted, frontend]
