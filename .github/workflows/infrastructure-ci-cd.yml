@@ -28,7 +28,8 @@ env:
 
 jobs:
   terraform-validate:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    labels: [frontend]
     strategy:
       matrix:
         environment: ${{ github.ref == 'refs/heads/dev' && fromJSON('["dev"]') || github.ref == 'refs/heads/staging' && fromJSON('["staging"]') || github.ref == 'refs/heads/main' && fromJSON('["prod"]') || github.event_name == 'workflow_dispatch' && fromJSON(format('[{0}]', toJSON(inputs.environment))) || fromJSON('["dev", "staging", "prod"]') }}
@@ -79,7 +80,8 @@ jobs:
         tflint
 
   terraform-security-scan:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    labels: [frontend]
     needs: terraform-validate
     
     steps:
@@ -109,7 +111,8 @@ jobs:
         soft_fail: true
 
   terraform-plan:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    labels: [frontend]
     needs: [terraform-validate, terraform-security-scan]
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'plan')
     strategy:
@@ -187,7 +190,8 @@ jobs:
         path: terraform/environments/${{ matrix.environment }}/tfplan
 
   terraform-apply-dev:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    labels: [frontend]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/dev' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev' && inputs.action == 'apply')
     environment: development
@@ -238,7 +242,8 @@ jobs:
         path: terraform/environments/dev/terraform.tfstate.backup
 
   terraform-apply-staging:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    labels: [frontend]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/staging' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging' && inputs.action == 'apply')
     environment: staging
@@ -294,7 +299,8 @@ jobs:
         path: terraform/environments/staging/terraform.tfstate.backup
 
   terraform-apply-prod:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    labels: [frontend]
     needs: [terraform-validate, terraform-security-scan]
     if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && inputs.action == 'apply')
     environment: production
@@ -356,7 +362,8 @@ jobs:
         # Add specific health checks for your infrastructure
 
   notify:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    labels: [frontend]
     needs: [terraform-apply-dev, terraform-apply-staging, terraform-apply-prod]
     if: always()
     
