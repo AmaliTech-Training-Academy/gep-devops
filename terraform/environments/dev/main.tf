@@ -1,408 +1,491 @@
-# terraform/environments/dev/main.tf
-# ==============================================================================
-# Development Environment - Main Configuration
-# ==============================================================================
-# This is the main entry point for the development environment infrastructure.
-# It orchestrates all modules to deploy a cost-optimized, single-AZ environment.
-#
-# Environment Characteristics:
-# - Single AZ deployment for cost optimization
-# - Minimal resource allocation
-# - No read replicas for databases
-# - Single ElastiCache node
-# - 1 ECS task per microservice
-# - Estimated cost: ~$248/month (24/7) or ~$75-95/month (weekday-only)
-# ==============================================================================
-
-terraform {
-  required_version = ">= 1.5.0"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-# ==============================================================================
-# Provider Configuration
-# ==============================================================================
-
-provider "aws" {
-  region = var.aws_region
-
-  default_tags {
-    tags = {
-      Project     = var.project_name
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-      CostCenter  = "Engineering"
-    }
-  }
-}
-
-# Additional provider for ACM certificates (CloudFront requires us-east-1)
-provider "aws" {
-  alias  = "us_east_1"
-  region = "us-east-1"
-
-  default_tags {
-    tags = {
-      Project     = var.project_name
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-      CostCenter  = "Engineering"
-    }
-  }
-}
-
-# ==============================================================================
-# Data Sources
-# ==============================================================================
-
-data "aws_caller_identity" "current" {}
-
-data "aws_region" "current" {}
-
-# ==============================================================================
-# Local Variables
-# ==============================================================================
-
-locals {
-  common_tags = merge(
-    var.tags,
-    {
-      Project     = var.project_name
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-    }
-  )
-}
-
-# ==============================================================================
-# VPC Module
-# ==============================================================================
-
-module "vpc" {
-  source = "../../modules/vpc"
-
-  project_name       = var.project_name
-  environment        = var.environment
-  vpc_cidr           = var.vpc_cidr
-  availability_zones = var.availability_zones
-  aws_region         = var.aws_region
-
-  # Cost optimization: Single NAT Gateway for dev
-  enable_nat_gateway = true
-  single_nat_gateway = true
-
-  # Enable VPC endpoints to reduce NAT Gateway costs
-  enable_vpc_endpoints = true
-
-  # Enable flow logs for security monitoring
-  enable_flow_logs         = var.enable_flow_logs
-  flow_logs_retention_days = 7 # Shorter retention for dev
-  flow_logs_traffic_type   = "ALL"
-
-  tags = local.common_tags
-}
-
-# ==============================================================================
-# Security Groups Module
-# ==============================================================================
-
-module "security_groups" {
-  source = "../../modules/security-groups"
-
-  project_name = var.project_name
-  environment  = var.environment
-  vpc_id       = module.vpc.vpc_id
-
-  tags = local.common_tags
-}
-
-# ==============================================================================
-# S3 Module
-# ==============================================================================
-
-module "s3" {
-  source = "../../modules/s3"
-
-  project_name = var.project_name
-  environment  = var.environment
-  account_id   = data.aws_caller_identity.current.account_id
-
-  # CloudFront distribution ARN (will be updated after CloudFront is created)
-  cloudfront_distribution_arn = "" # Initial deployment
-
-  # Versioning (disabled for dev to save costs)
-  enable_versioning = false
-
-  # Lifecycle rules
-  enable_lifecycle_rules     = true
-  transition_to_ia_days      = 90
-  transition_to_glacier_days = 180
-
-  # CORS configuration
-  enable_cors          = true
-  cors_allowed_origins = ["https://${var.frontend_domain}"]
-
-  # Access logging
-  enable_access_logging = true
-  logs_expiration_days  = 90
-
-  # Backup retention
-  backup_retention_days = 365
-
-  # Encryption
-  kms_key_arn = null # Use AWS managed keys for dev
-
-  common_tags = local.common_tags
-}
-
-# After initial S3 creation, update CloudFront distribution ARN
-# This will be done in a second apply after CloudFront is created
-
-# ==============================================================================
-# ACM Module (SSL/TLS Certificates)
-# ==============================================================================
-
-module "acm" {
-  source = "../../modules/acm"
-
-  providers = {
-    aws           = aws
-    aws.us_east_1 = aws.us_east_1
-  }
-
-  project_name = var.project_name
-  environment  = var.environment
-
-  # ALB Certificate (regional)
-  create_alb_certificate    = true
-  domain_name               = var.backend_domain
-  subject_alternative_names = ["*.${var.domain_name}"]
-
-  # CloudFront Certificate (us-east-1)
-  create_cloudfront_certificate        = true
-  cloudfront_domain_name               = var.frontend_domain
-  cloudfront_subject_alternative_names = []
-
-  # DNS validation
-  validation_method = "DNS"
-  route53_zone_id   = module.route53.hosted_zone_id # Use zone from Route53 module
-
-  # Certificate expiration monitoring
-  enable_expiration_alarms  = true
-  expiration_days_threshold = 30
-  alarm_actions             = [] # Add SNS topic ARN if you have one
-
-  common_tags = local.common_tags
-}
-
-# ==============================================================================
-# CloudFront Module
-# ==============================================================================
-
-module "cloudfront" {
-  source = "../../modules/cloudfront"
-
-  project_name = var.project_name
-  environment  = var.environment
-
-  # S3 origin configuration
-  s3_bucket_id                   = module.s3.assets_bucket_id
-  s3_bucket_regional_domain_name = module.s3.assets_bucket_regional_domain_name
-
-  # ALB origin configuration (optional - add when ALB is created)
-  alb_domain_name = "" # Will be populated when ALB module is added
-
-  # Domain configuration
-  domain_aliases      = [var.frontend_domain]
-  acm_certificate_arn = module.acm.cloudfront_certificate_arn
-
-  # CloudFront settings
-  default_root_object = "index.html"
-  price_class         = "PriceClass_100" # US, Canada, Europe
-
-  # Cache settings
-  default_ttl = 86400    # 1 day
-  max_ttl     = 31536000 # 1 year
-  min_ttl     = 0
-
-  # Request forwarding
-  forward_cookies         = false
-  forward_query_strings   = true
-  forward_headers_enabled = false
-
-  # Origin Shield (disabled for dev to save costs)
-  enable_origin_shield = false
-  origin_shield_region = var.aws_region
-
-  # Geo restrictions
-  geo_restriction_type      = "none"
-  geo_restriction_locations = []
-
-  # WAF (disabled for dev to save costs)
-  waf_web_acl_arn = ""
-
-  # Logging
-  enable_logging = true
-  logging_bucket = module.s3.logs_bucket_id != null ? "${module.s3.logs_bucket_id}.s3.amazonaws.com" : ""
-  logging_prefix = "cloudfront/"
-
-  # CORS
-  cors_allowed_origins = ["https://${var.frontend_domain}"]
-
-  # Content Security Policy
-  content_security_policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://${var.backend_domain};"
-
-  # URL rewriting for SPA
-  enable_url_rewrite = true
-
-  # Custom error responses
-  custom_error_responses = [
-    {
-      error_code            = 403
-      response_code         = 200
-      response_page_path    = "/index.html"
-      error_caching_min_ttl = 300
-    },
-    {
-      error_code            = 404
-      response_code         = 200
-      response_page_path    = "/index.html"
-      error_caching_min_ttl = 300
-    }
-  ]
-
-  common_tags = local.common_tags
-}
-
-# ==============================================================================
-# Route53 Module
-# ==============================================================================
-
-module "route53" {
-  source = "../../modules/route53"
-
-  project_name = var.project_name
-  environment  = var.environment
-
-  # Domain configuration
-  domain_name        = var.domain_name
-  create_hosted_zone = true # Set to true if creating new zone
-
-  # Frontend (CloudFront)
-  frontend_subdomain     = "www" # Results in www.sankofagrid.com
-  cloudfront_domain_name = module.cloudfront.distribution_domain_name
-  cloudfront_zone_id     = module.cloudfront.distribution_hosted_zone_id
-
-  # Backend (ALB) - will be configured after ALB is created
-  api_subdomain = "api" # Results in api.sankofagrid.com
-  alb_dns_name  = ""    # Will be populated when ALB module is added
-  alb_zone_id   = ""    # Will be populated when ALB module is added
-
-  # IPv6 support
-  enable_ipv6 = true
-
-  # WWW redirect
-  create_www_record = false # We're already using www as primary
-
-  # Health checks
-  enable_health_checks           = false # Will enable when ALB is added
-  health_check_path              = "/health"
-  health_check_failure_threshold = 3
-  health_check_interval          = 30
-
-  # Alarms
-  alarm_actions = [] # Add SNS topic ARN if you have one
-
-  # DNS records for verification (e.g., Google, etc.)
-  verification_records = {}
-
-  # Email configuration
-  mx_records   = []
-  spf_record   = ""
-  dkim_records = {}
-  dmarc_record = ""
-
-  # CAA records
-  caa_records = [
-    "0 issue \"amazon.com\"",
-    "0 issue \"letsencrypt.org\""
-  ]
-
-  common_tags = local.common_tags
-}
-
-# ==============================================================================
-# CloudWatch Module
-# ==============================================================================
-
-module "cloudwatch" {
-  source = "../../modules/cloudwatch"
-
-  project_name = var.project_name
-  environment  = var.environment
-  aws_region   = var.aws_region
-
-  # Alert configuration
-  alert_email_addresses = var.alert_email_addresses
-
-  # Resource identifiers (will be populated as resources are created)
-  ecs_cluster_name       = "" # Will be populated when ECS module is added
-  alb_arn                = "" # Will be populated when ALB module is added
-  alb_arn_suffix         = "" # Will be populated when ALB module is added
-  rds_instance_id        = "" # Will be populated when RDS module is added
-  elasticache_cluster_id = "" # Will be populated when ElastiCache module is added
-
-  # Alarm thresholds
-  ecs_cpu_threshold               = 80
-  ecs_memory_threshold            = 80
-  alb_5xx_threshold               = 10
-  alb_response_time_threshold     = 2
-  rds_cpu_threshold               = 80
-  rds_storage_threshold_bytes     = 5368709120 # 5 GB
-  rds_connections_threshold       = 80
-  elasticache_cpu_threshold       = 75
-  elasticache_memory_threshold    = 90
-  elasticache_evictions_threshold = 1000
-
-  # Log retention
-  log_retention_days = 30
-
-  # Encryption
-  kms_key_arn = null # Use AWS managed keys for dev
-
-  common_tags = local.common_tags
-}
-
-# ==============================================================================
-# IAM Module
-# ==============================================================================
-
-module "iam" {
-  source = "../../modules/iam"
-
-  project_name = var.project_name
-  environment  = var.environment
-
-  # S3 buckets for IAM policies
-  frontend_bucket_arn = module.s3.assets_bucket_arn
-
-  # Secrets Manager ARNs (using wildcard for flexibility)
-  db_secrets_arns = [
-    "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/*"
-  ]
-
-
-
-  # # Terraform state management (these should be created separately)
-  # terraform_state_bucket_arn = "arn:aws:s3:::${var.project_name}-${var.environment}-terraform-state"
-  # terraform_lock_table_arn   = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.project_name}-${var.environment}-terraform-locks"
-
-  tags = local.common_tags
-}
+# # terraform/environments/dev/main.tf
+# # ==============================================================================
+# # Development Environment - Main Configuration
+# # ==============================================================================
+# # This is the main entry point for the development environment infrastructure.
+# # It orchestrates all modules to deploy a cost-optimized, single-AZ environment.
+# #
+# # Environment Characteristics:
+# # - Single AZ deployment for cost optimization
+# # - Minimal resource allocation
+# # - No read replicas for databases
+# # - Single ElastiCache node
+# # - 1 ECS task per microservice
+# # - Estimated cost: ~$248/month (24/7) or ~$75-95/month (weekday-only)
+# # ==============================================================================
+
+# terraform {
+#   required_version = ">= 1.5.0"
+  
+#   required_providers {
+#     aws = {
+#       source  = "hashicorp/aws"
+#       version = "~> 5.0"
+#     }
+#   }
+# }
+
+# # ==============================================================================
+# # Provider Configuration
+# # ==============================================================================
+
+# provider "aws" {
+#   region = var.aws_region
+  
+#   default_tags {
+#     tags = {
+#       Project     = var.project_name
+#       Environment = var.environment
+#       ManagedBy   = "Terraform"
+#       CostCenter  = "Engineering"
+#     }
+#   }
+# }
+
+# # ==============================================================================
+# # Data Sources
+# # ==============================================================================
+
+# data "aws_caller_identity" "current" {}
+
+# data "aws_region" "current" {}
+
+# # ==============================================================================
+# # VPC Module
+# # ==============================================================================
+
+# module "vpc" {
+#   source = "../../modules/vpc"
+  
+#   project_name       = var.project_name
+#   environment        = var.environment
+#   vpc_cidr           = var.vpc_cidr
+#   availability_zones = var.availability_zones
+#   aws_region         = var.aws_region
+  
+#   # Cost optimization: Single NAT Gateway for dev
+#   enable_nat_gateway = true
+#   single_nat_gateway = true
+  
+#   # Enable VPC endpoints to reduce NAT Gateway costs
+#   enable_vpc_endpoints = true
+  
+#   # Enable flow logs for security monitoring
+#   enable_flow_logs          = var.enable_flow_logs
+#   flow_logs_retention_days  = 7  # Shorter retention for dev
+#   flow_logs_traffic_type    = "ALL"
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # Security Groups Module
+# # ==============================================================================
+
+# module "security_groups" {
+#   source = "../../modules/security-groups"
+  
+#   project_name = var.project_name
+#   environment  = var.environment
+#   vpc_id       = module.vpc.vpc_id
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # IAM Module
+# # ==============================================================================
+
+# module "iam" {
+#   source = "../../modules/iam"
+  
+#   project_name = var.project_name
+#   environment  = var.environment
+  
+#   # S3 buckets for IAM policies
+#   frontend_bucket_arn = module.s3.frontend_bucket_arn
+#   logs_bucket_arn     = module.s3.logs_bucket_arn
+  
+#   # Secrets Manager ARNs
+#   db_secrets_arns = [
+#     "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/rds/*",
+#     "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/documentdb/*",
+#     "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/jwt/*"
+#   ]
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # RDS Module - Auth Database
+# # ==============================================================================
+
+# module "rds_auth" {
+#   source = "../../modules/rds"
+  
+#   project_name    = var.project_name
+#   environment     = var.environment
+#   database_name   = "auth"
+  
+#   # Instance configuration (cost-optimized)
+#   instance_class       = "db.t4g.micro"
+#   allocated_storage    = 20
+#   max_allocated_storage = 100
+  
+#   # Single-AZ for dev
+#   multi_az             = false
+#   create_read_replicas = false
+  
+#   # Network configuration
+#   vpc_id                 = module.vpc.vpc_id
+#   subnet_ids             = module.vpc.private_data_subnet_ids
+#   vpc_security_group_ids = [module.security_groups.rds_security_group_id]
+  
+#   # Backup configuration
+#   backup_retention_period = 7
+#   backup_window           = "03:00-04:00"
+#   maintenance_window      = "sun:04:00-sun:05:00"
+  
+#   # Monitoring
+#   enabled_cloudwatch_logs_exports = ["postgresql"]
+#   performance_insights_enabled    = false  # Disabled for cost
+  
+#   # Secrets
+#   master_password_secret_arn = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/rds/auth-db/master-password"
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # RDS Module - Event Database
+# # ==============================================================================
+
+# module "rds_event" {
+#   source = "../../modules/rds"
+  
+#   project_name    = var.project_name
+#   environment     = var.environment
+#   database_name   = "event"
+  
+#   instance_class       = "db.t4g.small"
+#   allocated_storage    = 20
+#   max_allocated_storage = 100
+  
+#   multi_az             = false
+#   create_read_replicas = false
+  
+#   vpc_id                 = module.vpc.vpc_id
+#   subnet_ids             = module.vpc.private_data_subnet_ids
+#   vpc_security_group_ids = [module.security_groups.rds_security_group_id]
+  
+#   backup_retention_period = 7
+#   backup_window           = "03:00-04:00"
+#   maintenance_window      = "sun:04:00-sun:05:00"
+  
+#   enabled_cloudwatch_logs_exports = ["postgresql"]
+#   performance_insights_enabled    = false
+  
+#   master_password_secret_arn = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/rds/event-db/master-password"
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # RDS Module - Booking Database
+# # ==============================================================================
+
+# module "rds_booking" {
+#   source = "../../modules/rds"
+  
+#   project_name    = var.project_name
+#   environment     = var.environment
+#   database_name   = "booking"
+  
+#   instance_class       = "db.t4g.small"
+#   allocated_storage    = 20
+#   max_allocated_storage = 100
+  
+#   multi_az             = false
+#   create_read_replicas = false
+  
+#   vpc_id                 = module.vpc.vpc_id
+#   subnet_ids             = module.vpc.private_data_subnet_ids
+#   vpc_security_group_ids = [module.security_groups.rds_security_group_id]
+  
+#   backup_retention_period = 7
+#   backup_window           = "03:00-04:00"
+#   maintenance_window      = "sun:04:00-sun:05:00"
+  
+#   enabled_cloudwatch_logs_exports = ["postgresql"]
+#   performance_insights_enabled    = false
+  
+#   master_password_secret_arn = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/rds/booking-db/master-password"
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # RDS Module - Payment Database
+# # ==============================================================================
+
+# module "rds_payment" {
+#   source = "../../modules/rds"
+  
+#   project_name    = var.project_name
+#   environment     = var.environment
+#   database_name   = "payment"
+  
+#   instance_class       = "db.t4g.micro"
+#   allocated_storage    = 20
+#   max_allocated_storage = 100
+  
+#   multi_az             = false
+#   create_read_replicas = false
+  
+#   vpc_id                 = module.vpc.vpc_id
+#   subnet_ids             = module.vpc.private_data_subnet_ids
+#   vpc_security_group_ids = [module.security_groups.rds_security_group_id]
+  
+#   backup_retention_period = 7
+#   backup_window           = "03:00-04:00"
+#   maintenance_window      = "sun:04:00-sun:05:00"
+  
+#   enabled_cloudwatch_logs_exports = ["postgresql"]
+#   performance_insights_enabled    = false
+  
+#   master_password_secret_arn = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/rds/payment-db/master-password"
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # DocumentDB Module
+# # ==============================================================================
+
+# module "documentdb" {
+#   source = "../../modules/documentdb"
+  
+#   project_name        = var.project_name
+#   environment         = var.environment
+#   cluster_identifier  = "${var.project_name}-${var.environment}-audit-logs"
+  
+#   # Single instance for dev
+#   instance_class  = "db.t3.medium"
+#   instance_count  = 1
+  
+#   # Network configuration
+#   vpc_id                 = module.vpc.vpc_id
+#   subnet_ids             = module.vpc.private_data_subnet_ids
+#   vpc_security_group_ids = [module.security_groups.documentdb_security_group_id]
+  
+#   # Backup configuration
+#   backup_retention_period = 7
+#   preferred_backup_window = "03:00-04:00"
+  
+#   # Secrets
+#   master_password_secret_arn = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/documentdb/master-password"
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # ElastiCache Module
+# # ==============================================================================
+
+# module "elasticache" {
+#   source = "../../modules/elasticache"
+  
+#   project_name      = var.project_name
+#   environment       = var.environment
+#   cluster_id        = "${var.project_name}-${var.environment}-redis"
+  
+#   # Single node for dev
+#   node_type         = "cache.t3.micro"
+#   num_cache_nodes   = 1
+#   engine_version    = "7.0"
+  
+#   # Network configuration
+#   vpc_id                 = module.vpc.vpc_id
+#   subnet_ids             = module.vpc.private_data_subnet_ids
+#   vpc_security_group_ids = [module.security_groups.elasticache_security_group_id]
+  
+#   # Backup configuration
+#   snapshot_retention_limit = 7
+#   snapshot_window          = "03:00-05:00"
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # ECS Cluster Module
+# # ==============================================================================
+
+# module "ecs" {
+#   source = "../../modules/ecs"
+  
+#   project_name = var.project_name
+#   environment  = var.environment
+  
+#   # Capacity providers
+#   enable_fargate_spot = false  # Disabled for simplicity in dev
+  
+#   # Container Insights (disabled for cost)
+#   enable_container_insights = false
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # CloudMap Service Discovery
+# # ==============================================================================
+
+# module "cloudmap" {
+#   source = "../../modules/cloudmap"
+  
+#   project_name = var.project_name
+#   environment  = var.environment
+#   vpc_id       = module.vpc.vpc_id
+  
+#   # Service discovery namespace
+#   namespace_name = "eventplanner.local"
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # S3 Module
+# # ==============================================================================
+
+# module "s3" {
+#   source = "../../modules/s3"
+  
+#   project_name = var.project_name
+#   environment  = var.environment
+  
+#   # Frontend hosting bucket
+#   create_frontend_bucket = true
+#   frontend_domain        = var.frontend_domain
+  
+#   # Logs bucket
+#   create_logs_bucket = true
+  
+#   # Versioning (disabled for dev to save costs)
+#   enable_versioning = false
+  
+#   # Lifecycle rules
+#   enable_lifecycle_rules = true
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # ACM Module (SSL/TLS Certificates)
+# # ==============================================================================
+
+# module "acm" {
+#   source = "../../modules/acm"
+  
+#   project_name = var.project_name
+#   environment  = var.environment
+  
+#   # Domain configuration
+#   domain_name               = var.domain_name
+#   subject_alternative_names = [
+#     "*.${var.domain_name}",
+#     var.frontend_domain,
+#     var.backend_domain
+#   ]
+  
+#   # Route53 zone for DNS validation
+#   route53_zone_id = module.route53.zone_id
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # CloudFront Module
+# # ==============================================================================
+
+# module "cloudfront" {
+#   source = "../../modules/cloudfront"
+  
+#   project_name = var.project_name
+#   environment  = var.environment
+  
+#   # S3 origin configuration
+#   frontend_bucket_id                = module.s3.frontend_bucket_id
+#   frontend_bucket_regional_domain   = module.s3.frontend_bucket_regional_domain_name
+#   frontend_bucket_arn               = module.s3.frontend_bucket_arn
+  
+#   # Domain configuration
+#   domain_name     = var.frontend_domain
+#   acm_certificate_arn = module.acm.certificate_arn
+  
+#   # Logging
+#   logging_bucket = module.s3.logs_bucket_domain_name
+#   logging_prefix = "cloudfront/"
+  
+#   # WAF (disabled for dev)
+#   enable_waf = false
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # Route53 Module
+# # ==============================================================================
+
+# module "route53" {
+#   source = "../../modules/route53"
+  
+#   project_name = var.project_name
+#   environment  = var.environment
+  
+#   # Domain configuration
+#   domain_name = var.domain_name
+  
+#   # Frontend (CloudFront)
+#   create_frontend_record = true
+#   frontend_domain        = var.frontend_domain
+#   cloudfront_domain_name = module.cloudfront.distribution_domain_name
+#   cloudfront_zone_id     = module.cloudfront.distribution_hosted_zone_id
+  
+#   # Backend (ALB) - will be configured after ALB is created
+#   create_backend_record = true
+#   backend_domain        = var.backend_domain
+#   alb_domain_name       = module.alb.dns_name
+#   alb_zone_id           = module.alb.zone_id
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # ALB Module
+# # ==============================================================================
+
+# module "alb" {
+#   source = "../../modules/alb"
+  
+#   project_name = var.project_name
+#   environment  = var.environment
+  
+#   # Network configuration
+#   vpc_id             = module.vpc.vpc_id
+#   subnet_ids         = module.vpc.public_subnet_ids
+#   security_group_ids = [module.security_groups.alb_security_group_id]
+  
+#   # SSL certificate
+#   certificate_arn = module.acm.certificate_arn
+  
+#   # Logging
+#   enable_access_logs = true
+#   logs_bucket        = module.s3.logs_bucket_id
+#   logs_prefix        = "alb/"
+  
+#   tags = var.tags
+# }
+
+# # ==============================================================================
+# # Outputs
+# # ==============================================================================
 

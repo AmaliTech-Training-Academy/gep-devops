@@ -14,6 +14,3 @@ output "ecs_task_role_arns" {
     event_service = aws_iam_role.event_service_task.arn
   }
 }
-
-
-
