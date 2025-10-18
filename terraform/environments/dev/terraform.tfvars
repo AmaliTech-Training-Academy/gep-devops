@@ -42,13 +42,3 @@ tags = {
   Environment = "dev"
 }
 
-# ==============================================================================
-# Secrets (DO NOT COMMIT TO VERSION CONTROL)
-# ==============================================================================
-# These should be provided via environment variables or AWS Secrets Manager
-# 
-# export TF_VAR_db_master_password="your-secure-password"
-# export TF_VAR_docdb_master_password="your-secure-password"
-# export TF_VAR_jwt_secret_key="your-jwt-secret-key"
-# 
-# Or create a separate terraform.tfvars.secret file (add to .gitignore)
