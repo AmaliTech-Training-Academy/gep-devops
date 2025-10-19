@@ -118,28 +118,29 @@ output "logs_bucket_id" {
 }
 
 # ==============================================================================
-# ACM Outputs
+# ACM Outputs - COMMENTED OUT FOR PHASE 1
 # ==============================================================================
+# UNCOMMENT THESE FOR PHASE 2
 
-output "alb_certificate_arn" {
-  description = "ARN of the ALB SSL certificate"
-  value       = module.acm.alb_certificate_arn
-}
+# output "alb_certificate_arn" {
+#   description = "ARN of the ALB SSL certificate"
+#   value       = module.acm.alb_certificate_arn
+# }
 
-output "alb_certificate_status" {
-  description = "Status of the ALB SSL certificate"
-  value       = module.acm.alb_certificate_status
-}
+# output "alb_certificate_status" {
+#   description = "Status of the ALB SSL certificate"
+#   value       = module.acm.alb_certificate_status
+# }
 
-output "cloudfront_certificate_arn" {
-  description = "ARN of the CloudFront SSL certificate"
-  value       = module.acm.cloudfront_certificate_arn
-}
+# output "cloudfront_certificate_arn" {
+#   description = "ARN of the CloudFront SSL certificate"
+#   value       = module.acm.cloudfront_certificate_arn
+# }
 
-output "cloudfront_certificate_status" {
-  description = "Status of the CloudFront SSL certificate"
-  value       = module.acm.cloudfront_certificate_status
-}
+# output "cloudfront_certificate_status" {
+#   description = "Status of the CloudFront SSL certificate"
+#   value       = module.acm.cloudfront_certificate_status
+# }
 
 # ==============================================================================
 # CloudFront Outputs
@@ -215,25 +216,22 @@ output "ecs_task_role_arns" {
   value       = module.iam.ecs_task_role_arns
 }
 
-# GitHub OIDC outputs removed - not using OIDC authentication
-# Using AWS Access Keys instead for GitHub Actions
-
 # ==============================================================================
-# Application URLs
+# Application URLs - PHASE 1 VERSION
 # ==============================================================================
 
 output "frontend_url" {
-  description = "Frontend application URL"
-  value       = "https://${var.frontend_domain}"
+  description = "Frontend application URL (CloudFront direct URL for Phase 1)"
+  value       = "https://${module.cloudfront.distribution_domain_name}"
 }
 
 output "backend_url" {
   description = "Backend API URL (will be active once ALB is deployed)"
-  value       = "https://${var.backend_domain}"
+  value       = "https://${var.backend_domain} (not yet configured)"
 }
 
 # ==============================================================================
-# Resource Summary
+# Resource Summary - PHASE 1 VERSION
 # ==============================================================================
 
 output "resource_summary" {
@@ -257,53 +255,92 @@ output "resource_summary" {
     route53 = {
       hosted_zone_id = module.route53.hosted_zone_id
     }
-    certificates = {
-      alb_arn        = module.acm.alb_certificate_arn
-      cloudfront_arn = module.acm.cloudfront_certificate_arn
-    }
+    # Certificates section commented out for Phase 1
+    # certificates = {
+    #   alb_arn        = module.acm.alb_certificate_arn
+    #   cloudfront_arn = module.acm.cloudfront_certificate_arn
+    # }
   }
 }
 
 # ==============================================================================
-# Deployment Instructions Output
+# Deployment Instructions Output - PHASE 1 VERSION
 # ==============================================================================
 
 output "deployment_instructions" {
   description = "Quick deployment guide"
   value       = <<-EOT
     ========================================
-    DEPLOYMENT INSTRUCTIONS
+    PHASE 1 DEPLOYMENT COMPLETE!
     ========================================
     
-    FRONTEND DEPLOYMENT:
-    --------------------
+    Core Infrastructure Deployed:
+    ----------------------------------
+    - VPC and Networking
+    - S3 Buckets (with CloudFront ACL configured)
+    - CloudFront Distribution
+    - Route53 Hosted Zone
+    - CloudWatch Monitoring
+    - IAM Roles
+    
+     NEXT STEPS - DNS CONFIGURATION:
+    ----------------------------------
+    1. Get your Route53 nameservers:
+       terraform output route53_nameservers
+    
+    2. Update nameservers at your domain registrar:
+       Log into your registrar (where you bought sankofagrid.com)
+       Find "Nameservers" or "DNS" settings
+       Replace Cloudflare nameservers with the 4 AWS Route53 nameservers shown above
+    
+    3. Monitor DNS propagation (1-24 hours):
+       dig NS sankofagrid.com +short
+       
+       When you see AWS nameservers (ns-xxxx.awsdns-xx.xxx), proceed to Phase 2!
+    
+    4. Use these online tools to check propagation globally:
+       - https://www.whatsmydns.net/#NS/sankofagrid.com
+       - https://dnschecker.org/#NS/sankofagrid.com
+    
+     CURRENT ACCESS (Phase 1):
+    -----------------------------
+    CloudFront Direct URL: ${module.cloudfront.distribution_domain_name}
+    Access your site at:   https://${module.cloudfront.distribution_domain_name}
+    
+    Custom domains (www.sankofagrid.com) will be configured in Phase 2
+    after DNS propagation is complete.
+    
+     UPLOAD FRONTEND (Optional - Test Now):
+    ------------------------------------------
     1. Build: npm run build --prod
     2. Upload: aws s3 sync dist/ s3://${module.s3.assets_bucket_id}/ --delete
-    3. Invalidate: aws cloudfront create-invalidation --distribution-id ${module.cloudfront.distribution_id} --paths "/*"
-    4. Access: https://${var.frontend_domain}
+    3. Test: curl https://${module.cloudfront.distribution_domain_name}
     
-    DNS CONFIGURATION:
-    ------------------
-    ${module.route53.hosted_zone_name_servers != null ? "Update your domain registrar with these nameservers:\n${join("\n", formatlist("    - %s", module.route53.hosted_zone_name_servers))}" : "Using existing hosted zone"}
-    
-    SSL CERTIFICATES:
-    -----------------
-    - ALB Certificate: ${module.acm.alb_certificate_status}
-    - CloudFront Certificate: ${module.acm.cloudfront_certificate_status}
-    ${module.acm.alb_certificate_status != "ISSUED" || module.acm.cloudfront_certificate_status != "ISSUED" ? "\n⚠️  Certificates pending validation. Check Route53 for validation DNS records." : "\n✅ All certificates issued successfully!"}
-    
-    ESTIMATED MONTHLY COST:
+     PHASE 2 DEPLOYMENT:
     ----------------------
-    Phase 1 Infrastructure: $50-75/month
-    - NAT Gateway: $32/month
-    - S3 Storage: $5-10/month
-    - CloudFront: $5-10/month
-    - VPC Endpoints: $7-15/month
-    - Route53: $0.50/month
-    - CloudWatch: $3-5/month
+    After DNS is fully propagated:
+    1. Edit main.tf: Uncomment ACM module
+    2. Edit main.tf: Update CloudFront and Route53 modules
+    3. Edit outputs.tf: Uncomment ACM outputs
+    4. Run: terraform plan -out=phase2.tfplan
+    5. Run: terraform apply phase2.tfplan
+    6. Wait 5-45 minutes for ACM validation
+    7. Access: https://www.sankofagrid.com
     
-    NEXT STEPS:
-    -----------
-    Add Phase 2 infrastructure (ECS, RDS, ElastiCache, etc.)
   EOT
+}
+
+# ==============================================================================
+# Phase 1 Specific Outputs
+# ==============================================================================
+
+output "phase_1_status" {
+  description = "Phase 1 deployment status"
+  value = {
+    status              = "COMPLETE"
+    cloudfront_url      = "https://${module.cloudfront.distribution_domain_name}"
+    route53_zone_id     = module.route53.hosted_zone_id
+    next_step           = "Update nameservers at your domain registrar"
+    nameservers_command = "terraform output route53_nameservers"
+  }
 }

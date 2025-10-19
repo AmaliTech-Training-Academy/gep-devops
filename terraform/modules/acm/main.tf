@@ -64,7 +64,7 @@ resource "aws_acm_certificate" "cloudfront" {
 
 # Route53 DNS validation records for ALB certificate
 resource "aws_route53_record" "alb_validation" {
-  for_each = var.create_alb_certificate && var.validation_method == "DNS" ? {
+  for_each = var.create_alb_certificate && var.validation_method == "DNS" && var.route53_zone_id != "" ? {
     for dvo in aws_acm_certificate.alb[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
@@ -82,7 +82,7 @@ resource "aws_route53_record" "alb_validation" {
 
 # Route53 DNS validation records for CloudFront certificate
 resource "aws_route53_record" "cloudfront_validation" {
-  for_each = var.create_cloudfront_certificate && var.validation_method == "DNS" ? {
+  for_each = var.create_cloudfront_certificate && var.validation_method == "DNS" && var.route53_zone_id != "" ? {
     for dvo in aws_acm_certificate.cloudfront[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
@@ -98,21 +98,23 @@ resource "aws_route53_record" "cloudfront_validation" {
   zone_id         = var.route53_zone_id
 }
 
-# Certificate validation for ALB
+# FIX: Certificate validation for ALB - increased timeout to 45 minutes
 resource "aws_acm_certificate_validation" "alb" {
-  count = var.create_alb_certificate && var.validation_method == "DNS" ? 1 : 0
+  count = var.create_alb_certificate && var.validation_method == "DNS" && var.route53_zone_id != "" ? 1 : 0
 
   certificate_arn         = aws_acm_certificate.alb[0].arn
   validation_record_fqdns = [for record in aws_route53_record.alb_validation : record.fqdn]
 
   timeouts {
-    create = "10m"
+    create = "45m"  # Increased from 10m to 45m for DNS propagation
   }
+
+  depends_on = [aws_route53_record.alb_validation]
 }
 
-# Certificate validation for CloudFront
+# FIX: Certificate validation for CloudFront - increased timeout to 45 minutes
 resource "aws_acm_certificate_validation" "cloudfront" {
-  count = var.create_cloudfront_certificate && var.validation_method == "DNS" ? 1 : 0
+  count = var.create_cloudfront_certificate && var.validation_method == "DNS" && var.route53_zone_id != "" ? 1 : 0
 
   provider = aws.us_east_1
 
@@ -120,8 +122,10 @@ resource "aws_acm_certificate_validation" "cloudfront" {
   validation_record_fqdns = [for record in aws_route53_record.cloudfront_validation : record.fqdn]
 
   timeouts {
-    create = "10m"
+    create = "45m"  # Increased from 10m to 45m for DNS propagation
   }
+
+  depends_on = [aws_route53_record.cloudfront_validation]
 }
 
 # CloudWatch Metric Alarm for certificate expiration (ALB)

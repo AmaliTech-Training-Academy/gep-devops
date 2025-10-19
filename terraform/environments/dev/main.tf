@@ -168,38 +168,38 @@ module "s3" {
 # ACM Module (SSL/TLS Certificates)
 # ==============================================================================
 
-module "acm" {
-  source = "../../modules/acm"
+# module "acm" {
+#   source = "../../modules/acm"
 
-  providers = {
-    aws           = aws
-    aws.us_east_1 = aws.us_east_1
-  }
+#   providers = {
+#     aws           = aws
+#     aws.us_east_1 = aws.us_east_1
+#   }
 
-  project_name = var.project_name
-  environment  = var.environment
+#   project_name = var.project_name
+#   environment  = var.environment
 
-  # ALB Certificate (regional)
-  create_alb_certificate    = true
-  domain_name               = var.backend_domain
-  subject_alternative_names = ["*.${var.domain_name}"]
+#   # ALB Certificate (regional)
+#   create_alb_certificate    = true
+#   domain_name               = var.backend_domain
+#   subject_alternative_names = ["*.${var.domain_name}"]
 
-  # CloudFront Certificate (us-east-1)
-  create_cloudfront_certificate        = true
-  cloudfront_domain_name               = var.frontend_domain
-  cloudfront_subject_alternative_names = []
+#   # CloudFront Certificate (us-east-1)
+#   create_cloudfront_certificate        = true
+#   cloudfront_domain_name               = var.frontend_domain
+#   cloudfront_subject_alternative_names = []
 
-  # DNS validation
-  validation_method = "DNS"
-  route53_zone_id   = module.route53.hosted_zone_id # Use zone from Route53 module
+#   # DNS validation
+#   validation_method = "DNS"
+#   route53_zone_id   = module.route53.hosted_zone_id # Use zone from Route53 module
 
-  # Certificate expiration monitoring
-  enable_expiration_alarms  = true
-  expiration_days_threshold = 30
-  alarm_actions             = [] # Add SNS topic ARN if you have one
+#   # Certificate expiration monitoring
+#   enable_expiration_alarms  = true
+#   expiration_days_threshold = 30
+#   alarm_actions             = [] # Add SNS topic ARN if you have one
 
-  common_tags = local.common_tags
-}
+#   common_tags = local.common_tags
+# }
 
 # ==============================================================================
 # CloudFront Module
@@ -219,8 +219,12 @@ module "cloudfront" {
   alb_domain_name = "" # Will be populated when ALB module is added
 
   # Domain configuration
-  domain_aliases      = [var.frontend_domain]
-  acm_certificate_arn = module.acm.cloudfront_certificate_arn
+  # domain_aliases      = [var.frontend_domain]
+  # acm_certificate_arn = module.acm.cloudfront_certificate_arn
+
+  # PHASE 1: Use these instead
+  domain_aliases      = []
+  acm_certificate_arn = ""
 
   # CloudFront settings
   default_root_object = "index.html"
@@ -253,7 +257,11 @@ module "cloudfront" {
   logging_prefix = "cloudfront/"
 
   # CORS
-  cors_allowed_origins = ["https://${var.frontend_domain}"]
+  #cors_allowed_origins = ["https://${var.frontend_domain}"]
+  # PHASE 1: Open CORS - change this line
+  # cors_allowed_origins = ["https://${var.frontend_domain}"]
+  cors_allowed_origins = ["*"]
+
 
   # Content Security Policy
   content_security_policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://${var.backend_domain};"
@@ -295,9 +303,15 @@ module "route53" {
   create_hosted_zone = true # Set to true if creating new zone
 
   # Frontend (CloudFront)
-  frontend_subdomain     = "www" # Results in www.sankofagrid.com
-  cloudfront_domain_name = module.cloudfront.distribution_domain_name
-  cloudfront_zone_id     = module.cloudfront.distribution_hosted_zone_id
+  # PHASE 1: Don't create DNS records yet
+  # frontend_subdomain     = "www" # Results in www.sankofagrid.com
+  # cloudfront_domain_name = module.cloudfront.distribution_domain_name
+  # cloudfront_zone_id     = module.cloudfront.distribution_hosted_zone_id
+  # PHASE 1: Use empty values
+  create_cloudfront_records = false
+  frontend_subdomain        = ""
+  cloudfront_domain_name    = ""
+  cloudfront_zone_id        = ""
 
   # Backend (ALB) - will be configured after ALB is created
   api_subdomain = "api" # Results in api.sankofagrid.com
@@ -396,12 +410,6 @@ module "iam" {
   db_secrets_arns = [
     "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/*"
   ]
-
-
-
-  # # Terraform state management (these should be created separately)
-  # terraform_state_bucket_arn = "arn:aws:s3:::${var.project_name}-${var.environment}-terraform-state"
-  # terraform_lock_table_arn   = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.project_name}-${var.environment}-terraform-locks"
 
   tags = local.common_tags
 }

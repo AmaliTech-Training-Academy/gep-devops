@@ -162,6 +162,27 @@ resource "aws_s3_bucket" "logs" {
   )
 }
 
+# FIX: Enable ACL for logs bucket (required by CloudFront)
+resource "aws_s3_bucket_ownership_controls" "logs" {
+  count = var.enable_access_logging ? 1 : 0
+
+  bucket = aws_s3_bucket.logs[0].id
+
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+# FIX: Configure ACL for CloudFront log delivery
+resource "aws_s3_bucket_acl" "logs" {
+  count = var.enable_access_logging ? 1 : 0
+
+  depends_on = [aws_s3_bucket_ownership_controls.logs]
+
+  bucket = aws_s3_bucket.logs[0].id
+  acl    = "log-delivery-write"
+}
+
 resource "aws_s3_bucket_public_access_block" "logs" {
   count = var.enable_access_logging ? 1 : 0
 
@@ -254,6 +275,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "backups" {
   }
 }
 
+# FIX: DEEP_ARCHIVE must be at least 90 days after GLACIER_IR (30 + 90 = 120)
 resource "aws_s3_bucket_lifecycle_configuration" "backups" {
   bucket = aws_s3_bucket.backups.id
 
@@ -267,7 +289,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "backups" {
     }
 
     transition {
-      days          = 90
+      days          = 120  # Changed from 90 to 120 (30 + 90 minimum)
       storage_class = "DEEP_ARCHIVE"
     }
 
@@ -278,6 +300,3 @@ resource "aws_s3_bucket_lifecycle_configuration" "backups" {
     filter {}
   }
 }
-
-
-

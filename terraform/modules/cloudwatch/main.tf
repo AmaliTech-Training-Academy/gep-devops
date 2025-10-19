@@ -154,8 +154,11 @@ resource "aws_cloudwatch_dashboard" "main" {
 # CloudWatch Alarms - ECS
 # ============================================================================
 
+# FIX: Only create alarms if ECS cluster name is provided
 # ECS CPU Utilization Alarm
 resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
+  count = var.ecs_cluster_name != "" ? 1 : 0
+
   alarm_name          = "${var.project_name}-${var.environment}-ecs-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
@@ -176,6 +179,8 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
 
 # ECS Memory Utilization Alarm
 resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
+  count = var.ecs_cluster_name != "" ? 1 : 0
+
   alarm_name          = "${var.project_name}-${var.environment}-ecs-memory-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
@@ -427,4 +432,3 @@ resource "aws_cloudwatch_log_group" "lambda" {
 
   tags = var.common_tags
 }
-

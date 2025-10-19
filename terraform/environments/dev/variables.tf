@@ -25,7 +25,7 @@ variable "environment" {
 variable "alert_email_addresses" {
   description = "List of email addresses to receive CloudWatch alerts"
   type        = list(string)
-  default     = []  # Or provide actual email addresses
+  default     = [] # Or provide actual email addresses
 }
 
 variable "vpc_cidr" {

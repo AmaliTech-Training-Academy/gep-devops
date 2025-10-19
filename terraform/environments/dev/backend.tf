@@ -21,7 +21,8 @@ terraform {
     # Enable encryption at rest
     encrypt = true
 
-    # Versioning is enabled on the S3 bucket
-    # Point-in-time recovery is enabled on DynamoDB table
+    region         = "us-east-1"
+    bucket         = "event-planner-frontend-terraform-state-us-east-1-904570587823"
+    dynamodb_table = "event-planner-frontend-terraform-locks"
   }
 }
