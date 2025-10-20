@@ -38,39 +38,39 @@ locals {
   # Microservices configuration
   services = {
     auth = {
-      name          = "auth-service"
-      port          = 8081
-      path_pattern  = "/api/auth/*"
+      name              = "auth-service"
+      port              = 8081
+      path_pattern      = "/api/auth/*"
       health_check_path = "/actuator/health"
-      priority      = 100
+      priority          = 100
     }
     event = {
-      name          = "event-service"
-      port          = 8082
-      path_pattern  = "/api/events/*"
+      name              = "event-service"
+      port              = 8082
+      path_pattern      = "/api/events/*"
       health_check_path = "/actuator/health"
-      priority      = 200
+      priority          = 200
     }
     booking = {
-      name          = "booking-service"
-      port          = 8083
-      path_pattern  = "/api/bookings/*"
+      name              = "booking-service"
+      port              = 8083
+      path_pattern      = "/api/bookings/*"
       health_check_path = "/actuator/health"
-      priority      = 300
+      priority          = 300
     }
     payment = {
-      name          = "payment-service"
-      port          = 8084
-      path_pattern  = "/api/payments/*"
+      name              = "payment-service"
+      port              = 8084
+      path_pattern      = "/api/payments/*"
       health_check_path = "/actuator/health"
-      priority      = 400
+      priority          = 400
     }
     notification = {
-      name          = "notification-service"
-      port          = 8085
-      path_pattern  = "/api/notifications/*"
+      name              = "notification-service"
+      port              = 8085
+      path_pattern      = "/api/notifications/*"
       health_check_path = "/actuator/health"
-      priority      = 500
+      priority          = 500
     }
   }
 
@@ -136,7 +136,7 @@ resource "aws_lb_target_group" "services" {
   port        = each.value.port
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
-  target_type = "ip"  # Required for Fargate
+  target_type = "ip" # Required for Fargate
 
   # Health check configuration
   health_check {
@@ -191,7 +191,7 @@ resource "aws_lb_listener" "https" {
     fixed_response {
       content_type = "application/json"
       message_body = jsonencode({
-        error = "Not Found"
+        error   = "Not Found"
         message = "The requested resource was not found"
       })
       status_code = "404"

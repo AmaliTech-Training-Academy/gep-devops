@@ -101,8 +101,8 @@ resource "aws_docdb_cluster_parameter_group" "main" {
 
 # Generate random password
 resource "random_password" "master_password" {
-  length  = 32
-  special = true
+  length           = 32
+  special          = true
   override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
@@ -144,21 +144,21 @@ resource "aws_secretsmanager_secret_version" "docdb_credentials" {
 # ==============================================================================
 
 resource "aws_docdb_cluster" "main" {
-  cluster_identifier      = "${var.project_name}-${var.environment}-docdb"
-  engine                  = "docdb"
-  engine_version          = var.engine_version
-  master_username         = var.master_username
-  master_password         = random_password.master_password.result
-  db_subnet_group_name    = aws_docdb_subnet_group.main.name
-  vpc_security_group_ids  = [var.security_group_id]
-  port                    = var.port
+  cluster_identifier     = "${var.project_name}-${var.environment}-docdb"
+  engine                 = "docdb"
+  engine_version         = var.engine_version
+  master_username        = var.master_username
+  master_password        = random_password.master_password.result
+  db_subnet_group_name   = aws_docdb_subnet_group.main.name
+  vpc_security_group_ids = [var.security_group_id]
+  port                   = var.port
 
   # Backup configuration
-  backup_retention_period   = var.backup_retention_days
-  preferred_backup_window   = var.backup_window
+  backup_retention_period      = var.backup_retention_days
+  preferred_backup_window      = var.backup_window
   preferred_maintenance_window = var.maintenance_window
-  skip_final_snapshot       = var.skip_final_snapshot
-  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.project_name}-${var.environment}-docdb-final-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
+  skip_final_snapshot          = var.skip_final_snapshot
+  final_snapshot_identifier    = var.skip_final_snapshot ? null : "${var.project_name}-${var.environment}-docdb-final-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
 
   # Encryption
   storage_encrypted = true
@@ -208,7 +208,7 @@ resource "aws_docdb_cluster_instance" "primary" {
   apply_immediately = var.apply_immediately
 
   # Performance Insights
-  enable_performance_insights = var.enable_performance_insights
+  enable_performance_insights     = var.enable_performance_insights
   performance_insights_kms_key_id = var.enable_performance_insights ? var.kms_key_arn : null
 
   tags = merge(
@@ -235,7 +235,7 @@ resource "aws_docdb_cluster_instance" "replicas" {
   apply_immediately = var.apply_immediately
 
   # Performance Insights
-  enable_performance_insights = var.enable_performance_insights
+  enable_performance_insights     = var.enable_performance_insights
   performance_insights_kms_key_id = var.enable_performance_insights ? var.kms_key_arn : null
 
   tags = merge(

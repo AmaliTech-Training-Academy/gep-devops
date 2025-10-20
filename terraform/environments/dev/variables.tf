@@ -7,7 +7,7 @@
 variable "aws_region" {
   description = "AWS region for infrastructure deployment"
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-1"
 }
 
 variable "project_name" {
@@ -73,28 +73,3 @@ variable "tags" {
   }
 }
 
-# Secrets variables
-# variable "db_master_password" {
-#   description = "Master password for RDS databases"
-#   type        = string
-#   sensitive   = true
-# }
-
-# variable "docdb_master_password" {
-#   description = "Master password for DocumentDB"
-#   type        = string
-#   sensitive   = true
-# }
-
-# variable "jwt_secret_key" {
-#   description = "JWT signing secret key"
-#   type        = string
-#   sensitive   = true
-# }
-
-# GitHub OIDC variables
-# variable "github_repository" {
-#   description = "GitHub repository in format 'owner/repo'"
-#   type        = string
-#   default     = "your-org/event-planner"
-# }

@@ -21,7 +21,7 @@ terraform {
     # Enable encryption at rest
     encrypt = true
 
-    region         = "us-east-1"
+    region         = "eu-west-1"
     bucket         = "event-planner-frontend-terraform-state-us-east-1-904570587823"
     dynamodb_table = "event-planner-frontend-terraform-locks"
   }
