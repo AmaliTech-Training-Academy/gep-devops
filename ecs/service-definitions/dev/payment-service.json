@@ -1,12 +1,12 @@
 {
-  "serviceName": "event-service",
+  "serviceName": "payment-service",
   "cluster": "event-planner-dev-cluster",
-  "taskDefinition": "event-planner-dev-event-service",
+  "taskDefinition": "event-planner-dev-payment-service",
   "loadBalancers": [
     {
       "targetGroupArn": "arn:aws:elasticloadbalancing:REGION:ACCOUNT:targetgroup/NAME",
-      "containerName": "event-service",
-      "containerPort": 8082
+      "containerName": "payment-service",
+      "containerPort": 8084
     }
   ],
   "desiredCount": 1,

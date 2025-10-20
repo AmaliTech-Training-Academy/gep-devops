@@ -1,226 +1,298 @@
-# # terraform/modules/rds/variables.tf
-# # ==============================================================================
-# # RDS Module Variables
-# # ==============================================================================
+# ==============================================================================
+# RDS Module Variables
+# ==============================================================================
 
-# variable "project_name" {
-#   description = "Project name for resource naming"
-#   type        = string
-# }
+variable "project_name" {
+  description = "Name of the project"
+  type        = string
+}
 
-# variable "environment" {
-#   description = "Environment name (dev, staging, prod)"
-#   type        = string
-# }
+variable "environment" {
+  description = "Environment name (dev, staging, prod)"
+  type        = string
+}
 
-# variable "database_name" {
-#   description = "Name of the database (auth, event, booking, payment)"
-#   type        = string
-# }
+variable "subnet_ids" {
+  description = "List of subnet IDs for DB subnet group"
+  type        = list(string)
+}
 
-# variable "engine_version" {
-#   description = "PostgreSQL engine version"
-#   type        = string
-#   default     = "15.4"
-# }
+variable "security_group_id" {
+  description = "Security group ID for RDS instances"
+  type        = string
+}
 
-# variable "major_engine_version" {
-#   description = "Major engine version for option group"
-#   type        = string
-#   default     = "15"
-# }
+# ==============================================================================
+# Database Instance Configuration
+# ==============================================================================
 
-# variable "parameter_group_family" {
-#   description = "Parameter group family"
-#   type        = string
-#   default     = "postgres15"
-# }
+# Auth Database
+variable "auth_db_instance_class" {
+  description = "Instance class for auth database"
+  type        = string
+  default     = "db.t4g.medium"
+}
 
-# variable "instance_class" {
-#   description = "RDS instance class"
-#   type        = string
-#   default     = "db.t4g.micro"
-# }
+variable "auth_db_allocated_storage" {
+  description = "Allocated storage for auth database (GB)"
+  type        = number
+  default     = 100
+}
 
-# variable "allocated_storage" {
-#   description = "Initial allocated storage in GB"
-#   type        = number
-#   default     = 20
-# }
+variable "auth_db_max_allocated_storage" {
+  description = "Maximum allocated storage for auth database (GB)"
+  type        = number
+  default     = 500
+}
 
-# variable "max_allocated_storage" {
-#   description = "Maximum storage for autoscaling"
-#   type        = number
-#   default     = 100
-# }
+# Event Database
+variable "event_db_instance_class" {
+  description = "Instance class for event database"
+  type        = string
+  default     = "db.t4g.large"
+}
 
-# variable "storage_type" {
-#   description = "Storage type (gp3, gp2, io1)"
-#   type        = string
-#   default     = "gp3"
-# }
+variable "event_db_allocated_storage" {
+  description = "Allocated storage for event database (GB)"
+  type        = number
+  default     = 200
+}
 
-# variable "iops" {
-#   description = "IOPS for io1 storage type"
-#   type        = number
-#   default     = null
-# }
+variable "event_db_max_allocated_storage" {
+  description = "Maximum allocated storage for event database (GB)"
+  type        = number
+  default     = 1000
+}
 
-# variable "master_username" {
-#   description = "Master username for database"
-#   type        = string
-#   default     = "postgres"
-# }
+# Booking Database
+variable "booking_db_instance_class" {
+  description = "Instance class for booking database"
+  type        = string
+  default     = "db.t4g.large"
+}
 
-# variable "master_password_secret_arn" {
-#   description = "ARN of Secrets Manager secret containing master password"
-#   type        = string
-# }
+variable "booking_db_allocated_storage" {
+  description = "Allocated storage for booking database (GB)"
+  type        = number
+  default     = 200
+}
 
-# variable "multi_az" {
-#   description = "Enable Multi-AZ deployment"
-#   type        = bool
-#   default     = false
-# }
+variable "booking_db_max_allocated_storage" {
+  description = "Maximum allocated storage for booking database (GB)"
+  type        = number
+  default     = 1000
+}
 
-# variable "create_read_replicas" {
-#   description = "Create read replicas"
-#   type        = bool
-#   default     = false
-# }
+# Payment Database
+variable "payment_db_instance_class" {
+  description = "Instance class for payment database"
+  type        = string
+  default     = "db.t4g.medium"
+}
 
-# variable "read_replica_count" {
-#   description = "Number of read replicas to create"
-#   type        = number
-#   default     = 0
-# }
+variable "payment_db_allocated_storage" {
+  description = "Allocated storage for payment database (GB)"
+  type        = number
+  default     = 100
+}
 
-# variable "replica_instance_class" {
-#   description = "Instance class for read replicas (defaults to primary instance class)"
-#   type        = string
-#   default     = null
-# }
+variable "payment_db_max_allocated_storage" {
+  description = "Maximum allocated storage for payment database (GB)"
+  type        = number
+  default     = 500
+}
 
-# variable "replica_availability_zones" {
-#   description = "Availability zones for read replicas"
-#   type        = list(string)
-#   default     = null
-# }
+# ==============================================================================
+# PostgreSQL Configuration
+# ==============================================================================
 
-# variable "vpc_id" {
-#   description = "VPC ID"
-#   type        = string
-# }
+variable "postgres_version" {
+  description = "PostgreSQL engine version"
+  type        = string
+  default     = "15.5"
+}
 
-# variable "subnet_ids" {
-#   description = "Subnet IDs for DB subnet group"
-#   type        = list(string)
-# }
+variable "postgres_family" {
+  description = "PostgreSQL parameter group family"
+  type        = string
+  default     = "postgres15"
+}
 
-# variable "vpc_security_group_ids" {
-#   description = "VPC security group IDs"
-#   type        = list(string)
-# }
+variable "master_username" {
+  description = "Master username for RDS instances"
+  type        = string
+  default     = "dbadmin"
+}
 
-# variable "backup_retention_period" {
-#   description = "Backup retention period in days"
-#   type        = number
-#   default     = 7
-# }
+variable "max_connections" {
+  description = "Maximum number of database connections"
+  type        = string
+  default     = "100"
+}
 
-# variable "backup_window" {
-#   description = "Preferred backup window"
-#   type        = string
-#   default     = "03:00-04:00"
-# }
+# ==============================================================================
+# Storage Configuration
+# ==============================================================================
 
-# variable "maintenance_window" {
-#   description = "Preferred maintenance window"
-#   type        = string
-#   default     = "sun:04:00-sun:05:00"
-# }
+variable "storage_type" {
+  description = "Storage type (gp3, gp2, io1)"
+  type        = string
+  default     = "gp3"
 
-# variable "skip_final_snapshot" {
-#   description = "Skip final snapshot on deletion"
-#   type        = bool
-#   default     = false
-# }
+  validation {
+    condition     = contains(["gp3", "gp2", "io1"], var.storage_type)
+    error_message = "Storage type must be gp3, gp2, or io1."
+  }
+}
 
-# variable "enabled_cloudwatch_logs_exports" {
-#   description = "CloudWatch log types to enable"
-#   type        = list(string)
-#   default     = ["postgresql"]
-# }
+variable "provisioned_iops" {
+  description = "Provisioned IOPS for io1 storage type"
+  type        = number
+  default     = 3000
+}
 
-# variable "monitoring_interval" {
-#   description = "Enhanced monitoring interval in seconds (0, 1, 5, 10, 15, 30, 60)"
-#   type        = number
-#   default     = 0
-# }
+# ==============================================================================
+# High Availability Configuration
+# ==============================================================================
 
-# variable "performance_insights_enabled" {
-#   description = "Enable Performance Insights"
-#   type        = bool
-#   default     = false
-# }
+variable "multi_az" {
+  description = "Enable Multi-AZ deployment"
+  type        = bool
+  default     = false
+}
 
-# variable "performance_insights_retention_period" {
-#   description = "Performance Insights retention period in days"
-#   type        = number
-#   default     = 7
-# }
+variable "create_read_replicas" {
+  description = "Create read replicas for each database"
+  type        = bool
+  default     = false
+}
 
-# variable "auto_minor_version_upgrade" {
-#   description = "Enable auto minor version upgrades"
-#   type        = bool
-#   default     = true
-# }
+# ==============================================================================
+# Backup Configuration
+# ==============================================================================
 
-# variable "deletion_protection" {
-#   description = "Enable deletion protection"
-#   type        = bool
-#   default     = true
-# }
+variable "backup_retention_days" {
+  description = "Number of days to retain automated backups"
+  type        = number
+  default     = 7
+}
 
-# variable "create_kms_key" {
-#   description = "Create KMS key for encryption"
-#   type        = bool
-#   default     = false
-# }
+variable "backup_window" {
+  description = "Preferred backup window (UTC)"
+  type        = string
+  default     = "03:00-04:00"
+}
 
-# variable "create_cloudwatch_alarms" {
-#   description = "Create CloudWatch alarms"
-#   type        = bool
-#   default     = false
-# }
+variable "maintenance_window" {
+  description = "Preferred maintenance window (UTC)"
+  type        = string
+  default     = "sun:04:00-sun:05:00"
+}
 
-# variable "alarm_actions" {
-#   description = "SNS topic ARNs for alarm actions"
-#   type        = list(string)
-#   default     = []
-# }
+variable "skip_final_snapshot" {
+  description = "Skip final snapshot on deletion"
+  type        = bool
+  default     = false
+}
 
-# variable "cpu_alarm_threshold" {
-#   description = "CPU utilization alarm threshold (%)"
-#   type        = number
-#   default     = 80
-# }
+variable "enabled_cloudwatch_logs_exports" {
+  description = "List of log types to export to CloudWatch"
+  type        = list(string)
+  default     = ["postgresql", "upgrade"]
+}
 
-# variable "free_storage_space_threshold" {
-#   description = "Free storage space alarm threshold (bytes)"
-#   type        = number
-#   default     = 10737418240  # 10 GB
-# }
+# ==============================================================================
+# Encryption Configuration
+# ==============================================================================
 
-# variable "database_connections_threshold" {
-#   description = "Database connections alarm threshold"
-#   type        = number
-#   default     = 80
-# }
+variable "kms_key_arn" {
+  description = "KMS key ARN for encryption"
+  type        = string
+  default     = null
+}
 
-# variable "tags" {
-#   description = "Additional tags"
-#   type        = map(string)
-#   default     = {}
-# }
+# ==============================================================================
+# Monitoring Configuration
+# ==============================================================================
 
+variable "enable_enhanced_monitoring" {
+  description = "Enable enhanced monitoring"
+  type        = bool
+  default     = true
+}
+
+variable "enable_performance_insights" {
+  description = "Enable Performance Insights"
+  type        = bool
+  default     = true
+}
+
+# ==============================================================================
+# Security Configuration
+# ==============================================================================
+
+variable "deletion_protection" {
+  description = "Enable deletion protection"
+  type        = bool
+  default     = true
+}
+
+variable "auto_minor_version_upgrade" {
+  description = "Enable automatic minor version upgrades"
+  type        = bool
+  default     = true
+}
+
+variable "apply_immediately" {
+  description = "Apply changes immediately"
+  type        = bool
+  default     = false
+}
+
+# ==============================================================================
+# Secrets Manager Configuration
+# ==============================================================================
+
+variable "secret_recovery_window_days" {
+  description = "Recovery window for deleted secrets (days)"
+  type        = number
+  default     = 7
+}
+
+# ==============================================================================
+# Alarm Configuration
+# ==============================================================================
+
+variable "cpu_alarm_threshold" {
+  description = "CPU utilization alarm threshold (%)"
+  type        = number
+  default     = 80
+}
+
+variable "storage_alarm_threshold_bytes" {
+  description = "Free storage alarm threshold (bytes)"
+  type        = number
+  default     = 5368709120  # 5 GB
+}
+
+variable "connections_alarm_threshold" {
+  description = "Database connections alarm threshold"
+  type        = number
+  default     = 80
+}
+
+variable "alarm_actions" {
+  description = "List of ARNs for alarm actions"
+  type        = list(string)
+  default     = []
+}
+
+# ==============================================================================
+# Tags
+# ==============================================================================
+
+variable "tags" {
+  description = "Additional tags for RDS resources"
+  type        = map(string)
+  default     = {}
+}

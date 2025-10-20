@@ -1,58 +1,58 @@
-# # ==============================================================================
-# # Outputs
-# # ==============================================================================
+# ==============================================================================
+# Outputs
+# ==============================================================================
 
-# output "instance_id" {
-#   description = "ID of the RDS instance"
-#   value       = aws_db_instance.primary.id
-# }
+output "primary_endpoints" {
+  description = "Map of database names to primary instance endpoints"
+  value = {
+    for db, config in local.databases :
+    db => {
+      address = aws_db_instance.primary[db].address
+      port    = aws_db_instance.primary[db].port
+      endpoint = aws_db_instance.primary[db].endpoint
+    }
+  }
+}
 
-# output "instance_arn" {
-#   description = "ARN of the RDS instance"
-#   value       = aws_db_instance.primary.arn
-# }
+output "primary_instance_ids" {
+  description = "Map of database names to primary instance identifiers"
+  value = {
+    for db in keys(local.databases) :
+    db => aws_db_instance.primary[db].identifier
+  }
+}
 
-# output "endpoint" {
-#   description = "Endpoint of the RDS instance"
-#   value       = aws_db_instance.primary.endpoint
-# }
+output "read_replica_endpoints" {
+  description = "Map of database names to read replica endpoints"
+  value = var.create_read_replicas ? {
+    for db in keys(local.databases) :
+    db => {
+      replica_1 = {
+        address = aws_db_instance.read_replica_1[db].address
+        port    = aws_db_instance.read_replica_1[db].port
+      }
+      replica_2 = {
+        address = aws_db_instance.read_replica_2[db].address
+        port    = aws_db_instance.read_replica_2[db].port
+      }
+    }
+  } : {}
+}
 
-# output "address" {
-#   description = "Address of the RDS instance"
-#   value       = aws_db_instance.primary.address
-# }
+output "secret_arns" {
+  description = "Map of database names to Secrets Manager secret ARNs"
+  value = {
+    for db in keys(local.databases) :
+    db => aws_secretsmanager_secret.db_credentials[db].arn
+  }
+}
 
-# output "port" {
-#   description = "Port of the RDS instance"
-#   value       = aws_db_instance.primary.port
-# }
+output "db_subnet_group_name" {
+  description = "Name of the DB subnet group"
+  value       = aws_db_subnet_group.main.name
+}
 
-# output "database_name" {
-#   description = "Name of the database"
-#   value       = aws_db_instance.primary.db_name
-# }
-
-# output "master_username" {
-#   description = "Master username"
-#   value       = aws_db_instance.primary.username
-# }
-
-# output "replica_endpoints" {
-#   description = "Endpoints of read replicas"
-#   value       = aws_db_instance.replica[*].endpoint
-# }
-
-# output "replica_instance_ids" {
-#   description = "IDs of read replicas"
-#   value       = aws_db_instance.replica[*].id
-# }
-
-# output "kms_key_id" {
-#   description = "KMS key ID for encryption"
-#   value       = var.create_kms_key ? aws_kms_key.rds[0].id : null
-# }
-
-# output "monitoring_role_arn" {
-#   description = "ARN of the monitoring IAM role"
-#   value       = var.monitoring_interval > 0 ? aws_iam_role.rds_monitoring[0].arn : null
-# }
+output "parameter_group_name" {
+  description = "Name of the DB parameter group"
+  value       = aws_db_parameter_group.postgres.name
+}

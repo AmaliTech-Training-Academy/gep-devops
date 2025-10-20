@@ -1,0 +1,46 @@
+{
+  "clusterName": "event-planner-prod-cluster",
+  "settings": [
+    {
+      "name": "containerInsights",
+      "value": "enabled"
+    }
+  ],
+  "configuration": {
+    "executeCommandConfiguration": {
+      "logging": "OVERRIDE",
+      "logConfiguration": {
+        "cloudWatchLogGroupName": "/aws/ecs/event-planner-prod-cluster",
+        "cloudWatchEncryptionEnabled": true,
+        "s3BucketName": "event-planner-prod-ecs-exec-logs",
+        "s3KeyPrefix": "exec-logs"
+      }
+    }
+  },
+  "capacityProviders": ["FARGATE"],
+  "defaultCapacityProviderStrategy": [
+    {
+      "capacityProvider": "FARGATE",
+      "weight": 1,
+      "base": 2
+    }
+  ],
+  "tags": [
+    {
+      "key": "Environment",
+      "value": "prod"
+    },
+    {
+      "key": "Project",
+      "value": "event-planner"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "Terraform"
+    },
+    {
+      "key": "CostCenter",
+      "value": "Engineering"
+    }
+  ]
+}

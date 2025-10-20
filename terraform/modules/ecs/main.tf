@@ -1,210 +1,441 @@
-# # terraform/modules/ecs/main.tf
-# # ==============================================================================
-# # ECS Module - Container Orchestration
-# # ==============================================================================
+# ==============================================================================
+# ECS Module - Fargate Cluster with AWS Cloud Map Service Discovery
+# ==============================================================================
+# This module creates:
+# - ECS Fargate cluster
+# - AWS Cloud Map namespace for service discovery
+# - Capacity providers
+# - Container Insights
+# - Auto-scaling policies
+#
+# Service Discovery:
+# - Services communicate via: service-name.eventplanner.local
+# - AWS Cloud Map handles DNS-based service discovery
+# ==============================================================================
 
-# # ECS Cluster
-# resource "aws_ecs_cluster" "main" {
-#   name = "${var.project_name}-${var.environment}-cluster"
+terraform {
+  required_version = ">= 1.5.0"
 
-#   setting {
-#     name  = "containerInsights"
-#     value = var.enable_container_insights ? "enabled" : "disabled"
-#   }
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
 
-#   tags = merge(
-#     var.common_tags,
-#     {
-#       Name        = "${var.project_name}-${var.environment}-ecs-cluster"
-#       Environment = var.environment
-#     }
-#   )
-# }
+# ==============================================================================
+# Local Variables
+# ==============================================================================
 
-# # ECS Cluster Capacity Providers
-# resource "aws_ecs_cluster_capacity_providers" "main" {
-#   cluster_name = aws_ecs_cluster.main.name
+locals {
+  # Microservices configuration
+  services = {
+    auth = {
+      name          = "auth-service"
+      port          = 8081
+      cpu           = var.environment == "dev" ? 256 : 512
+      memory        = var.environment == "dev" ? 512 : 1024
+      desired_count = var.environment == "dev" ? 1 : 2
+      min_capacity  = var.environment == "dev" ? 1 : 2
+      max_capacity  = var.environment == "dev" ? 2 : 4
+    }
+    event = {
+      name          = "event-service"
+      port          = 8082
+      cpu           = var.environment == "dev" ? 256 : 512
+      memory        = var.environment == "dev" ? 512 : 1024
+      desired_count = var.environment == "dev" ? 1 : 2
+      min_capacity  = var.environment == "dev" ? 1 : 2
+      max_capacity  = var.environment == "dev" ? 2 : 4
+    }
+    booking = {
+      name          = "booking-service"
+      port          = 8083
+      cpu           = var.environment == "dev" ? 256 : 512
+      memory        = var.environment == "dev" ? 512 : 1024
+      desired_count = var.environment == "dev" ? 1 : 2
+      min_capacity  = var.environment == "dev" ? 1 : 2
+      max_capacity  = var.environment == "dev" ? 2 : 4
+    }
+    payment = {
+      name          = "payment-service"
+      port          = 8084
+      cpu           = var.environment == "dev" ? 256 : 512
+      memory        = var.environment == "dev" ? 512 : 1024
+      desired_count = var.environment == "dev" ? 1 : 2
+      min_capacity  = var.environment == "dev" ? 1 : 2
+      max_capacity  = var.environment == "dev" ? 2 : 4
+    }
+    notification = {
+      name          = "notification-service"
+      port          = 8085
+      cpu           = var.environment == "dev" ? 256 : 512
+      memory        = var.environment == "dev" ? 512 : 1024
+      desired_count = var.environment == "dev" ? 1 : 2
+      min_capacity  = var.environment == "dev" ? 1 : 1
+      max_capacity  = var.environment == "dev" ? 2 : 3
+    }
+  }
 
-#   capacity_providers = ["FARGATE", "FARGATE_SPOT"]
+  common_tags = merge(
+    var.tags,
+    {
+      Module      = "ecs"
+      Environment = var.environment
+    }
+  )
+}
 
-#   default_capacity_provider_strategy {
-#     capacity_provider = var.use_spot_instances ? "FARGATE_SPOT" : "FARGATE"
-#     weight            = 1
-#     base              = 1
-#   }
-# }
+# ==============================================================================
+# ECS Cluster
+# ==============================================================================
 
-# # ECS Task Execution Role
-# resource "aws_iam_role" "ecs_task_execution_role" {
-#   name = "${var.project_name}-${var.environment}-ecs-task-execution-role"
+resource "aws_ecs_cluster" "main" {
+  name = "${var.project_name}-${var.environment}-cluster"
 
-#   assume_role_policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Action = "sts:AssumeRole"
-#         Effect = "Allow"
-#         Principal = {
-#           Service = "ecs-tasks.amazonaws.com"
-#         }
-#       }
-#     ]
-#   })
+  # Enable Container Insights for monitoring
+  setting {
+    name  = "containerInsights"
+    value = var.enable_container_insights ? "enabled" : "disabled"
+  }
 
-#   tags = var.common_tags
-# }
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-cluster"
+    }
+  )
+}
 
-# # Attach AWS managed policy for ECS task execution
-# resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
-#   role       = aws_iam_role.ecs_task_execution_role.name
-#   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-# }
+# ==============================================================================
+# ECS Cluster Capacity Providers
+# ==============================================================================
 
-# # Additional policy for Secrets Manager and Parameter Store access
-# resource "aws_iam_role_policy" "ecs_task_execution_secrets_policy" {
-#   name = "${var.project_name}-${var.environment}-ecs-secrets-policy"
-#   role = aws_iam_role.ecs_task_execution_role.id
+resource "aws_ecs_cluster_capacity_providers" "main" {
+  cluster_name = aws_ecs_cluster.main.name
 
-#   policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "secretsmanager:GetSecretValue",
-#           "ssm:GetParameters",
-#           "kms:Decrypt"
-#         ]
-#         Resource = ["*"]
-#       },
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "logs:CreateLogGroup",
-#           "logs:CreateLogStream",
-#           "logs:PutLogEvents"
-#         ]
-#         Resource = ["*"]
-#       }
-#     ]
-#   })
-# }
+  capacity_providers = var.enable_fargate_spot ? ["FARGATE", "FARGATE_SPOT"] : ["FARGATE"]
 
-# # ECS Task Role (for application runtime permissions)
-# resource "aws_iam_role" "ecs_task_role" {
-#   name = "${var.project_name}-${var.environment}-ecs-task-role"
+  default_capacity_provider_strategy {
+    capacity_provider = "FARGATE"
+    weight            = var.enable_fargate_spot ? 70 : 100
+    base              = 1
+  }
 
-#   assume_role_policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Action = "sts:AssumeRole"
-#         Effect = "Allow"
-#         Principal = {
-#           Service = "ecs-tasks.amazonaws.com"
-#         }
-#       }
-#     ]
-#   })
+  dynamic "default_capacity_provider_strategy" {
+    for_each = var.enable_fargate_spot ? [1] : []
+    content {
+      capacity_provider = "FARGATE_SPOT"
+      weight            = 30
+      base              = 0
+    }
+  }
+}
 
-#   tags = var.common_tags
-# }
+# ==============================================================================
+# AWS Cloud Map - Service Discovery Namespace
+# ==============================================================================
+# Services will communicate via DNS: service-name.eventplanner.local
 
-# # Task role policy for application permissions
-# resource "aws_iam_role_policy" "ecs_task_role_policy" {
-#   name = "${var.project_name}-${var.environment}-ecs-task-policy"
-#   role = aws_iam_role.ecs_task_role.id
+resource "aws_service_discovery_private_dns_namespace" "main" {
+  name        = var.service_discovery_namespace
+  description = "Private DNS namespace for ${var.project_name} ${var.environment} service discovery"
+  vpc         = var.vpc_id
 
-#   policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "s3:GetObject",
-#           "s3:PutObject",
-#           "s3:DeleteObject",
-#           "s3:ListBucket"
-#         ]
-#         Resource = var.s3_bucket_arns
-#       },
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "ses:SendEmail",
-#           "ses:SendRawEmail"
-#         ]
-#         Resource = ["*"]
-#       },
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "sns:Publish"
-#         ]
-#         Resource = var.sns_topic_arns
-#       },
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "sqs:SendMessage",
-#           "sqs:ReceiveMessage",
-#           "sqs:DeleteMessage",
-#           "sqs:GetQueueAttributes"
-#         ]
-#         Resource = var.sqs_queue_arns
-#       }
-#     ]
-#   })
-# }
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-service-discovery"
+    }
+  )
+}
 
-# # CloudWatch Log Group for ECS
-# resource "aws_cloudwatch_log_group" "ecs" {
-#   name              = "/ecs/${var.project_name}-${var.environment}"
-#   retention_in_days = var.log_retention_days
+# ==============================================================================
+# CloudWatch Log Groups
+# ==============================================================================
 
-#   tags = var.common_tags
-# }
+# Create log group for each service
+resource "aws_cloudwatch_log_group" "services" {
+  for_each = local.services
 
-# # Security Group for ECS Tasks
-# resource "aws_security_group" "ecs_tasks" {
-#   name        = "${var.project_name}-${var.environment}-ecs-tasks-sg"
-#   description = "Security group for ECS tasks"
-#   vpc_id      = var.vpc_id
+  name              = "/ecs/${var.project_name}/${var.environment}/${each.value.name}"
+  retention_in_days = var.log_retention_days
+  kms_key_id        = var.kms_key_arn
 
-#   ingress {
-#     description     = "Allow traffic from ALB"
-#     from_port       = 0
-#     to_port         = 65535
-#     protocol        = "tcp"
-#     security_groups = var.alb_security_group_ids
-#   }
+  tags = merge(
+    local.common_tags,
+    {
+      Name    = "${var.project_name}-${var.environment}-${each.value.name}-logs"
+      Service = each.value.name
+    }
+  )
+}
 
-#   egress {
-#     description = "Allow all outbound traffic"
-#     from_port   = 0
-#     to_port     = 0
-#     protocol    = "-1"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
+# ==============================================================================
+# ECS Task Definitions
+# ==============================================================================
 
-#   tags = merge(
-#     var.common_tags,
-#     {
-#       Name = "${var.project_name}-${var.environment}-ecs-tasks-sg"
-#     }
-#   )
-# }
+# Register task definitions
+resource "aws_ecs_task_definition" "services" {
+  for_each = local.services
 
-# # ECS Service Discovery Namespace
-# resource "aws_service_discovery_private_dns_namespace" "main" {
-#   count = var.enable_service_discovery ? 1 : 0
+  family                   = "${var.project_name}-${var.environment}-${each.value.name}"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = each.value.cpu
+  memory                   = each.value.memory
+  execution_role_arn       = var.task_execution_role_arn
+  task_role_arn            = var.task_role_arns[each.key]
 
-#   name        = "${var.environment}.${var.project_name}.local"
-#   description = "Service discovery namespace for ${var.project_name}"
-#   vpc         = var.vpc_id
+  # Container definitions
+  container_definitions = jsonencode([
+    {
+      name      = each.value.name
+      image     = "${var.ecr_repository_urls[each.key]}:${var.image_tag}"
+      cpu       = each.value.cpu
+      memory    = each.value.memory
+      essential = true
 
-#   tags = var.common_tags
-# }
+      portMappings = [
+        {
+          containerPort = each.value.port
+          hostPort      = each.value.port
+          protocol      = "tcp"
+        }
+      ]
+
+      environment = [
+        {
+          name  = "SPRING_PROFILES_ACTIVE"
+          value = var.environment
+        },
+        {
+          name  = "SERVICE_NAME"
+          value = each.value.name
+        },
+        {
+          name  = "SERVICE_PORT"
+          value = tostring(each.value.port)
+        },
+        {
+          name  = "AWS_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "REDIS_ENDPOINT"
+          value = var.redis_endpoint
+        },
+        {
+          name  = "DOCDB_ENDPOINT"
+          value = var.docdb_endpoint
+        },
+        {
+          name  = "SERVICE_DISCOVERY_NAMESPACE"
+          value = var.service_discovery_namespace
+        }
+      ]
+
+      secrets = [
+        {
+          name      = "DB_HOST"
+          valueFrom = "${var.db_secret_arns[each.key]}:host::"
+        },
+        {
+          name      = "DB_PORT"
+          valueFrom = "${var.db_secret_arns[each.key]}:port::"
+        },
+        {
+          name      = "DB_NAME"
+          valueFrom = "${var.db_secret_arns[each.key]}:dbname::"
+        },
+        {
+          name      = "DB_USERNAME"
+          valueFrom = "${var.db_secret_arns[each.key]}:username::"
+        },
+        {
+          name      = "DB_PASSWORD"
+          valueFrom = "${var.db_secret_arns[each.key]}:password::"
+        }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.services[each.key].name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/actuator/health || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 60
+      }
+    }
+  ])
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name    = "${var.project_name}-${var.environment}-${each.value.name}-task"
+      Service = each.value.name
+    }
+  )
+}
+
+# ==============================================================================
+# Service Discovery Services
+# ==============================================================================
+
+resource "aws_service_discovery_service" "services" {
+  for_each = local.services
+
+  name = each.value.name
+
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.main.id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+
+  health_check_custom_config {
+    #failure_threshold = 1
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name    = "${var.project_name}-${var.environment}-${each.value.name}-discovery"
+      Service = each.value.name
+    }
+  )
+}
+
+# ==============================================================================
+# ECS Services
+# ==============================================================================
+
+resource "aws_ecs_service" "services" {
+  for_each = local.services
+
+  name             = each.value.name
+  cluster          = aws_ecs_cluster.main.id
+  task_definition  = aws_ecs_task_definition.services[each.key].arn
+  desired_count    = each.value.desired_count
+  launch_type      = "FARGATE"
+  platform_version = "LATEST"
+
+  # Network configuration
+  network_configuration {
+    subnets          = var.private_subnet_ids
+    security_groups  = [var.ecs_security_group_id]
+    assign_public_ip = false
+  }
+
+  # Load balancer configuration
+  load_balancer {
+    target_group_arn = var.target_group_arns[each.key]
+    container_name   = each.value.name
+    container_port   = each.value.port
+  }
+
+  # Service discovery configuration (AWS Cloud Map)
+  service_registries {
+    registry_arn = aws_service_discovery_service.services[each.key].arn
+  }
+
+  # Deployment configuration
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 100
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  # Enable ECS managed tags
+  enable_ecs_managed_tags = true
+  propagate_tags          = "SERVICE"
+
+  # Health check grace period
+  health_check_grace_period_seconds = 60
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name    = "${var.project_name}-${var.environment}-${each.value.name}"
+      Service = each.value.name
+    }
+  )
 
 
+  lifecycle {
+    ignore_changes = [desired_count]
+  }
+}
 
+# ==============================================================================
+# Auto Scaling
+# ==============================================================================
+
+# Auto scaling target
+resource "aws_appautoscaling_target" "services" {
+  for_each = local.services
+
+  max_capacity       = each.value.max_capacity
+  min_capacity       = each.value.min_capacity
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.services[each.key].name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+# CPU-based auto scaling policy
+resource "aws_appautoscaling_policy" "cpu" {
+  for_each = local.services
+
+  name               = "${var.project_name}-${var.environment}-${each.value.name}-cpu-scaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.services[each.key].resource_id
+  scalable_dimension = aws_appautoscaling_target.services[each.key].scalable_dimension
+  service_namespace  = aws_appautoscaling_target.services[each.key].service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = var.cpu_target_value
+    scale_in_cooldown  = var.scale_in_cooldown
+    scale_out_cooldown = var.scale_out_cooldown
+
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+  }
+}
+
+# Memory-based auto scaling policy
+resource "aws_appautoscaling_policy" "memory" {
+  for_each = local.services
+
+  name               = "${var.project_name}-${var.environment}-${each.value.name}-memory-scaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.services[each.key].resource_id
+  scalable_dimension = aws_appautoscaling_target.services[each.key].scalable_dimension
+  service_namespace  = aws_appautoscaling_target.services[each.key].service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = var.memory_target_value
+    scale_in_cooldown  = var.scale_in_cooldown
+    scale_out_cooldown = var.scale_out_cooldown
+
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+  }
+}

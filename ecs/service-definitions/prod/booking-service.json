@@ -1,20 +1,20 @@
 {
-  "serviceName": "event-service",
-  "cluster": "event-planner-dev-cluster",
-  "taskDefinition": "event-planner-dev-event-service",
+  "serviceName": "booking-service",
+  "cluster": "event-planner-prod-cluster",
+  "taskDefinition": "event-planner-prod-booking-service",
   "loadBalancers": [
     {
       "targetGroupArn": "arn:aws:elasticloadbalancing:REGION:ACCOUNT:targetgroup/NAME",
-      "containerName": "event-service",
-      "containerPort": 8082
+      "containerName": "booking-service",
+      "containerPort": 8083
     }
   ],
-  "desiredCount": 1,
+  "desiredCount": 2,
   "launchType": "FARGATE",
   "platformVersion": "LATEST",
   "networkConfiguration": {
     "awsvpcConfiguration": {
-      "subnets": ["subnet-xxxxx"],
+      "subnets": ["subnet-xxxxx", "subnet-yyyyy"],
       "securityGroups": ["sg-xxxxx"],
       "assignPublicIp": "DISABLED"
     }
@@ -32,6 +32,12 @@
   "serviceRegistries": [
     {
       "registryArn": "arn:aws:servicediscovery:REGION:ACCOUNT:service/srv-xxxxx"
+    }
+  ],
+  "placementStrategies": [
+    {
+      "type": "spread",
+      "field": "attribute:ecs.availability-zone"
     }
   ],
   "enableECSManagedTags": true,

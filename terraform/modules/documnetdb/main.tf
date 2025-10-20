@@ -1,212 +1,314 @@
-# # terraform/modules/documentdb/main.tf
-# # ==============================================================================
-# # DocumentDB Module - MongoDB-Compatible Database for Audit Logs
-# # ==============================================================================
+# ==============================================================================
+# DocumentDB Module - MongoDB-Compatible Audit Logs Database
+# ==============================================================================
+# This module creates a DocumentDB cluster for storing audit logs with:
+# - Single instance (dev) or cluster with replicas (prod)
+# - Automated backups and point-in-time recovery
+# - Encryption at rest and in transit
+# - CloudWatch monitoring
+# ==============================================================================
 
-# # DocumentDB Subnet Group
-# resource "aws_docdb_subnet_group" "main" {
-#   name       = "${var.project_name}-${var.environment}-docdb-subnet-group"
-#   subnet_ids = var.subnet_ids
+terraform {
+  required_version = ">= 1.5.0"
 
-#   tags = merge(
-#     var.tags,
-#     {
-#       Name = "${var.project_name}-${var.environment}-docdb-subnet-group"
-#     }
-#   )
-# }
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
 
-# # DocumentDB Cluster Parameter Group
-# resource "aws_docdb_cluster_parameter_group" "main" {
-#   family      = "docdb5.0"
-#   name        = "${var.project_name}-${var.environment}-docdb-params"
-#   description = "DocumentDB cluster parameter group for ${var.project_name}"
+# ==============================================================================
+# Local Variables
+# ==============================================================================
 
-#   parameter {
-#     name  = "tls"
-#     value = "enabled"
-#   }
+locals {
+  common_tags = merge(
+    var.tags,
+    {
+      Module      = "documentdb"
+      Environment = var.environment
+    }
+  )
+}
 
-#   tags = var.tags
-# }
+# ==============================================================================
+# DB Subnet Group
+# ==============================================================================
 
-# # Random password for DocumentDB
-# resource "random_password" "master" {
-#   length  = 32
-#   special = true
-#   override_special = "!#$%&*()-_=+[]{}<>:?"
-# }
+resource "aws_docdb_subnet_group" "main" {
+  name_prefix = "${var.project_name}-${var.environment}-docdb-"
+  description = "Subnet group for ${var.project_name} ${var.environment} DocumentDB"
+  subnet_ids  = var.subnet_ids
 
-# # Store password in Secrets Manager
-# resource "aws_secretsmanager_secret" "master_password" {
-#   name                    = "${var.project_name}/${var.environment}/documentdb/master-password"
-#   description             = "Master password for DocumentDB cluster"
-#   recovery_window_in_days = 7
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-docdb-subnet-group"
+    }
+  )
+}
 
-#   tags = var.tags
-# }
+# ==============================================================================
+# Cluster Parameter Group
+# ==============================================================================
 
-# resource "aws_secretsmanager_secret_version" "master_password" {
-#   secret_id = aws_secretsmanager_secret.master_password.id
-#   secret_string = jsonencode({
-#     username = var.master_username
-#     password = random_password.master.result
-#     engine   = "docdb"
-#     host     = aws_docdb_cluster.main.endpoint
-#     port     = 27017
-#   })
-# }
+resource "aws_docdb_cluster_parameter_group" "main" {
+  name_prefix = "${var.project_name}-${var.environment}-docdb-"
+  family      = var.docdb_family
+  description = "Custom parameter group for ${var.project_name} ${var.environment} DocumentDB"
 
-# # DocumentDB Cluster
-# resource "aws_docdb_cluster" "main" {
-#   cluster_identifier      = var.cluster_identifier
-#   engine                  = "docdb"
-#   master_username         = var.master_username
-#   master_password         = random_password.master.result
-#   backup_retention_period = var.backup_retention_period
-#   preferred_backup_window = var.preferred_backup_window
-#   skip_final_snapshot     = var.skip_final_snapshot
+  # TLS enforcement
+  parameter {
+    name  = "tls"
+    value = var.tls_enabled ? "enabled" : "disabled"
+  }
 
-#   db_subnet_group_name            = aws_docdb_subnet_group.main.name
-#   db_cluster_parameter_group_name = aws_docdb_cluster_parameter_group.main.name
-#   vpc_security_group_ids          = var.vpc_security_group_ids
+  # Audit logs
+  parameter {
+    name  = "audit_logs"
+    value = var.audit_logs_enabled ? "enabled" : "disabled"
+  }
 
-#   storage_encrypted = true
-#   kms_key_id        = var.kms_key_id
+  # TTL monitor (for automatic data expiration)
+  parameter {
+    name  = "ttl_monitor"
+    value = var.ttl_monitor_enabled ? "enabled" : "disabled"
+  }
 
-#   enabled_cloudwatch_logs_exports = ["audit", "profiler"]
+  # Profiler
+  parameter {
+    name  = "profiler"
+    value = var.profiler_enabled ? "enabled" : "disabled"
+  }
 
-#   tags = merge(
-#     var.tags,
-#     {
-#       Name = var.cluster_identifier
-#     }
-#   )
-# }
+  parameter {
+    name  = "profiler_threshold_ms"
+    value = var.profiler_threshold_ms
+  }
 
-# # DocumentDB Cluster Instances
-# resource "aws_docdb_cluster_instance" "main" {
-#   count = var.instance_count
+  tags = local.common_tags
 
-#   identifier         = "${var.cluster_identifier}-${count.index + 1}"
-#   cluster_identifier = aws_docdb_cluster.main.id
-#   instance_class     = var.instance_class
+  lifecycle {
+    create_before_destroy = true
+  }
+}
 
-#   tags = merge(
-#     var.tags,
-#     {
-#       Name = "${var.cluster_identifier}-${count.index + 1}"
-#     }
-#   )
-# }
+# ==============================================================================
+# Secrets Manager - Database Credentials
+# ==============================================================================
 
-# # terraform/modules/documentdb/variables.tf
-# variable "project_name" {
-#   description = "Project name"
-#   type        = string
-# }
+# Generate random password
+resource "random_password" "master_password" {
+  length  = 32
+  special = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
 
-# variable "environment" {
-#   description = "Environment name"
-#   type        = string
-# }
+# Store credentials in Secrets Manager
+resource "aws_secretsmanager_secret" "docdb_credentials" {
+  name_prefix             = "${var.project_name}/${var.environment}/documentdb-"
+  description             = "DocumentDB master credentials for ${var.project_name} ${var.environment}"
+  recovery_window_in_days = var.secret_recovery_window_days
+  kms_key_id              = var.kms_key_arn
 
-# variable "cluster_identifier" {
-#   description = "DocumentDB cluster identifier"
-#   type        = string
-# }
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-documentdb-secret"
+    }
+  )
 
-# variable "instance_class" {
-#   description = "Instance class for DocumentDB"
-#   type        = string
-#   default     = "db.t3.medium"
-# }
+  lifecycle {
+    create_before_destroy = true
+  }
+}
 
-# variable "instance_count" {
-#   description = "Number of DocumentDB instances"
-#   type        = number
-#   default     = 1
-# }
+# Store credentials
+resource "aws_secretsmanager_secret_version" "docdb_credentials" {
+  secret_id = aws_secretsmanager_secret.docdb_credentials.id
 
-# variable "master_username" {
-#   description = "Master username"
-#   type        = string
-#   default     = "docdbadmin"
-# }
+  secret_string = jsonencode({
+    username = var.master_username
+    password = random_password.master_password.result
+    engine   = "docdb"
+    host     = aws_docdb_cluster.main.endpoint
+    port     = aws_docdb_cluster.main.port
+    dbname   = "audit_logs"
+  })
+}
 
-# variable "backup_retention_period" {
-#   description = "Backup retention period in days"
-#   type        = number
-#   default     = 7
-# }
+# ==============================================================================
+# DocumentDB Cluster
+# ==============================================================================
 
-# variable "preferred_backup_window" {
-#   description = "Preferred backup window"
-#   type        = string
-#   default     = "03:00-04:00"
-# }
+resource "aws_docdb_cluster" "main" {
+  cluster_identifier      = "${var.project_name}-${var.environment}-docdb"
+  engine                  = "docdb"
+  engine_version          = var.engine_version
+  master_username         = var.master_username
+  master_password         = random_password.master_password.result
+  db_subnet_group_name    = aws_docdb_subnet_group.main.name
+  vpc_security_group_ids  = [var.security_group_id]
+  port                    = var.port
 
-# variable "skip_final_snapshot" {
-#   description = "Skip final snapshot on deletion"
-#   type        = bool
-#   default     = false
-# }
+  # Backup configuration
+  backup_retention_period   = var.backup_retention_days
+  preferred_backup_window   = var.backup_window
+  preferred_maintenance_window = var.maintenance_window
+  skip_final_snapshot       = var.skip_final_snapshot
+  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.project_name}-${var.environment}-docdb-final-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
 
-# variable "vpc_security_group_ids" {
-#   description = "List of VPC security group IDs"
-#   type        = list(string)
-# }
+  # Encryption
+  storage_encrypted = true
+  kms_key_id        = var.kms_key_arn
 
-# variable "subnet_ids" {
-#   description = "List of subnet IDs"
-#   type        = list(string)
-# }
+  # CloudWatch Logs
+  enabled_cloudwatch_logs_exports = var.enabled_cloudwatch_logs_exports
 
-# variable "kms_key_id" {
-#   description = "KMS key ID for encryption"
-#   type        = string
-#   default     = null
-# }
+  # Cluster parameter group
+  db_cluster_parameter_group_name = aws_docdb_cluster_parameter_group.main.name
 
-# variable "master_password_secret_arn" {
-#   description = "ARN of the master password secret (if external)"
-#   type        = string
-#   default     = ""
-# }
+  # Deletion protection
+  deletion_protection = var.deletion_protection
 
-# variable "tags" {
-#   description = "Tags to apply to resources"
-#   type        = map(string)
-#   default     = {}
-# }
+  # Apply changes immediately or during maintenance window
+  apply_immediately = var.apply_immediately
 
-# # terraform/modules/documentdb/outputs.tf
-# output "cluster_id" {
-#   description = "DocumentDB cluster ID"
-#   value       = aws_docdb_cluster.main.id
-# }
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-docdb-cluster"
+    }
+  )
 
-# output "cluster_arn" {
-#   description = "DocumentDB cluster ARN"
-#   value       = aws_docdb_cluster.main.arn
-# }
+  lifecycle {
+    ignore_changes = [
+      master_password,
+      final_snapshot_identifier
+    ]
+  }
+}
 
-# output "endpoint" {
-#   description = "DocumentDB cluster endpoint"
-#   value       = aws_docdb_cluster.main.endpoint
-# }
+# ==============================================================================
+# DocumentDB Cluster Instances
+# ==============================================================================
 
-# output "reader_endpoint" {
-#   description = "DocumentDB cluster reader endpoint"
-#   value       = aws_docdb_cluster.main.reader_endpoint
-# }
+# Primary instance
+resource "aws_docdb_cluster_instance" "primary" {
+  identifier         = "${var.project_name}-${var.environment}-docdb-primary"
+  cluster_identifier = aws_docdb_cluster.main.id
+  instance_class     = var.instance_class
 
-# output "port" {
-#   description = "DocumentDB port"
-#   value       = 27017
-# }
+  # Auto minor version upgrade
+  auto_minor_version_upgrade = var.auto_minor_version_upgrade
 
-# output "master_password_secret_arn" {
-#   description = "ARN of the master password secret"
-#   value       = aws_secretsmanager_secret.master_password.arn
-# }
+  # Apply changes immediately
+  apply_immediately = var.apply_immediately
+
+  # Performance Insights
+  enable_performance_insights = var.enable_performance_insights
+  performance_insights_kms_key_id = var.enable_performance_insights ? var.kms_key_arn : null
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-docdb-primary"
+      Role = "primary"
+    }
+  )
+}
+
+# Read replicas (production only)
+resource "aws_docdb_cluster_instance" "replicas" {
+  count = var.replica_count
+
+  identifier         = "${var.project_name}-${var.environment}-docdb-replica-${count.index + 1}"
+  cluster_identifier = aws_docdb_cluster.main.id
+  instance_class     = var.instance_class
+
+  # Auto minor version upgrade
+  auto_minor_version_upgrade = var.auto_minor_version_upgrade
+
+  # Apply changes immediately
+  apply_immediately = var.apply_immediately
+
+  # Performance Insights
+  enable_performance_insights = var.enable_performance_insights
+  performance_insights_kms_key_id = var.enable_performance_insights ? var.kms_key_arn : null
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name          = "${var.project_name}-${var.environment}-docdb-replica-${count.index + 1}"
+      Role          = "replica"
+      ReplicaNumber = count.index + 1
+    }
+  )
+}
+
+# ==============================================================================
+# CloudWatch Alarms
+# ==============================================================================
+
+# CPU utilization alarm
+resource "aws_cloudwatch_metric_alarm" "cpu_high" {
+  alarm_name          = "${var.project_name}-${var.environment}-docdb-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/DocDB"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = var.cpu_alarm_threshold
+  alarm_description   = "DocumentDB CPU utilization is too high"
+  alarm_actions       = var.alarm_actions
+
+  dimensions = {
+    DBClusterIdentifier = aws_docdb_cluster.main.id
+  }
+
+  tags = local.common_tags
+}
+
+# Database connections alarm
+resource "aws_cloudwatch_metric_alarm" "connections_high" {
+  alarm_name          = "${var.project_name}-${var.environment}-docdb-connections-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "DatabaseConnections"
+  namespace           = "AWS/DocDB"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = var.connections_alarm_threshold
+  alarm_description   = "DocumentDB connections are too high"
+  alarm_actions       = var.alarm_actions
+
+  dimensions = {
+    DBClusterIdentifier = aws_docdb_cluster.main.id
+  }
+
+  tags = local.common_tags
+}
+
+# Storage space alarm
+resource "aws_cloudwatch_metric_alarm" "storage_low" {
+  alarm_name          = "${var.project_name}-${var.environment}-docdb-storage-low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "VolumeBytesUsed"
+  namespace           = "AWS/DocDB"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = var.storage_alarm_threshold_bytes
+  alarm_description   = "DocumentDB storage is low"
+  alarm_actions       = var.alarm_actions
+
+  dimensions = {
+    DBClusterIdentifier = aws_docdb_cluster.main.id
+  }
+
+  tags = local.common_tags
+}
+

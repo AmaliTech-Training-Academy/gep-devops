@@ -1,12 +1,12 @@
 {
-  "serviceName": "event-service",
+  "serviceName": "booking-service",
   "cluster": "event-planner-dev-cluster",
-  "taskDefinition": "event-planner-dev-event-service",
+  "taskDefinition": "event-planner-dev-booking-service",
   "loadBalancers": [
     {
       "targetGroupArn": "arn:aws:elasticloadbalancing:REGION:ACCOUNT:targetgroup/NAME",
-      "containerName": "event-service",
-      "containerPort": 8082
+      "containerName": "booking-service",
+      "containerPort": 8083
     }
   ],
   "desiredCount": 1,

@@ -1,163 +1,47 @@
-{
-  "family": "event-planner-notification-service",
-  "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
-  "cpu": "256",
-  "memory": "512",
-  "executionRoleArn": "${TASK_EXECUTION_ROLE_ARN}",
-  "taskRoleArn": "${TASK_ROLE_ARN}",
-  "containerDefinitions": [
-    {
-      "name": "notification-service",
-      "image": "${ECR_REPOSITORY_URL}/notification-service:${IMAGE_TAG}",
-      "essential": true,
-      "portMappings": [
-        {
-          "containerPort": 3001,
-          "protocol": "tcp",
-          "name": "notification-service"
-        }
-      ],
-      "environment": [
-        {
-          "name": "NODE_ENV",
-          "value": "${ENVIRONMENT}"
-        },
-        {
-          "name": "PORT",
-          "value": "3001"
-        },
-        {
-          "name": "SERVICE_NAME",
-          "value": "notification-service"
-        },
-        {
-          "name": "AWS_REGION",
-          "value": "${AWS_REGION}"
-        },
-        {
-          "name": "SQS_QUEUE_URL",
-          "value": "${NOTIFICATION_QUEUE_URL}"
-        },
-        {
-          "name": "SNS_TOPIC_ARN",
-          "value": "${NOTIFICATION_TOPIC_ARN}"
-        }
-      ],
-      "secrets": [
-        {
-          "name": "DATABASE_URL",
-          "valueFrom": "${DB_SECRET_ARN}:host::"
-        },
-        {
-          "name": "DATABASE_PASSWORD",
-          "valueFrom": "${DB_SECRET_ARN}:password::"
-        },
-        {
-          "name": "DATABASE_USERNAME",
-          "valueFrom": "${DB_SECRET_ARN}:username::"
-        },
-        {
-          "name": "DATABASE_NAME",
-          "valueFrom": "${DB_SECRET_ARN}:dbname::"
-        },
-        {
-          "name": "REDIS_HOST",
-          "valueFrom": "${REDIS_SECRET_ARN}:primary_endpoint::"
-        },
-        {
-          "name": "REDIS_AUTH_TOKEN",
-          "valueFrom": "${REDIS_SECRET_ARN}:auth_token::"
-        },
-        {
-          "name": "SMTP_HOST",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/smtp-host"
-        },
-        {
-          "name": "SMTP_PORT",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/smtp-port"
-        },
-        {
-          "name": "SMTP_USER",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/smtp-user"
-        },
-        {
-          "name": "SMTP_PASSWORD",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/smtp-password"
-        },
-        {
-          "name": "SENDGRID_API_KEY",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/sendgrid-api-key"
-        },
-        {
-          "name": "TWILIO_ACCOUNT_SID",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/twilio-account-sid"
-        },
-        {
-          "name": "TWILIO_AUTH_TOKEN",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/twilio-auth-token"
-        },
-        {
-          "name": "TWILIO_PHONE_NUMBER",
-          "valueFrom": "${PARAMETER_STORE_PREFIX}/twilio-phone-number"
-        }
-      ],
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "/ecs/${PROJECT_NAME}-${ENVIRONMENT}",
-          "awslogs-region": "${AWS_REGION}",
-          "awslogs-stream-prefix": "notification-service",
-          "awslogs-create-group": "true"
-        }
+[
+  {
+    "name": "notification-service",
+    "image": "${image_url}:${image_tag}",
+    "cpu": 0,
+    "portMappings": [
+      {
+        "name": "notification-service",
+        "containerPort": 8085,
+        "hostPort": 8085,
+        "protocol": "tcp",
+        "appProtocol": "http"
+      }
+    ],
+    "essential": true,
+    "environment": [
+      { "name": "SPRING_PROFILES_ACTIVE", "value": "${environment}" },
+      { "name": "SERVER_PORT", "value": "8085" },
+      { "name": "AWS_REGION", "value": "${aws_region}" },
+      {
+        "name": "SERVICE_DISCOVERY_NAMESPACE",
+        "value": "${service_discovery_namespace}"
       },
-      "healthCheck": {
-        "command": [
-          "CMD-SHELL",
-          "curl -f http://localhost:3001/api/health || exit 1"
-        ],
-        "interval": 30,
-        "timeout": 5,
-        "retries": 3,
-        "startPeriod": 60
-      },
-      "mountPoints": [],
-      "volumesFrom": [],
-      "dependsOn": [],
-      "ulimits": [
-        {
-          "name": "nofile",
-          "softLimit": 65536,
-          "hardLimit": 65536
-        }
+      { "name": "REDIS_HOST", "value": "${redis_endpoint}" },
+      { "name": "REDIS_PORT", "value": "6379" }
+    ],
+    "secrets": [],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${log_group}",
+        "awslogs-region": "${aws_region}",
+        "awslogs-stream-prefix": "ecs"
+      }
+    },
+    "healthCheck": {
+      "command": [
+        "CMD-SHELL",
+        "curl -f http://localhost:8085/actuator/health || exit 1"
       ],
-      "linuxParameters": {
-        "initProcessEnabled": true
-      },
-      "stopTimeout": 120
+      "interval": 30,
+      "timeout": 5,
+      "retries": 3,
+      "startPeriod": 60
     }
-  ],
-  "volumes": [],
-  "tags": [
-    {
-      "key": "Name",
-      "value": "${PROJECT_NAME}-${ENVIRONMENT}-notification-service"
-    },
-    {
-      "key": "Environment",
-      "value": "${ENVIRONMENT}"
-    },
-    {
-      "key": "Service",
-      "value": "notification-service"
-    },
-    {
-      "key": "ManagedBy",
-      "value": "Terraform"
-    }
-  ],
-  "runtimePlatform": {
-    "cpuArchitecture": "X86_64",
-    "operatingSystemFamily": "LINUX"
   }
-}
+]

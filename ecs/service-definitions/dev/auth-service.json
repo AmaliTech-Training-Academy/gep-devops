@@ -1,12 +1,12 @@
 {
-  "serviceName": "event-service",
+  "serviceName": "auth-service",
   "cluster": "event-planner-dev-cluster",
-  "taskDefinition": "event-planner-dev-event-service",
+  "taskDefinition": "event-planner-dev-auth-service",
   "loadBalancers": [
     {
       "targetGroupArn": "arn:aws:elasticloadbalancing:REGION:ACCOUNT:targetgroup/NAME",
-      "containerName": "event-service",
-      "containerPort": 8082
+      "containerName": "auth-service",
+      "containerPort": 8081
     }
   ],
   "desiredCount": 1,

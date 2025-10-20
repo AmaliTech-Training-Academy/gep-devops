@@ -1,35 +1,43 @@
-# # terraform/modules/elasticache/outputs.tf
-# output "replication_group_id" {
-#   description = "ElastiCache replication group ID"
-#   value       = aws_elasticache_replication_group.main.id
-# }
+# ==============================================================================
+# Outputs
+# ==============================================================================
 
-# output "replication_group_arn" {
-#   description = "ElastiCache replication group ARN"
-#   value       = aws_elasticache_replication_group.main.arn
-# }
+output "replication_group_id" {
+  description = "The ID of the ElastiCache Replication Group"
+  value       = var.cluster_mode_enabled ? try(aws_elasticache_replication_group.cluster_mode[0].id, "") : try(aws_elasticache_replication_group.single_node[0].id, "")
+}
 
-# output "primary_endpoint_address" {
-#   description = "Primary endpoint address"
-#   value       = var.enable_cluster_mode ? aws_elasticache_replication_group.main.configuration_endpoint_address : aws_elasticache_replication_group.main.primary_endpoint_address
-# }
+output "replication_group_arn" {
+  description = "The ARN of the ElastiCache Replication Group"
+  value       = var.cluster_mode_enabled ? try(aws_elasticache_replication_group.cluster_mode[0].arn, "") : try(aws_elasticache_replication_group.single_node[0].arn, "")
+}
 
-# output "reader_endpoint_address" {
-#   description = "Reader endpoint address (non-cluster mode only)"
-#   value       = var.enable_cluster_mode ? null : aws_elasticache_replication_group.main.reader_endpoint_address
-# }
+output "configuration_endpoint_address" {
+  description = "The configuration endpoint address to allow host discovery"
+  value       = var.cluster_mode_enabled ? try(aws_elasticache_replication_group.cluster_mode[0].configuration_endpoint_address, "") : null
+}
 
-# output "port" {
-#   description = "Redis port"
-#   value       = 6379
-# }
+output "primary_endpoint_address" {
+  description = "The address of the endpoint for the primary node in the replication group"
+  value       = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].primary_endpoint_address, "")
+}
 
-# output "security_group_id" {
-#   description = "Redis security group ID"
-#   value       = aws_security_group.redis.id
-# }
+output "reader_endpoint_address" {
+  description = "The address of the endpoint for the reader node in the replication group"
+  value       = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].reader_endpoint_address, "")
+}
 
-# output "auth_token_secret_arn" {
-#   description = "ARN of the Secrets Manager secret containing Redis auth token"
-#   value       = var.enable_auth_token ? aws_secretsmanager_secret.redis_auth_token[0].arn : null
-# }
+output "port" {
+  description = "The port number on which the cache accepts connections"
+  value       = var.redis_port
+}
+
+output "subnet_group_name" {
+  description = "The name of the ElastiCache subnet group"
+  value       = aws_elasticache_subnet_group.main.name
+}
+
+output "parameter_group_name" {
+  description = "The name of the ElastiCache parameter group"
+  value       = aws_elasticache_parameter_group.main.name
+}

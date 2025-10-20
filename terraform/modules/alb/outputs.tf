@@ -1,50 +1,57 @@
-# # terraform/modules/alb/outputs.tf
-# output "alb_id" {
-#   description = "ALB ID"
-#   value       = aws_lb.main.id
-# }
+# ==============================================================================
+# Outputs
+# ==============================================================================
 
-# output "alb_arn" {
-#   description = "ALB ARN"
-#   value       = aws_lb.main.arn
-# }
+output "alb_id" {
+  description = "ID of the load balancer"
+  value       = aws_lb.main.id
+}
 
-# output "alb_dns_name" {
-#   description = "ALB DNS name"
-#   value       = aws_lb.main.dns_name
-# }
+output "alb_arn" {
+  description = "ARN of the load balancer"
+  value       = aws_lb.main.arn
+}
 
-# output "alb_zone_id" {
-#   description = "ALB hosted zone ID"
-#   value       = aws_lb.main.zone_id
-# }
+output "alb_arn_suffix" {
+  description = "ARN suffix of the load balancer"
+  value       = aws_lb.main.arn_suffix
+}
 
-# output "alb_security_group_id" {
-#   description = "ALB security group ID"
-#   value       = aws_security_group.alb.id
-# }
+output "alb_dns_name" {
+  description = "DNS name of the load balancer"
+  value       = aws_lb.main.dns_name
+}
 
-# output "http_listener_arn" {
-#   description = "HTTP listener ARN"
-#   value       = aws_lb_listener.http.arn
-# }
+output "alb_zone_id" {
+  description = "Zone ID of the load balancer"
+  value       = aws_lb.main.zone_id
+}
 
-# output "https_listener_arn" {
-#   description = "HTTPS listener ARN"
-#   value       = var.certificate_arn != "" ? aws_lb_listener.https[0].arn : null
-# }
+output "https_listener_arn" {
+  description = "ARN of the HTTPS listener"
+  value       = aws_lb_listener.https.arn
+}
 
-# output "booking_service_target_group_arn" {
-#   description = "Booking service target group ARN"
-#   value       = aws_lb_target_group.booking_service.arn
-# }
+output "target_group_arns" {
+  description = "Map of service names to target group ARNs"
+  value = {
+    for service, config in local.services :
+    service => aws_lb_target_group.services[service].arn
+  }
+}
 
-# output "notification_service_target_group_arn" {
-#   description = "Notification service target group ARN"
-#   value       = aws_lb_target_group.notification_service.arn
-# }
+output "target_group_names" {
+  description = "Map of service names to target group names"
+  value = {
+    for service, config in local.services :
+    service => aws_lb_target_group.services[service].name
+  }
+}
 
-# output "payment_service_target_group_arn" {
-#   description = "Payment service target group ARN"
-#   value       = aws_lb_target_group.payment_service.arn
-# }
+output "target_group_arn_suffixes" {
+  description = "Map of service names to target group ARN suffixes"
+  value = {
+    for service, config in local.services :
+    service => aws_lb_target_group.services[service].arn_suffix
+  }
+}
