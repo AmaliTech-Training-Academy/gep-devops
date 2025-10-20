@@ -68,7 +68,7 @@ variable "enable_replication" {
 variable "replication_region" {
   description = "AWS region for replication"
   type        = string
-  default     = "eu-central-1"
+  default     = "us-west-2"
 }
 
 variable "tags" {

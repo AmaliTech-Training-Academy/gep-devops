@@ -11,7 +11,7 @@
 #     aws = {
 #       source                = "hashicorp/aws"
 #       version               = "~> 5.0"
-#       configuration_aliases = [aws.eu_west_1]
+#       configuration_aliases = [aws.us_east_1]
 #     }
 #   }
 # }
@@ -42,7 +42,7 @@
 # resource "aws_acm_certificate" "cloudfront" {
 #   count = var.create_cloudfront_certificate ? 1 : 0
 
-#   provider = aws.eu_west_1
+#   provider = aws.us_east_1
 
 #   domain_name               = var.cloudfront_domain_name != "" ? var.cloudfront_domain_name : var.domain_name
 #   subject_alternative_names = var.cloudfront_subject_alternative_names
