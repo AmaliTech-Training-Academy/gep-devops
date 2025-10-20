@@ -191,12 +191,17 @@ variable "auth_token" {
 
   validation {
     condition = (
-      var.auth_token == null ||
-      (can(length(var.auth_token)) && length(var.auth_token) >= 16 && length(var.auth_token) <= 128)
+      var.auth_token == null
+      || (
+        can(length(tostring(var.auth_token)))
+        && length(tostring(var.auth_token)) >= 16
+        && length(tostring(var.auth_token)) <= 128
+      )
     )
     error_message = "Auth token must be null or between 16 and 128 characters if provided."
   }
 }
+
 
 # ==============================================================================
 # Parameter Group Settings
