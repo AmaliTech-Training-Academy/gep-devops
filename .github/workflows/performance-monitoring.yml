@@ -4,6 +4,7 @@ on:
   # schedule:
   #   - cron: '0 */6 * * *'  # Every 6 hours - DISABLED
   workflow_dispatch:  # Manual activation only
+  workflow_call:  # Allow calling from other workflows
 
 jobs:
   load-testing:
