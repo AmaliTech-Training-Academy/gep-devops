@@ -1,1 +1,0 @@
-# Terraform bootstrap outputs - S3 bucket and DynamoDB table information
