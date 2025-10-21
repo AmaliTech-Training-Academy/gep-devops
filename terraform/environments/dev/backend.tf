@@ -24,5 +24,6 @@ terraform {
     region         = "eu-west-1"
     bucket         = "event-planner-terraform-state-eu-west-1-904570587823"
     dynamodb_table = "event-planner-terraform-locks"
+
   }
 }
