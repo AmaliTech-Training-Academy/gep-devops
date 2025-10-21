@@ -302,7 +302,10 @@ module "cloudwatch" {
   rds_instance_id        = module.rds.primary_instance_ids["auth"] # Use auth DB for monitoring
   elasticache_cluster_id = module.elasticache.replication_group_id
 
-  # New: explicitly control whether ElastiCache alarms are created
+  # Control alarm creation with boolean flags
+  create_ecs_alarms         = true
+  create_alb_alarms         = true
+  create_rds_alarms         = true
   create_elasticache_alarms = true
 
   # Alarm thresholds

@@ -130,6 +130,23 @@ variable "create_elasticache_alarms" {
   default     = false
 }
 
+variable "create_ecs_alarms" {
+  description = "Whether to create ECS CloudWatch alarms"
+  type        = bool
+  default     = false
+}
+
+variable "create_alb_alarms" {
+  description = "Whether to create ALB CloudWatch alarms"
+  type        = bool
+  default     = false
+}
+
+variable "create_rds_alarms" {
+  description = "Whether to create RDS CloudWatch alarms"
+  type        = bool
+  default     = false
+}
 
 variable "common_tags" {
   description = "Common tags"
