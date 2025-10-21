@@ -20,7 +20,7 @@ env:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, backend]
     strategy:
       matrix:
         service: [user-service, event-service, notification-service, gateway-service]
@@ -31,13 +31,6 @@ jobs:
         repository: ${{ env.BACKEND_REPO }}
         ref: ${{ env.COMMIT_SHA }}
         token: ${{ secrets.BACKEND_REPO_TOKEN }}
-
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: maven
 
     - name: Build and Test
       run: |
@@ -52,7 +45,7 @@ jobs:
 
   build-and-push:
     needs: build-and-test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, backend]
     strategy:
       matrix:
         service: [user-service, event-service, notification-service, gateway-service]
@@ -82,7 +75,7 @@ jobs:
 
   deploy-to-ecs:
     needs: build-and-push
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, backend]
     strategy:
       matrix:
         service: [user-service, event-service, notification-service, gateway-service]
@@ -114,7 +107,7 @@ jobs:
   notify:
     needs: [build-and-test, build-and-push, deploy-to-ecs]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, backend]
     steps:
     - name: Slack Notification
       uses: 8398a7/action-slack@v3
