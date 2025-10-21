@@ -37,7 +37,14 @@ jobs:
 
     - name: Install and Test
       run: |
-        npm ci
+        # Use npm ci if package-lock.json exists, otherwise use npm install
+        if [ -f "package-lock.json" ]; then
+          echo "📦 Installing with npm ci..."
+          npm ci
+        else
+          echo "📦 No package-lock.json found, using npm install..."
+          npm install
+        fi
         
         # Check if lint script exists before running
         if npm run | grep -q "lint"; then
