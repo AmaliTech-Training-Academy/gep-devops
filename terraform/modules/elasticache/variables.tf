@@ -206,11 +206,14 @@ variable "auth_token" {
   validation {
     condition = (
       var.auth_token == null ||
-      (can(length(var.auth_token)) && length(var.auth_token) >= 16 && length(var.auth_token) <= 128)
+      can(length(var.auth_token != null ? var.auth_token : ""))
+        && length(var.auth_token != null ? var.auth_token : "") >= 16
+        && length(var.auth_token != null ? var.auth_token : "") <= 128
     )
     error_message = "If provided, auth_token must be between 16 and 128 characters."
   }
 }
+
 
 
 
