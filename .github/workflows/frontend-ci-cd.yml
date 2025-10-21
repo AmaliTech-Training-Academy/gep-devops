@@ -52,8 +52,8 @@ jobs:
           echo "✅ Running test:ci script..."
           npm run test:ci
         elif npm run | grep -q "test"; then
-          echo "✅ Running test script..."
-          npm run test
+          echo "✅ Running test script in headless mode..."
+          npm run test -- --watch=false --browsers=ChromeHeadless
         else
           echo "⚠️ No test script found, skipping..."
         fi
