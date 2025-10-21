@@ -396,7 +396,7 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
 
 # ElastiCache Memory Utilization Alarm
 resource "aws_cloudwatch_metric_alarm" "elasticache_memory_high" {
-  count = var.elasticache_cluster_id != "" ? 1 : 0
+  count = var.create_elasticache_alarms ? 1 : 0
 
   alarm_name          = "${var.project_name}-${var.environment}-elasticache-memory-high"
   comparison_operator = "GreaterThanThreshold"
@@ -416,9 +416,10 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_memory_high" {
   tags = var.common_tags
 }
 
+
 # ElastiCache Evictions Alarm
 resource "aws_cloudwatch_metric_alarm" "elasticache_evictions" {
-  count = var.elasticache_cluster_id != "" ? 1 : 0
+  count = var.create_elasticache_alarms ? 1 : 0
 
   alarm_name          = "${var.project_name}-${var.environment}-elasticache-evictions"
   comparison_operator = "GreaterThanThreshold"
