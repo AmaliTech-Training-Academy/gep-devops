@@ -162,7 +162,7 @@ resource "aws_cloudwatch_dashboard" "main" {
 # FIX: Only create alarms if ECS cluster name is provided
 # ECS CPU Utilization Alarm
 resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
-  count = var.ecs_cluster_name != "" ? 1 : 0
+  count = var.ecs_cluster_name ? 1 : 0
 
   alarm_name          = "${var.project_name}-${var.environment}-ecs-cpu-high"
   comparison_operator = "GreaterThanThreshold"
@@ -184,7 +184,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
 
 # ECS Memory Utilization Alarm
 resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
-  count = var.ecs_cluster_name != "" ? 1 : 0
+  count = var.ecs_cluster_name ? 1 : 0
 
   alarm_name          = "${var.project_name}-${var.environment}-ecs-memory-high"
   comparison_operator = "GreaterThanThreshold"
@@ -210,7 +210,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
 
 # ALB 5XX Error Rate Alarm
 resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
-  count = var.alb_arn != "" ? 1 : 0
+  count = var.alb_arn ? 1 : 0
 
   alarm_name          = "${var.project_name}-${var.environment}-alb-5xx-errors"
   comparison_operator = "GreaterThanThreshold"
@@ -233,7 +233,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
 
 # ALB Response Time Alarm
 resource "aws_cloudwatch_metric_alarm" "alb_response_time" {
-  count = var.alb_arn != "" ? 1 : 0
+  count = var.alb_arn ? 1 : 0
 
   alarm_name          = "${var.project_name}-${var.environment}-alb-response-time"
   comparison_operator = "GreaterThanThreshold"
@@ -255,7 +255,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_response_time" {
 
 # ALB Unhealthy Target Alarm
 resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
-  count = var.alb_arn != "" ? 1 : 0
+  count = var.alb_arn ? 1 : 0
 
   alarm_name          = "${var.project_name}-${var.environment}-alb-unhealthy-targets"
   comparison_operator = "GreaterThanThreshold"
@@ -282,7 +282,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
 
 # RDS CPU Utilization Alarm
 resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
-  count = var.rds_instance_id != "" ? 1 : 0
+  count = var.rds_instance_id ? 1 : 0
 
   alarm_name          = "${var.project_name}-${var.environment}-rds-cpu-high"
   comparison_operator = "GreaterThanThreshold"
@@ -304,7 +304,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
 
 # RDS Free Storage Space Alarm
 resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
-  count = var.rds_instance_id != "" ? 1 : 0
+  count = var.rds_instance_id ? 1 : 0
 
   alarm_name          = "${var.project_name}-${var.environment}-rds-storage-low"
   comparison_operator = "LessThanThreshold"
@@ -326,7 +326,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
 
 # RDS Database Connections Alarm
 resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
-  count = var.rds_instance_id != "" ? 1 : 0
+  count = var.rds_instance_id ? 1 : 0
 
   alarm_name          = "${var.project_name}-${var.environment}-rds-connections-high"
   comparison_operator = "GreaterThanThreshold"
@@ -350,27 +350,6 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
 # CloudWatch Alarms - ElastiCache
 # ============================================================================
 
-# ElastiCache CPU Utilization Alarm
-# resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
-#   count = var.elasticache_cluster_id != "" ? 1 : 0
-
-#   alarm_name          = "${var.project_name}-${var.environment}-elasticache-cpu-high"
-#   comparison_operator = "GreaterThanThreshold"
-#   evaluation_periods  = "2"
-#   metric_name         = "CPUUtilization"
-#   namespace           = "AWS/ElastiCache"
-#   period              = "300"
-#   statistic           = "Average"
-#   threshold           = var.elasticache_cpu_threshold
-#   alarm_description   = "ElastiCache CPU utilization is too high"
-#   alarm_actions       = [aws_sns_topic.alerts.arn]
-
-#   dimensions = {
-#     CacheClusterId = var.elasticache_cluster_id
-#   }
-
-#   tags = var.common_tags
-# }
 resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
   count = var.create_elasticache_alarms ? 1 : 0
 
