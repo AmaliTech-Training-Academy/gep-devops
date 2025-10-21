@@ -200,9 +200,14 @@ variable "transit_encryption_enabled" {
 variable "auth_token" {
   type        = string
   description = "Redis auth token (optional). Must be 16–128 characters if provided."
-  sensitive   = true
   default     = null
+
+  validation {
+    condition     = var.auth_token == null ? true : (length(var.auth_token) >= 16 && length(var.auth_token) <= 128)
+    error_message = "If provided, auth_token must be between 16 and 128 characters."
+  }
 }
+
 
 
 
