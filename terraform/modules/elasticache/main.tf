@@ -72,12 +72,6 @@ resource "aws_elasticache_parameter_group" "main" {
     value = var.timeout
   }
 
-  # Append only file
-  parameter {
-    name  = "appendonly"
-    value = var.appendonly ? "yes" : "no"
-  }
-
   tags = local.common_tags
 
   lifecycle {

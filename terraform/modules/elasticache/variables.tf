@@ -228,12 +228,6 @@ variable "timeout" {
   default     = "300"
 }
 
-variable "appendonly" {
-  description = "Enable Redis persistence using append-only file"
-  type        = bool
-  default     = false
-}
-
 # ==============================================================================
 # Logging
 # ==============================================================================

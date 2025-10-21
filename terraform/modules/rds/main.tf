@@ -105,60 +105,24 @@ resource "aws_db_parameter_group" "postgres" {
   family      = var.postgres_family
   description = "Custom parameter group for ${var.project_name} ${var.environment}"
 
-  # Connection pooling optimizations
-  parameter {
-    name  = "max_connections"
-    value = var.max_connections
-  }
-
-  # Query performance
-  parameter {
-    name  = "shared_buffers"
-    value = "{DBInstanceClassMemory/32768}" # 25% of memory
-  }
-
-  parameter {
-    name  = "effective_cache_size"
-    value = "{DBInstanceClassMemory/16384}" # 75% of memory
-  }
-
-  parameter {
-    name  = "maintenance_work_mem"
-    value = "2097152" # 2 GB
-  }
-
-  parameter {
-    name  = "work_mem"
-    value = "65536" # 64 MB
-  }
-
-  # WAL configuration
-  parameter {
-    name  = "wal_buffers"
-    value = "16384" # 16 MB
-  }
-
-  # Checkpointing
-  parameter {
-    name  = "checkpoint_completion_target"
-    value = "0.9"
-  }
-
   # Query logging (disable in prod for performance)
   parameter {
     name  = "log_statement"
     value = var.environment == "prod" ? "none" : "all"
+    apply_method = "pending-reboot"
   }
 
   parameter {
     name  = "log_min_duration_statement"
-    value = var.environment == "prod" ? "5000" : "1000"  # Log slow queries
+    value = var.environment == "prod" ? "5000" : "1000"
+    apply_method = "immediate"
   }
 
   # SSL enforcement
   parameter {
     name  = "rds.force_ssl"
     value = "1"
+    apply_method = "pending-reboot"
   }
 
   tags = local.common_tags
