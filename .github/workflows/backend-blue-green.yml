@@ -21,7 +21,7 @@ env:
 
 jobs:
   blue-green-deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, backend]
     # Only run for production environment
     if: inputs.environment == 'prod'
     steps:
