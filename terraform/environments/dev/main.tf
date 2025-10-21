@@ -302,6 +302,9 @@ module "cloudwatch" {
   rds_instance_id        = module.rds.primary_instance_ids["auth"] # Use auth DB for monitoring
   elasticache_cluster_id = module.elasticache.replication_group_id
 
+  # New: explicitly control whether ElastiCache alarms are created
+  create_elasticache_alarms = true
+
   # Alarm thresholds
   ecs_cpu_threshold               = 80
   ecs_memory_threshold            = 80
@@ -319,6 +322,7 @@ module "cloudwatch" {
 
   common_tags = local.common_tags
 }
+
 
 # ==============================================================================
 # ECR Module

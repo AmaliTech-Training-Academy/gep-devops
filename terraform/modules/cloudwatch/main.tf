@@ -351,8 +351,28 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections_high" {
 # ============================================================================
 
 # ElastiCache CPU Utilization Alarm
+# resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
+#   count = var.elasticache_cluster_id != "" ? 1 : 0
+
+#   alarm_name          = "${var.project_name}-${var.environment}-elasticache-cpu-high"
+#   comparison_operator = "GreaterThanThreshold"
+#   evaluation_periods  = "2"
+#   metric_name         = "CPUUtilization"
+#   namespace           = "AWS/ElastiCache"
+#   period              = "300"
+#   statistic           = "Average"
+#   threshold           = var.elasticache_cpu_threshold
+#   alarm_description   = "ElastiCache CPU utilization is too high"
+#   alarm_actions       = [aws_sns_topic.alerts.arn]
+
+#   dimensions = {
+#     CacheClusterId = var.elasticache_cluster_id
+#   }
+
+#   tags = var.common_tags
+# }
 resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
-  count = var.elasticache_cluster_id != "" ? 1 : 0
+  count = var.create_elasticache_alarms ? 1 : 0
 
   alarm_name          = "${var.project_name}-${var.environment}-elasticache-cpu-high"
   comparison_operator = "GreaterThanThreshold"
@@ -371,6 +391,8 @@ resource "aws_cloudwatch_metric_alarm" "elasticache_cpu_high" {
 
   tags = var.common_tags
 }
+
+
 
 # ElastiCache Memory Utilization Alarm
 resource "aws_cloudwatch_metric_alarm" "elasticache_memory_high" {

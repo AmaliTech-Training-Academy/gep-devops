@@ -124,6 +124,13 @@ variable "kms_key_arn" {
   default     = null
 }
 
+variable "create_elasticache_alarms" {
+  description = "Whether to create ElastiCache CloudWatch alarms (set true if ElastiCache exists)"
+  type        = bool
+  default     = false
+}
+
+
 variable "common_tags" {
   description = "Common tags"
   type        = map(string)

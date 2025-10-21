@@ -81,6 +81,7 @@ locals {
       Environment = var.environment
     }
   )
+  lb_prefix = substr(replace(var.project_name, "-", ""), 0, 5)
 }
 
 # ==============================================================================
@@ -88,7 +89,7 @@ locals {
 # ==============================================================================
 
 resource "aws_lb" "main" {
-  name_prefix        = "${substr(var.project_name, 0, 6)}-"
+  name_prefix        = "${local.lb_prefix}-"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [var.alb_security_group_id]
