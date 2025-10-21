@@ -52,7 +52,7 @@ variable "node_type" {
   description = "The instance type to use for the cache nodes"
   type        = string
   default     = "cache.t3.micro"
-  
+
   validation {
     condition     = can(regex("^cache\\.", var.node_type))
     error_message = "Node type must start with 'cache.'"
@@ -73,7 +73,7 @@ variable "num_cache_nodes" {
   description = "Number of cache nodes (for cluster mode disabled)"
   type        = number
   default     = 1
-  
+
   validation {
     condition     = var.num_cache_nodes >= 1 && var.num_cache_nodes <= 6
     error_message = "Number of cache nodes must be between 1 and 6."
@@ -84,7 +84,7 @@ variable "num_node_groups" {
   description = "Number of node groups (shards) for cluster mode"
   type        = number
   default     = 3
-  
+
   validation {
     condition     = var.num_node_groups >= 1 && var.num_node_groups <= 500
     error_message = "Number of node groups must be between 1 and 500."
@@ -95,7 +95,7 @@ variable "replicas_per_node_group" {
   description = "Number of replica nodes per node group"
   type        = number
   default     = 2
-  
+
   validation {
     condition     = var.replicas_per_node_group >= 0 && var.replicas_per_node_group <= 5
     error_message = "Replicas per node group must be between 0 and 5."
@@ -126,7 +126,7 @@ variable "maintenance_window" {
   description = "Maintenance window (format: ddd:hh24:mi-ddd:hh24:mi)"
   type        = string
   default     = "sun:05:00-sun:06:00"
-  
+
   validation {
     condition     = can(regex("^[a-z]{3}:[0-2][0-9]:[0-5][0-9]-[a-z]{3}:[0-2][0-9]:[0-5][0-9]$", var.maintenance_window))
     error_message = "Maintenance window must be in the format ddd:hh24:mi-ddd:hh24:mi"
@@ -137,7 +137,7 @@ variable "snapshot_window" {
   description = "Daily time range for backups (format: hh24:mi-hh24:mi)"
   type        = string
   default     = "03:00-04:00"
-  
+
   validation {
     condition     = can(regex("^[0-2][0-9]:[0-5][0-9]-[0-2][0-9]:[0-5][0-9]$", var.snapshot_window))
     error_message = "Snapshot window must be in the format hh24:mi-hh24:mi"
@@ -148,7 +148,7 @@ variable "snapshot_retention_limit" {
   description = "Number of days to retain backups"
   type        = number
   default     = 5
-  
+
   validation {
     condition     = var.snapshot_retention_limit >= 0 && var.snapshot_retention_limit <= 35
     error_message = "Snapshot retention limit must be between 0 and 35 days."
@@ -206,7 +206,7 @@ variable "maxmemory_policy" {
   description = "Memory eviction policy"
   type        = string
   default     = "allkeys-lru"
-  
+
   validation {
     condition = contains([
       "volatile-lru",
@@ -242,7 +242,7 @@ variable "slow_log_destination_type" {
   description = "Destination type for slow logs (cloudwatch-logs or kinesis-firehose)"
   type        = string
   default     = "cloudwatch-logs"
-  
+
   validation {
     condition     = var.slow_log_destination_type == "cloudwatch-logs" || var.slow_log_destination_type == "kinesis-firehose"
     error_message = "Destination type must be either 'cloudwatch-logs' or 'kinesis-firehose'."
@@ -259,7 +259,7 @@ variable "engine_log_destination_type" {
   description = "Destination type for engine logs (cloudwatch-logs or kinesis-firehose)"
   type        = string
   default     = "cloudwatch-logs"
-  
+
   validation {
     condition     = var.engine_log_destination_type == "cloudwatch-logs" || var.engine_log_destination_type == "kinesis-firehose"
     error_message = "Destination type must be either 'cloudwatch-logs' or 'kinesis-firehose'."
@@ -270,7 +270,7 @@ variable "log_format" {
   description = "Log format (json or text)"
   type        = string
   default     = "json"
-  
+
   validation {
     condition     = var.log_format == "json" || var.log_format == "text"
     error_message = "Log format must be either 'json' or 'text'."
@@ -301,7 +301,7 @@ variable "cpu_utilization_threshold" {
   description = "CPU utilization threshold for alarm (percentage)"
   type        = number
   default     = 75
-  
+
   validation {
     condition     = var.cpu_utilization_threshold >= 0 && var.cpu_utilization_threshold <= 100
     error_message = "CPU utilization threshold must be between 0 and 100."
@@ -312,7 +312,7 @@ variable "memory_utilization_threshold" {
   description = "Memory utilization threshold for alarm (percentage)"
   type        = number
   default     = 90
-  
+
   validation {
     condition     = var.memory_utilization_threshold >= 0 && var.memory_utilization_threshold <= 100
     error_message = "Memory utilization threshold must be between 0 and 100."
@@ -323,7 +323,7 @@ variable "evictions_threshold" {
   description = "Number of evictions threshold for alarm"
   type        = number
   default     = 1000
-  
+
   validation {
     condition     = var.evictions_threshold >= 0
     error_message = "Evictions threshold must be a non-negative number."
@@ -333,8 +333,8 @@ variable "evictions_threshold" {
 variable "swap_usage_threshold" {
   description = "Swap usage threshold for alarm (bytes)"
   type        = number
-  default     = 52428800  # 50MB
-  
+  default     = 52428800 # 50MB
+
   validation {
     condition     = var.swap_usage_threshold >= 0
     error_message = "Swap usage threshold must be a non-negative number."

@@ -13,6 +13,11 @@ variable "aws_region" {
   description = "AWS region"
   type        = string
   default     = "eu-west-1"
+
+  validation {
+    condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]{1}$", var.aws_region))
+    error_message = "AWS region must be in valid format (e.g., us-east-1, eu-west-1)"
+  }
 }
 
 variable "alert_email_addresses" {

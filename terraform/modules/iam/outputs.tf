@@ -10,8 +10,11 @@ output "ecs_task_execution_role_arn" {
 output "ecs_task_role_arns" {
   description = "ARNs of the ECS task roles"
   value = {
-    auth_service  = aws_iam_role.auth_service_task.arn
-    event_service = aws_iam_role.event_service_task.arn
+    auth-service         = aws_iam_role.auth_service_task.arn
+    event-service        = aws_iam_role.event_service_task.arn
+    booking-service      = aws_iam_role.booking_service_task.arn
+    payment-service      = aws_iam_role.payment_service_task.arn
+    notification-service = aws_iam_role.notification_service_task.arn
   }
 }
 

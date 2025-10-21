@@ -34,6 +34,12 @@ variable "alb_security_group_id" {
 variable "certificate_arn" {
   description = "ARN of the SSL certificate"
   type        = string
+  default     = ""
+
+  validation {
+    condition     = var.certificate_arn == "" || can(regex("^arn:aws:acm:[a-z0-9-]+:[0-9]{12}:certificate/[a-z0-9-]+$", var.certificate_arn))
+    error_message = "Certificate ARN must be empty or a valid ACM certificate ARN"
+  }
 }
 
 variable "ssl_policy" {
@@ -62,12 +68,22 @@ variable "health_check_timeout" {
   description = "Health check timeout in seconds"
   type        = number
   default     = 5
+
+  validation {
+    condition     = var.health_check_timeout >= 2 && var.health_check_timeout <= 120
+    error_message = "Health check timeout must be between 2 and 120 seconds"
+  }
 }
 
 variable "health_check_interval" {
   description = "Health check interval in seconds"
   type        = number
   default     = 30
+
+  validation {
+    condition     = var.health_check_interval >= 5 && var.health_check_interval <= 300
+    error_message = "Health check interval must be between 5 and 300 seconds"
+  }
 }
 
 # ==============================================================================

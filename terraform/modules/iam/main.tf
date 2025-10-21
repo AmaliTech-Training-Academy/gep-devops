@@ -188,6 +188,134 @@ resource "aws_iam_role_policy" "event_service_task" {
   })
 }
 
-# Similar roles for other services (booking, payment, notification)
-# ... (following same pattern)
+# Booking Service Task Role
+resource "aws_iam_role" "booking_service_task" {
+  name_prefix = "${var.project_name}-${var.environment}-booking-task-"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = merge(
+    var.tags,
+    {
+      Name = "${var.project_name}-${var.environment}-booking-service-task-role"
+    }
+  )
+}
+
+resource "aws_iam_role_policy" "booking_service_task" {
+  name_prefix = "booking-service-permissions-"
+  role        = aws_iam_role.booking_service_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:Publish"
+        ]
+        Resource = "arn:aws:sns:*:*:event-planner-*"
+      }
+    ]
+  })
+}
+
+# Payment Service Task Role
+resource "aws_iam_role" "payment_service_task" {
+  name_prefix = "${var.project_name}-${var.environment}-payment-task-"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = merge(
+    var.tags,
+    {
+      Name = "${var.project_name}-${var.environment}-payment-service-task-role"
+    }
+  )
+}
+
+resource "aws_iam_role_policy" "payment_service_task" {
+  name_prefix = "payment-service-permissions-"
+  role        = aws_iam_role.payment_service_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:Publish"
+        ]
+        Resource = "arn:aws:sns:*:*:event-planner-*"
+      }
+    ]
+  })
+}
+
+# Notification Service Task Role
+resource "aws_iam_role" "notification_service_task" {
+  name_prefix = "${var.project_name}-${var.environment}-notification-task-"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = merge(
+    var.tags,
+    {
+      Name = "${var.project_name}-${var.environment}-notification-service-task-role"
+    }
+  )
+}
+
+resource "aws_iam_role_policy" "notification_service_task" {
+  name_prefix = "notification-service-permissions-"
+  role        = aws_iam_role.notification_service_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail",
+          "sns:Publish"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
 

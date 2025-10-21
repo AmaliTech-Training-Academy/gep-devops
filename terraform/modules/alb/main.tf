@@ -180,6 +180,8 @@ resource "aws_lb_target_group" "services" {
 # ==============================================================================
 
 resource "aws_lb_listener" "https" {
+  count = var.certificate_arn != "" ? 1 : 0
+
   load_balancer_arn = aws_lb.main.arn
   port              = "443"
   protocol          = "HTTPS"
@@ -208,9 +210,9 @@ resource "aws_lb_listener" "https" {
 
 # Create listener rule for each microservice
 resource "aws_lb_listener_rule" "service_routing" {
-  for_each = local.services
+  for_each = var.certificate_arn != "" ? local.services : {}
 
-  listener_arn = aws_lb_listener.https.arn
+  listener_arn = aws_lb_listener.https[0].arn
   priority     = each.value.priority
 
   action {
@@ -243,11 +245,24 @@ resource "aws_lb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
-    type = "redirect"
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
+    type = var.certificate_arn != "" ? "redirect" : "fixed-response"
+
+    dynamic "redirect" {
+      for_each = var.certificate_arn != "" ? [1] : []
+      content {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+
+    dynamic "fixed_response" {
+      for_each = var.certificate_arn == "" ? [1] : []
+      content {
+        content_type = "text/plain"
+        message_body = "ALB is running - Certificate not configured"
+        status_code  = "200"
+      }
     }
   }
 

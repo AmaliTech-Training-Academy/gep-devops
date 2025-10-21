@@ -10,12 +10,22 @@ variable "project_name" {
 variable "environment" {
   description = "Environment name (dev, prod)"
   type        = string
+
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be dev, staging, or prod"
+  }
 }
 
 variable "aws_region" {
   description = "AWS region"
   type        = string
-  default = "eu-west-1"
+  default     = "eu-west-1"
+
+  validation {
+    condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]{1}$", var.aws_region))
+    error_message = "AWS region must be in valid format (e.g., us-east-1, eu-west-1)"
+  }
 }
 
 variable "vpc_id" {
@@ -145,12 +155,22 @@ variable "cpu_target_value" {
   description = "Target CPU utilization for auto scaling (%)"
   type        = number
   default     = 70
+
+  validation {
+    condition     = var.cpu_target_value >= 10 && var.cpu_target_value <= 100
+    error_message = "CPU target value must be between 10 and 100"
+  }
 }
 
 variable "memory_target_value" {
   description = "Target memory utilization for auto scaling (%)"
   type        = number
   default     = 75
+
+  validation {
+    condition     = var.memory_target_value >= 10 && var.memory_target_value <= 100
+    error_message = "Memory target value must be between 10 and 100"
+  }
 }
 
 variable "scale_in_cooldown" {

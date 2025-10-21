@@ -38,3 +38,13 @@ output "logs_bucket_arn" {
   description = "Logs bucket ARN"
   value       = var.enable_access_logging ? aws_s3_bucket.logs[0].arn : null
 }
+
+output "backend_files_bucket_id" {
+  description = "Backend files bucket ID"
+  value       = aws_s3_bucket.backend_files.id
+}
+
+output "backend_files_bucket_arn" {
+  description = "Backend files bucket ARN"
+  value       = aws_s3_bucket.backend_files.arn
+}

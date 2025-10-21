@@ -123,6 +123,8 @@ resource "aws_s3_bucket_cors_configuration" "assets" {
 
 # Bucket policy for CloudFront access
 resource "aws_s3_bucket_policy" "assets" {
+  count = var.cloudfront_distribution_arn != "" ? 1 : 0
+
   bucket = aws_s3_bucket.assets.id
 
   policy = jsonencode({
@@ -144,6 +146,8 @@ resource "aws_s3_bucket_policy" "assets" {
       }
     ]
   })
+
+  depends_on = [aws_s3_bucket_public_access_block.assets]
 }
 
 # Logging bucket
@@ -206,6 +210,57 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
   }
 }
 
+# Bucket policy for ALB access logs
+resource "aws_s3_bucket_policy" "logs" {
+  count = var.enable_access_logging ? 1 : 0
+
+  depends_on = [aws_s3_bucket_public_access_block.logs]
+
+  bucket = aws_s3_bucket.logs[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AWSLogDeliveryWrite"
+        Effect = "Allow"
+        Principal = {
+          Service = "logging.s3.amazonaws.com"
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.logs[0].arn}/*"
+      },
+      {
+        Sid    = "AWSLogDeliveryAclCheck"
+        Effect = "Allow"
+        Principal = {
+          Service = "logging.s3.amazonaws.com"
+        }
+        Action   = "s3:GetBucketAcl"
+        Resource = aws_s3_bucket.logs[0].arn
+      },
+      {
+        Sid    = "AWSALBLogDeliveryWrite"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::156460612806:root"
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.logs[0].arn}/*"
+      },
+      {
+        Sid    = "AWSALBLogDeliveryAclCheck"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::156460612806:root"
+        }
+        Action   = "s3:GetBucketAcl"
+        Resource = aws_s3_bucket.logs[0].arn
+      }
+    ]
+  })
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "logs" {
   count = var.enable_access_logging ? 1 : 0
 
@@ -231,6 +286,49 @@ resource "aws_s3_bucket_logging" "assets" {
 
   target_bucket = aws_s3_bucket.logs[0].id
   target_prefix = "assets-logs/"
+}
+
+# S3 Bucket for backend developer files
+resource "aws_s3_bucket" "backend_files" {
+  bucket = "${var.project_name}-backend-${var.environment}-files-${var.account_id}"
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name        = "${var.project_name}-backend-${var.environment}-files"
+      Environment = var.environment
+      Purpose     = "Backend developer files storage"
+    }
+  )
+}
+
+resource "aws_s3_bucket_public_access_block" "backend_files" {
+  bucket = aws_s3_bucket.backend_files.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "backend_files" {
+  bucket = aws_s3_bucket.backend_files.id
+
+  versioning_configuration {
+    status = var.enable_versioning ? "Enabled" : "Suspended"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "backend_files" {
+  bucket = aws_s3_bucket.backend_files.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = var.kms_key_arn != null ? "aws:kms" : "AES256"
+      kms_master_key_id = var.kms_key_arn
+    }
+    bucket_key_enabled = var.kms_key_arn != null ? true : false
+  }
 }
 
 # S3 Bucket for backups

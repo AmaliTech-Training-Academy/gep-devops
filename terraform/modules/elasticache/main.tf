@@ -88,7 +88,7 @@ resource "aws_elasticache_replication_group" "single_node" {
 
   replication_group_id = "${var.project_name}-${var.environment}-redis"
   description          = "Redis cluster for ${var.project_name} ${var.environment}"
-  
+
   engine               = "redis"
   engine_version       = var.redis_version
   port                 = var.redis_port
@@ -99,22 +99,22 @@ resource "aws_elasticache_replication_group" "single_node" {
   # Node configuration
   node_type          = var.node_type
   num_cache_clusters = var.num_cache_nodes
-  
+
   # Multi-AZ (only valid when cluster mode is disabled)
   automatic_failover_enabled = var.automatic_failover_enabled
-  multi_az_enabled          = var.multi_az_enabled
+  multi_az_enabled           = var.multi_az_enabled
 
   # Maintenance
   maintenance_window         = var.maintenance_window
-  snapshot_window           = var.snapshot_window
-  snapshot_retention_limit  = var.snapshot_retention_limit
+  snapshot_window            = var.snapshot_window
+  snapshot_retention_limit   = var.snapshot_retention_limit
   auto_minor_version_upgrade = var.auto_minor_version_upgrade
-  apply_immediately         = var.apply_immediately
+  apply_immediately          = var.apply_immediately
 
   # Security
   at_rest_encryption_enabled = var.at_rest_encryption_enabled
   transit_encryption_enabled = var.transit_encryption_enabled
-  auth_token                = var.transit_encryption_enabled ? var.auth_token : null
+  auth_token                 = var.transit_encryption_enabled ? var.auth_token : null
 
   # Notifications
   notification_topic_arn = var.notification_topic_arn
@@ -155,9 +155,9 @@ resource "aws_elasticache_replication_group" "single_node" {
 resource "aws_elasticache_replication_group" "cluster_mode" {
   count = var.cluster_mode_enabled ? 1 : 0
 
-  replication_group_id          = "${var.project_name}-${var.environment}-redis"
-  description                   = "Redis cluster for ${var.project_name} ${var.environment}"
-  
+  replication_group_id = "${var.project_name}-${var.environment}-redis"
+  description          = "Redis cluster for ${var.project_name} ${var.environment}"
+
   engine               = "redis"
   engine_version       = var.redis_version
   port                 = var.redis_port
@@ -177,15 +177,15 @@ resource "aws_elasticache_replication_group" "cluster_mode" {
 
   # Maintenance
   maintenance_window         = var.maintenance_window
-  snapshot_window           = var.snapshot_window
-  snapshot_retention_limit  = var.snapshot_retention_limit
+  snapshot_window            = var.snapshot_window
+  snapshot_retention_limit   = var.snapshot_retention_limit
   auto_minor_version_upgrade = var.auto_minor_version_upgrade
-  apply_immediately         = var.apply_immediately
+  apply_immediately          = var.apply_immediately
 
   # Security
   at_rest_encryption_enabled = var.at_rest_encryption_enabled
   transit_encryption_enabled = var.transit_encryption_enabled
-  auth_token                = var.transit_encryption_enabled ? var.auth_token : null
+  auth_token                 = var.transit_encryption_enabled ? var.auth_token : null
 
   # Notifications
   notification_topic_arn = var.notification_topic_arn
@@ -239,7 +239,7 @@ resource "aws_cloudwatch_metric_alarm" "cpu_utilization" {
   alarm_actions       = var.alarm_actions
 
   dimensions = {
-    CacheClusterId = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].id, "")
+    CacheClusterId     = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].id, "")
     ReplicationGroupId = var.cluster_mode_enabled ? try(aws_elasticache_replication_group.cluster_mode[0].id, "") : null
   }
 
@@ -262,7 +262,7 @@ resource "aws_cloudwatch_metric_alarm" "database_memory_usage" {
   alarm_actions       = var.alarm_actions
 
   dimensions = {
-    CacheClusterId = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].id, "")
+    CacheClusterId     = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].id, "")
     ReplicationGroupId = var.cluster_mode_enabled ? try(aws_elasticache_replication_group.cluster_mode[0].id, "") : null
   }
 
@@ -285,7 +285,7 @@ resource "aws_cloudwatch_metric_alarm" "evictions" {
   alarm_actions       = var.alarm_actions
 
   dimensions = {
-    CacheClusterId = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].id, "")
+    CacheClusterId     = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].id, "")
     ReplicationGroupId = var.cluster_mode_enabled ? try(aws_elasticache_replication_group.cluster_mode[0].id, "") : null
   }
 
@@ -308,7 +308,7 @@ resource "aws_cloudwatch_metric_alarm" "swap_usage" {
   alarm_actions       = var.alarm_actions
 
   dimensions = {
-    CacheClusterId = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].id, "")
+    CacheClusterId     = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].id, "")
     ReplicationGroupId = var.cluster_mode_enabled ? try(aws_elasticache_replication_group.cluster_mode[0].id, "") : null
   }
 

@@ -211,6 +211,9 @@ resource "aws_db_instance" "primary" {
   password = random_password.db_passwords[each.key].result
   port     = each.value.port
 
+  # Enable IAM authentication for enhanced security
+  iam_database_authentication_enabled = true
+
   # High availability
   multi_az = var.multi_az
 
@@ -288,6 +291,10 @@ resource "aws_db_instance" "read_replica_1" {
   # Use same AZ as primary for low-latency reads
   availability_zone = aws_db_instance.primary[each.key].availability_zone
 
+  # Encryption (inherited from primary)
+  storage_encrypted = true
+  kms_key_id        = var.kms_key_arn
+
   # Monitoring
   monitoring_interval             = var.enable_enhanced_monitoring ? 60 : 0
   monitoring_role_arn             = var.enable_enhanced_monitoring ? aws_iam_role.rds_monitoring[0].arn : null
@@ -321,6 +328,10 @@ resource "aws_db_instance" "read_replica_2" {
   
   # Place in different AZ for cross-AZ redundancy
   multi_az = false  # Read replicas don't support Multi-AZ
+
+  # Encryption (inherited from primary)
+  storage_encrypted = true
+  kms_key_id        = var.kms_key_arn
 
   # Monitoring
   monitoring_interval             = var.enable_enhanced_monitoring ? 60 : 0

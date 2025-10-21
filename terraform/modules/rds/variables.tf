@@ -30,7 +30,7 @@ variable "security_group_id" {
 variable "auth_db_instance_class" {
   description = "Instance class for auth database"
   type        = string
-  default     = "db.t4g.medium"
+  default     = "db.t3.medium"
 }
 
 variable "auth_db_allocated_storage" {
@@ -49,7 +49,7 @@ variable "auth_db_max_allocated_storage" {
 variable "event_db_instance_class" {
   description = "Instance class for event database"
   type        = string
-  default     = "db.t4g.large"
+  default     = "db.t3.medium"
 }
 
 variable "event_db_allocated_storage" {
@@ -68,7 +68,7 @@ variable "event_db_max_allocated_storage" {
 variable "booking_db_instance_class" {
   description = "Instance class for booking database"
   type        = string
-  default     = "db.t4g.large"
+  default     = "db.t3.medium"
 }
 
 variable "booking_db_allocated_storage" {
@@ -87,7 +87,7 @@ variable "booking_db_max_allocated_storage" {
 variable "payment_db_instance_class" {
   description = "Instance class for payment database"
   type        = string
-  default     = "db.t4g.medium"
+  default     = "db.t3.medium"
 }
 
 variable "payment_db_allocated_storage" {
