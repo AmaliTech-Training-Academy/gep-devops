@@ -4,6 +4,7 @@ on:
   # schedule:
   #   - cron: '*/15 * * * *'  # Every 15 minutes - DISABLED
   workflow_dispatch:  # Manual activation only
+  workflow_call:  # Allow calling from other workflows
 
 jobs:
   health-checks:
