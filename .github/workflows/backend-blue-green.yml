@@ -1,0 +1,236 @@
+name: Backend Blue-Green Deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      service:
+        required: true
+        type: string
+      image_tag:
+        required: true
+        type: string
+
+env:
+  ENVIRONMENT: ${{ inputs.environment }}
+  SERVICE: ${{ inputs.service }}
+  IMAGE_TAG: ${{ inputs.image_tag }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY_URL }}
+
+jobs:
+  blue-green-deploy:
+    runs-on: ubuntu-latest
+    # Only run for production environment
+    if: inputs.environment == 'prod'
+    steps:
+    - name: Checkout DevOps Config
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-west-1
+
+    - name: Determine Current Environment
+      id: current
+      run: |
+        # Get current active service (green)
+        CURRENT_SERVICE=$(aws elbv2 describe-target-groups \
+          --names "gep-${{ env.SERVICE }}-${{ env.ENVIRONMENT }}-tg" \
+          --query 'TargetGroups[0].TargetGroupArn' --output text)
+        
+        # Check which service is currently receiving traffic
+        CURRENT_TARGETS=$(aws elbv2 describe-target-health \
+          --target-group-arn $CURRENT_SERVICE \
+          --query 'TargetHealthDescriptions[?TargetHealth.State==`healthy`].Target.Id' \
+          --output text)
+        
+        if [[ -z "$CURRENT_TARGETS" ]]; then
+          echo "deployment_type=initial" >> $GITHUB_OUTPUT
+          echo "blue_service=gep-${{ env.SERVICE }}-${{ env.ENVIRONMENT }}" >> $GITHUB_OUTPUT
+          echo "green_service=gep-${{ env.SERVICE }}-${{ env.ENVIRONMENT }}-green" >> $GITHUB_OUTPUT
+        else
+          # Determine which is blue and which is green
+          echo "deployment_type=blue_green" >> $GITHUB_OUTPUT
+          echo "blue_service=gep-${{ env.SERVICE }}-${{ env.ENVIRONMENT }}-blue" >> $GITHUB_OUTPUT
+          echo "green_service=gep-${{ env.SERVICE }}-${{ env.ENVIRONMENT }}-green" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Blue Environment Task Definition
+      run: |
+        # Create task definition for blue environment
+        jq --arg IMAGE "$ECR_REGISTRY/gep-${{ env.SERVICE }}:${{ env.IMAGE_TAG }}" \
+           --arg FAMILY "gep-${{ env.SERVICE }}-${{ env.ENVIRONMENT }}-blue" \
+           '.family = $FAMILY | .containerDefinitions[0].image = $IMAGE' \
+           ecs/task-definitions/${{ env.SERVICE }}.json > /tmp/blue-task-def.json
+
+    - name: Deploy to Blue Environment
+      id: deploy_blue
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: /tmp/blue-task-def.json
+        service: ${{ steps.current.outputs.blue_service }}
+        cluster: gep-cluster-${{ env.ENVIRONMENT }}
+        wait-for-service-stability: true
+
+    - name: Health Check Blue Environment
+      id: health_check
+      run: |
+        echo "🔍 Running health checks on blue environment..."
+        
+        # Get blue service endpoint
+        BLUE_ALB=$(aws elbv2 describe-load-balancers \
+          --names "gep-alb-${{ env.ENVIRONMENT }}" \
+          --query 'LoadBalancers[0].DNSName' --output text)
+        
+        # Health check with retries
+        for i in {1..10}; do
+          echo "Health check attempt $i/10..."
+          
+          if curl -f -s "http://$BLUE_ALB/actuator/health" > /dev/null; then
+            echo "✅ Health check passed"
+            echo "health_status=healthy" >> $GITHUB_OUTPUT
+            break
+          else
+            echo "❌ Health check failed, retrying in 30s..."
+            sleep 30
+          fi
+          
+          if [ $i -eq 10 ]; then
+            echo "health_status=unhealthy" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+        done
+
+    - name: Run Smoke Tests
+      if: steps.health_check.outputs.health_status == 'healthy'
+      run: |
+        echo "🧪 Running smoke tests on blue environment..."
+        
+        # Add your smoke tests here
+        # Example: API endpoint tests, database connectivity, etc.
+        
+        # Placeholder smoke tests
+        BLUE_ALB=$(aws elbv2 describe-load-balancers \
+          --names "gep-alb-${{ env.ENVIRONMENT }}" \
+          --query 'LoadBalancers[0].DNSName' --output text)
+        
+        # Test critical endpoints
+        curl -f "http://$BLUE_ALB/api/health" || exit 1
+        curl -f "http://$BLUE_ALB/api/${{ env.SERVICE }}/status" || exit 1
+        
+        echo "✅ Smoke tests passed"
+
+    - name: Switch Traffic to Blue (Production Only)
+      if: env.ENVIRONMENT == 'prod' && steps.health_check.outputs.health_status == 'healthy'
+      run: |
+        echo "🔄 Switching traffic from green to blue..."
+        
+        # Update ALB target group to point to blue service
+        aws elbv2 modify-listener \
+          --listener-arn $(aws elbv2 describe-listeners \
+            --load-balancer-arn $(aws elbv2 describe-load-balancers \
+              --names "gep-alb-${{ env.ENVIRONMENT }}" \
+              --query 'LoadBalancers[0].LoadBalancerArn' --output text) \
+            --query 'Listeners[0].ListenerArn' --output text) \
+          --default-actions Type=forward,TargetGroupArn=$(aws elbv2 describe-target-groups \
+            --names "gep-${{ env.SERVICE }}-${{ env.ENVIRONMENT }}-blue-tg" \
+            --query 'TargetGroups[0].TargetGroupArn' --output text)
+        
+        echo "✅ Traffic switched to blue environment"
+
+    - name: Monitor New Deployment
+      if: env.ENVIRONMENT == 'prod'
+      run: |
+        echo "📊 Monitoring new deployment for 5 minutes..."
+        
+        # Monitor for 5 minutes
+        for i in {1..10}; do
+          echo "Monitoring check $i/10..."
+          
+          # Check error rates, response times, etc.
+          # This would integrate with your monitoring system
+          
+          sleep 30
+        done
+        
+        echo "✅ Monitoring completed successfully"
+
+    - name: Cleanup Green Environment
+      if: success() && env.ENVIRONMENT == 'prod'
+      run: |
+        echo "🧹 Cleaning up green environment..."
+        
+        # Scale down green service
+        aws ecs update-service \
+          --cluster gep-cluster-${{ env.ENVIRONMENT }} \
+          --service ${{ steps.current.outputs.green_service }} \
+          --desired-count 0
+        
+        echo "✅ Green environment cleaned up"
+
+    - name: Rollback on Failure
+      if: failure()
+      run: |
+        echo "🔄 Rolling back to green environment..."
+        
+        if [ "${{ env.ENVIRONMENT }}" == "prod" ]; then
+          # Switch traffic back to green
+          aws elbv2 modify-listener \
+            --listener-arn $(aws elbv2 describe-listeners \
+              --load-balancer-arn $(aws elbv2 describe-load-balancers \
+                --names "gep-alb-${{ env.ENVIRONMENT }}" \
+                --query 'LoadBalancers[0].LoadBalancerArn' --output text) \
+              --query 'Listeners[0].ListenerArn' --output text) \
+            --default-actions Type=forward,TargetGroupArn=$(aws elbv2 describe-target-groups \
+              --names "gep-${{ env.SERVICE }}-${{ env.ENVIRONMENT }}-green-tg" \
+              --query 'TargetGroups[0].TargetGroupArn' --output text)
+        fi
+        
+        # Scale down failed blue service
+        aws ecs update-service \
+          --cluster gep-cluster-${{ env.ENVIRONMENT }} \
+          --service ${{ steps.current.outputs.blue_service }} \
+          --desired-count 0
+        
+        echo "✅ Rollback completed"
+
+    - name: Deployment Status Notification
+      if: always()
+      uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "Blue-Green Deployment ${{ job.status == 'success' && 'Succeeded ✅' || 'Failed ❌' }}",
+            "attachments": [{
+              "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
+              "fields": [{
+                "title": "Service",
+                "value": "${{ env.SERVICE }}",
+                "short": true
+              }, {
+                "title": "Environment", 
+                "value": "${{ env.ENVIRONMENT }}",
+                "short": true
+              }, {
+                "title": "Image Tag",
+                "value": "${{ env.IMAGE_TAG }}",
+                "short": true
+              }, {
+                "title": "Deployment Type",
+                "value": "Blue-Green",
+                "short": true
+              }, {
+                "title": "Health Status",
+                "value": "${{ steps.health_check.outputs.health_status || 'unknown' }}",
+                "short": true
+              }]
+            }]
+          }

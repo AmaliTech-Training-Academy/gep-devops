@@ -1,0 +1,134 @@
+name: Health Monitoring
+
+on:
+  # schedule:
+  #   - cron: '*/15 * * * *'  # Every 15 minutes - DISABLED
+  workflow_dispatch:  # Manual activation only
+  workflow_call:  # Allow calling from other workflows
+
+jobs:
+  health-checks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, staging, prod]
+        service: [frontend, backend, database]
+    steps:
+    - name: Health Check - Frontend
+      if: matrix.service == 'frontend'
+      run: |
+        case "${{ matrix.environment }}" in
+          dev) URL="https://dev.gep.com" ;;
+          staging) URL="https://staging.gep.com" ;;
+          prod) URL="https://gep.com" ;;
+        esac
+        
+        response=$(curl -s -o /dev/null -w "%{http_code}" $URL/health)
+        if [ $response -ne 200 ]; then
+          echo "::error::Frontend health check failed for ${{ matrix.environment }}: HTTP $response"
+          exit 1
+        fi
+
+    - name: Health Check - Backend Services
+      if: matrix.service == 'backend'
+      run: |
+        case "${{ matrix.environment }}" in
+          dev) BASE_URL="https://dev-api.gep.com" ;;
+          staging) BASE_URL="https://staging-api.gep.com" ;;
+          prod) BASE_URL="https://api.gep.com" ;;
+        esac
+        
+        services=("user-service" "event-service" "notification-service" "gateway-service")
+        
+        for service in "${services[@]}"; do
+          response=$(curl -s -o /dev/null -w "%{http_code}" $BASE_URL/$service/actuator/health)
+          if [ $response -ne 200 ]; then
+            echo "::error::$service health check failed for ${{ matrix.environment }}: HTTP $response"
+            exit 1
+          fi
+        done
+
+    - name: Health Check - Database
+      if: matrix.service == 'database'
+      run: |
+        case "${{ matrix.environment }}" in
+          dev) DB_HOST="${{ secrets.DB_HOST_DEV }}" ;;
+          staging) DB_HOST="${{ secrets.DB_HOST_STAGING }}" ;;
+          prod) DB_HOST="${{ secrets.DB_HOST_PROD }}" ;;
+        esac
+        
+        timeout 10 bash -c "</dev/tcp/$DB_HOST/5432" || {
+          echo "::error::Database connection failed for ${{ matrix.environment }}"
+          exit 1
+        }
+
+  ecs-service-health:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, staging, prod]
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-west-1
+
+    - name: Check ECS Service Health
+      run: |
+        services=("user-service" "event-service" "notification-service" "gateway-service")
+        
+        for service in "${services[@]}"; do
+          service_status=$(aws ecs describe-services \
+            --cluster gep-cluster-${{ matrix.environment }} \
+            --services gep-$service-${{ matrix.environment }} \
+            --query 'services[0].status' \
+            --output text)
+          
+          if [ "$service_status" != "ACTIVE" ]; then
+            echo "::error::ECS service $service is not active in ${{ matrix.environment }}: $service_status"
+            exit 1
+          fi
+        done
+
+  # notify-health-status:
+  #   needs: [health-checks, ecs-service-health]
+  #   if: always()
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Slack Health Status
+  #     uses: 8398a7/action-slack@v3
+  #     env:
+  #       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  #     with:
+  #       status: custom
+  #       custom_payload: |
+  #         {
+  #           "text": "Health Check ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Passed ✅' }}",
+  #           "attachments": [{
+  #             "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
+  #             "fields": [{
+  #               "title": "Repository",
+  #               "value": "${{ github.repository }}",
+  #               "short": true
+  #             }, {
+  #               "title": "Check Time",
+  #               "value": "$(date -u)",
+  #               "short": true
+  #             }, {
+  #               "title": "Status",
+  #               "value": "${{ contains(needs.*.result, 'failure') && 'Services Down' || 'All Services Up' }}",
+  #               "short": true
+  #             }, {
+  #               "title": "Triggered By",
+  #               "value": "${{ github.actor }}",
+  #               "short": true
+  #             }],
+  #             "actions": [{
+  #               "type": "button",
+  #               "text": "View Details",
+  #               "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  #             }]
+  #           }]
+  #         }

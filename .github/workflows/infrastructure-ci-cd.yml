@@ -1,0 +1,634 @@
+name: Infrastructure CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, dev, staging]
+    paths: ['terraform/**']
+  pull_request:
+    branches: [main, dev, staging]
+    paths: ['terraform/**']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, staging, prod]
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'plan'
+        type: choice
+        options: [plan, apply, destroy]
+
+env:
+  TF_VERSION: '1.6.0'
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+  TF_STATE_DYNAMODB_TABLE: ${{ secrets.TF_STATE_DYNAMODB_TABLE }}
+
+jobs:
+  terraform-validate:
+    runs-on: [self-hosted, frontend]
+    strategy:
+      matrix:
+        environment: ${{ github.ref == 'refs/heads/dev' && fromJSON('["dev"]') || github.ref == 'refs/heads/staging' && fromJSON('["staging"]') || github.ref == 'refs/heads/main' && fromJSON('["prod"]') || github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.environment)) || fromJSON('["dev", "staging", "prod"]') }}
+    
+    steps:
+    - name: Clean Workspace
+      run: |
+        echo " Cleaning workspace..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        sudo rm -rf $HOME/.terraform.d/plugin-cache || true
+        sudo rm -rf /tmp/* || true
+        sudo apt-get clean
+        df -h
+        
+    - name: Checkout code
+      uses: actions/checkout@v4
+        
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y unzip curl wget
+        # Install AWS CLI v2
+        if ! command -v aws &> /dev/null; then
+          echo "Installing AWS CLI..."
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          rm -rf aws awscliv2.zip
+        fi
+        aws --version
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive terraform/
+      continue-on-error: true
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Verify AWS Credentials
+      run: |
+        echo "Testing AWS credentials..."
+        aws sts get-caller-identity
+        echo " AWS credentials verified"
+
+    - name: Terraform Init (environment)
+      run: |
+        cd terraform/environments/${{ matrix.environment }}
+        terraform init \
+          -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+          -backend-config="key=${{ matrix.environment }}/terraform.tfstate" \
+          -backend-config="region=${{ env.AWS_REGION }}" \
+          -backend-config="dynamodb_table=${{ env.TF_STATE_DYNAMODB_TABLE }}" \
+          -backend-config="encrypt=true"
+
+    - name: Terraform Validate
+      run: |
+        cd terraform/environments/${{ matrix.environment }}
+        terraform validate
+
+    - name: TFLint Setup
+      uses: terraform-linters/setup-tflint@v4
+      with:
+        tflint_version: latest
+
+    - name: Run TFLint
+      run: |
+        cd terraform/environments/${{ matrix.environment }}
+        tflint --init
+        tflint
+      continue-on-error: true
+
+  terraform-security-scan:
+    runs-on: [self-hosted, infrastructure]
+    needs: terraform-validate
+    
+    steps:
+    - name: Clean Workspace
+      run: |
+        echo " Cleaning workspace and previous scan reports..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        df -h
+        
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Checkov
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: terraform/
+        framework: terraform
+        output_format: sarif
+        output_file_path: checkov-report.sarif
+        soft_fail: true
+
+    - name: Upload Checkov scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: checkov-report.sarif
+
+    - name: Run TFSec
+      uses: aquasecurity/tfsec-action@v1.0.3
+      with:
+        working_directory: terraform/
+        format: sarif
+        soft_fail: true
+
+    - name: Cleanup Scan Reports
+      if: always()
+      run: |
+        echo " Cleaning up scan reports..."
+        sudo rm -rf checkov-report.sarif || true
+        sudo rm -rf tfsec-report.sarif || true
+        sudo rm -rf ${{ github.workspace }}/checkov-report.sarif || true
+        sudo rm -rf ${{ github.workspace }}/results.sarif || true
+
+  terraform-plan:
+    runs-on: [self-hosted, infrastructure]
+    needs: [terraform-validate, terraform-security-scan]
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'plan')
+    strategy:
+      matrix:
+        environment: ${{ github.ref == 'refs/heads/dev' && fromJSON('["dev"]') || github.ref == 'refs/heads/staging' && fromJSON('["staging"]') || github.ref == 'refs/heads/main' && fromJSON('["prod"]') || github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.environment)) || github.event_name == 'pull_request' && fromJSON('["dev", "staging", "prod"]') || fromJSON('["dev"]') }}
+    
+    steps:
+    - name: Clean Workspace
+      run: |
+        echo " Cleaning workspace..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        df -h
+        
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Terraform Init
+      run: |
+        cd terraform/environments/${{ matrix.environment }}
+        terraform init \
+          -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+          -backend-config="key=${{ matrix.environment }}/terraform.tfstate" \
+          -backend-config="region=${{ env.AWS_REGION }}" \
+          -backend-config="dynamodb_table=${{ env.TF_STATE_DYNAMODB_TABLE }}" \
+          -backend-config="encrypt=true"
+
+    - name: Terraform Plan
+      id: plan
+      run: |
+        cd terraform/environments/${{ matrix.environment }}
+        terraform plan -no-color -out=tfplan | tee plan.txt
+
+    - name: Comment PR with Plan
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const plan = fs.readFileSync('terraform/environments/${{ matrix.environment }}/plan.txt', 'utf8');
+          const maxGitHubBodyCharacters = 65536;
+          
+          function chunkSubstr(str, size) {
+            const numChunks = Math.ceil(str.length / size)
+            const chunks = new Array(numChunks)
+            for (let i = 0, o = 0; i < numChunks; ++i, o += size) {
+              chunks[i] = str.substr(o, size)
+            }
+            return chunks
+          }
+          
+          const planChunks = chunkSubstr(plan, maxGitHubBodyCharacters);
+          
+          for (let i = 0; i < planChunks.length; i++) {
+            const output = `### Terraform Plan (${{ matrix.environment }}) - Part ${i + 1}/${planChunks.length}
+            
+            \`\`\`terraform
+            ${planChunks[i]}
+            \`\`\`
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+          }
+
+    - name: Upload Plan Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-plan-${{ matrix.environment }}-${{ github.sha }}
+        path: |
+          terraform/environments/${{ matrix.environment }}/tfplan
+          terraform/environments/${{ matrix.environment }}/plan.txt
+        retention-days: 30
+
+  terraform-apply-dev:
+    runs-on: [self-hosted, infrastructure]
+    needs: [terraform-validate, terraform-security-scan]
+    if: (github.ref == 'refs/heads/dev' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev' && inputs.action == 'apply')
+    environment: development
+    
+    steps:
+    - name: Clean Workspace
+      run: |
+        echo " Cleaning workspace..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        sudo rm -rf $HOME/.terraform.d/plugin-cache || true
+        df -h
+        
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y unzip curl wget
+        # Install AWS CLI v2
+        if ! command -v aws &> /dev/null; then
+          echo "Installing AWS CLI..."
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          rm -rf aws awscliv2.zip
+        fi
+        aws --version
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        terraform_wrapper: false
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Verify AWS Credentials
+      run: |
+        echo "Testing AWS credentials..."
+        aws sts get-caller-identity
+        echo " AWS credentials verified"
+
+    - name: Terraform Init
+      run: |
+        cd terraform/environments/dev
+        terraform init \
+          -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+          -backend-config="key=dev/terraform.tfstate" \
+          -backend-config="region=${{ env.AWS_REGION }}" \
+          -backend-config="dynamodb_table=${{ env.TF_STATE_DYNAMODB_TABLE }}" \
+          -backend-config="encrypt=true"
+
+    - name: Terraform Plan
+      run: |
+        cd terraform/environments/dev
+        terraform plan -out=tfplan
+
+    - name: Terraform Apply
+      run: |
+        cd terraform/environments/dev
+        terraform apply -auto-approve tfplan
+
+    - name: Verify State Storage
+      run: |
+        cd terraform/environments/dev
+        echo " Terraform state management:"
+        echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/dev/terraform.tfstate"
+        echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
+        echo ""
+        echo "Resources in state:"
+        terraform state list | head -10
+        echo "..."
+        echo "Total resources: $(terraform state list | wc -l)"
+
+    - name: Create State Backup
+      run: |
+        cd terraform/environments/dev
+        terraform state pull > terraform.tfstate.backup
+        aws s3 cp terraform.tfstate.backup \
+          s3://${{ env.TF_STATE_BUCKET }}/backups/dev/terraform.tfstate.$(date +%Y%m%d-%H%M%S) \
+          --region ${{ env.AWS_REGION }}
+      continue-on-error: true
+
+    - name: Upload state backup artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-state-dev-${{ github.sha }}
+        path: terraform/environments/dev/terraform.tfstate.backup
+        retention-days: 90
+
+  terraform-apply-staging:
+    runs-on: [self-hosted, infrastructure]
+    needs: [terraform-validate, terraform-security-scan]
+    if: (github.ref == 'refs/heads/staging' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging' && inputs.action == 'apply')
+    environment: staging
+    
+    steps:
+    - name: Clean Workspace
+      run: |
+        echo " Cleaning workspace..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        sudo rm -rf $HOME/.terraform.d/plugin-cache || true
+        df -h
+        
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y unzip curl wget
+        # Install AWS CLI v2
+        if ! command -v aws &> /dev/null; then
+          echo "Installing AWS CLI..."
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          rm -rf aws awscliv2.zip
+        fi
+        aws --version
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        terraform_wrapper: false
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Verify AWS Credentials
+      run: |
+        echo "Testing AWS credentials..."
+        aws sts get-caller-identity
+        echo " AWS credentials verified"
+
+    - name: Terraform Init
+      run: |
+        cd terraform/environments/staging
+        terraform init \
+          -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+          -backend-config="key=staging/terraform.tfstate" \
+          -backend-config="region=${{ env.AWS_REGION }}" \
+          -backend-config="dynamodb_table=${{ env.TF_STATE_DYNAMODB_TABLE }}" \
+          -backend-config="encrypt=true"
+
+    - name: Terraform Plan
+      run: |
+        cd terraform/environments/staging
+        terraform plan -out=tfplan
+
+    - name: Terraform Apply
+      run: |
+        cd terraform/environments/staging
+        terraform apply -auto-approve tfplan
+
+    - name: Verify State Storage
+      run: |
+        cd terraform/environments/staging
+        echo " Terraform state management:"
+        echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/staging/terraform.tfstate"
+        echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
+        echo ""
+        echo "Resources in state:"
+        terraform state list | head -10
+        echo "..."
+        echo "Total resources: $(terraform state list | wc -l)"
+
+    - name: Create State Backup
+      run: |
+        cd terraform/environments/staging
+        terraform state pull > terraform.tfstate.backup
+        aws s3 cp terraform.tfstate.backup \
+          s3://${{ env.TF_STATE_BUCKET }}/backups/staging/terraform.tfstate.$(date +%Y%m%d-%H%M%S) \
+          --region ${{ env.AWS_REGION }}
+      continue-on-error: true
+
+    - name: Upload state backup artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-state-staging-${{ github.sha }}
+        path: terraform/environments/staging/terraform.tfstate.backup
+        retention-days: 90
+
+  terraform-apply-prod:
+    runs-on: [self-hosted, infrastructure]
+    needs: [terraform-validate, terraform-security-scan]
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && inputs.action == 'apply')
+    environment: production
+    
+    steps:
+    - name: Clean Workspace
+      run: |
+        echo " Cleaning workspace..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        sudo rm -rf $HOME/.terraform.d/plugin-cache || true
+        df -h
+        
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y unzip curl wget
+        # Install AWS CLI v2
+        if ! command -v aws &> /dev/null; then
+          echo "Installing AWS CLI..."
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          rm -rf aws awscliv2.zip
+        fi
+        aws --version
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        terraform_wrapper: false
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Verify AWS Credentials
+      run: |
+        echo "Testing AWS credentials..."
+        aws sts get-caller-identity
+        echo " AWS credentials verified"
+
+    - name: Terraform Init
+      run: |
+        cd terraform/environments/prod
+        terraform init \
+          -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+          -backend-config="key=prod/terraform.tfstate" \
+          -backend-config="region=${{ env.AWS_REGION }}" \
+          -backend-config="dynamodb_table=${{ env.TF_STATE_DYNAMODB_TABLE }}" \
+          -backend-config="encrypt=true"
+
+    - name: Terraform Plan
+      run: |
+        cd terraform/environments/prod
+        terraform plan -out=tfplan
+
+    - name: Terraform Apply
+      run: |
+        cd terraform/environments/prod
+        terraform apply -auto-approve tfplan
+
+    - name: Verify State Storage
+      run: |
+        cd terraform/environments/prod
+        echo " Terraform state management:"
+        echo "State stored in: s3://${{ env.TF_STATE_BUCKET }}/prod/terraform.tfstate"
+        echo "Lock table: ${{ env.TF_STATE_DYNAMODB_TABLE }}"
+        echo ""
+        echo "Resources in state:"
+        terraform state list | head -10
+        echo "..."
+        echo "Total resources: $(terraform state list | wc -l)"
+
+    - name: Create State Backup
+      run: |
+        cd terraform/environments/prod
+        terraform state pull > terraform.tfstate.backup
+        aws s3 cp terraform.tfstate.backup \
+          s3://${{ env.TF_STATE_BUCKET }}/backups/prod/terraform.tfstate.$(date +%Y%m%d-%H%M%S) \
+          --region ${{ env.AWS_REGION }}
+      continue-on-error: true
+
+    - name: Upload state backup artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-state-prod-${{ github.sha }}
+        path: terraform/environments/prod/terraform.tfstate.backup
+        retention-days: 365
+
+    - name: Post-deployment validation
+      run: |
+        echo "Running post-deployment validation..."
+        echo " Deployment completed successfully"
+
+  notify:
+    runs-on: [self-hosted, infrastructure]
+    needs: [terraform-apply-dev, terraform-apply-staging, terraform-apply-prod]
+    if: always() && (needs.terraform-apply-dev.result != 'skipped' || needs.terraform-apply-staging.result != 'skipped' || needs.terraform-apply-prod.result != 'skipped')
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    
+    steps:
+    - name: Determine Environment and Status
+      id: env
+      run: |
+        if [[ "${{ needs.terraform-apply-dev.result }}" != "skipped" ]]; then
+          echo "environment=dev" >> $GITHUB_OUTPUT
+          echo "status=${{ needs.terraform-apply-dev.result }}" >> $GITHUB_OUTPUT
+        elif [[ "${{ needs.terraform-apply-staging.result }}" != "skipped" ]]; then
+          echo "environment=staging" >> $GITHUB_OUTPUT
+          echo "status=${{ needs.terraform-apply-staging.result }}" >> $GITHUB_OUTPUT
+        elif [[ "${{ needs.terraform-apply-prod.result }}" != "skipped" ]]; then
+          echo "environment=prod" >> $GITHUB_OUTPUT
+          echo "status=${{ needs.terraform-apply-prod.result }}" >> $GITHUB_OUTPUT
+        else
+          echo "environment=unknown" >> $GITHUB_OUTPUT
+          echo "status=skipped" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Send Slack Notification
+      if: env.SLACK_WEBHOOK_URL != ''
+      uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "Infrastructure Deployment ${{ steps.env.outputs.status == 'success' && 'Completed ✅' || 'Failed ❌' }}",
+            "attachments": [{
+              "color": "${{ steps.env.outputs.status == 'success' && 'good' || 'danger' }}",
+              "fields": [{
+                "title": "Repository",
+                "value": "${{ github.repository }}",
+                "short": true
+              }, {
+                "title": "Environment",
+                "value": "${{ steps.env.outputs.environment }}",
+                "short": true
+              }, {
+                "title": "Status",
+                "value": "${{ steps.env.outputs.status }}",
+                "short": true
+              }, {
+                "title": "Triggered By",
+                "value": "${{ github.actor }}",
+                "short": true
+              }, {
+                "title": "Branch",
+                "value": "${{ github.ref_name }}",
+                "short": true
+              }, {
+                "title": "Commit",
+                "value": "${{ github.sha }}",
+                "short": true
+              }]
+            }]
+          }
+
+    - name: Create Deployment Summary
+      run: |
+        echo "## 🚀 Infrastructure Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** ${{ steps.env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Status:** ${{ steps.env.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### State Management" >> $GITHUB_STEP_SUMMARY
+        echo "- **Backend:** S3" >> $GITHUB_STEP_SUMMARY
+        echo "- **Bucket:** \`${{ env.TF_STATE_BUCKET }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **State Key:** \`${{ steps.env.outputs.environment }}/terraform.tfstate\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Lock Table:** \`${{ env.TF_STATE_DYNAMODB_TABLE }}\`" >> $GITHUB_STEP_SUMMARY

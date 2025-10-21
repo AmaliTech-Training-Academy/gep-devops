@@ -1,0 +1,264 @@
+name: Frontend Blue-Green Deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      build_artifact:
+        required: true
+        type: string
+
+env:
+  ENVIRONMENT: ${{ inputs.environment }}
+
+jobs:
+  blue-green-deploy:
+    runs-on: ubuntu-latest
+    # Only run for production environment
+    if: inputs.environment == 'prod'
+    steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.build_artifact }}
+          path: dist/
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Determine Blue-Green Buckets
+        id: buckets
+        run: |
+          case "${{ env.ENVIRONMENT }}" in
+            dev) 
+              CURRENT_BUCKET="${{ secrets.S3_BUCKET_DEV }}"
+              BLUE_BUCKET="${{ secrets.S3_BUCKET_DEV }}-blue"
+              GREEN_BUCKET="${{ secrets.S3_BUCKET_DEV }}-green"
+              ;;
+            staging) 
+              CURRENT_BUCKET="${{ secrets.S3_BUCKET_STAGING }}"
+              BLUE_BUCKET="${{ secrets.S3_BUCKET_STAGING }}-blue"
+              GREEN_BUCKET="${{ secrets.S3_BUCKET_STAGING }}-green"
+              ;;
+            prod) 
+              CURRENT_BUCKET="${{ secrets.S3_BUCKET_PROD }}"
+              BLUE_BUCKET="${{ secrets.S3_BUCKET_PROD }}-blue"
+              GREEN_BUCKET="${{ secrets.S3_BUCKET_PROD }}-green"
+              ;;
+          esac
+
+          echo "current_bucket=$CURRENT_BUCKET" >> $GITHUB_OUTPUT
+          echo "blue_bucket=$BLUE_BUCKET" >> $GITHUB_OUTPUT
+          echo "green_bucket=$GREEN_BUCKET" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Blue Environment
+        run: |
+          echo "🚀 Deploying to blue environment..."
+          aws s3 sync dist/ s3://${{ steps.buckets.outputs.blue_bucket }} --delete
+          echo "✅ Blue environment deployed"
+
+      - name: Test Blue Environment
+        id: test_blue
+        run: |
+          echo "🧪 Testing blue environment..."
+
+          # Get CloudFront distribution for blue environment
+          case "${{ env.ENVIRONMENT }}" in
+            dev) BLUE_DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_DEV }}-blue" ;;
+            staging) BLUE_DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_STAGING }}-blue" ;;
+            prod) BLUE_DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}-blue" ;;
+          esac
+
+          # Get blue environment URL
+          BLUE_URL=$(aws cloudfront get-distribution \
+            --id $BLUE_DISTRIBUTION \
+            --query 'Distribution.DomainName' --output text)
+
+          # Test blue environment
+          for i in {1..5}; do
+            echo "Testing blue environment attempt $i/5..."
+            
+            if curl -f -s "https://$BLUE_URL" > /dev/null; then
+              echo "✅ Blue environment test passed"
+              echo "test_status=passed" >> $GITHUB_OUTPUT
+              break
+            else
+              echo "❌ Blue environment test failed, retrying in 30s..."
+              sleep 30
+            fi
+            
+            if [ $i -eq 5 ]; then
+              echo "test_status=failed" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          done
+
+      - name: Run Lighthouse Performance Test
+        if: steps.test_blue.outputs.test_status == 'passed' && env.ENVIRONMENT != 'dev'
+        id: lighthouse
+        run: |
+          echo "🔍 Running Lighthouse performance test on blue environment..."
+
+          case "${{ env.ENVIRONMENT }}" in
+            staging) BLUE_URL="https://staging-blue.gep.com" ;;
+            prod) BLUE_URL="https://blue.gep.com" ;;
+          esac
+
+          npm install -g lighthouse
+          lighthouse $BLUE_URL --chrome-flags="--headless" --output=json --output-path=lighthouse-blue.json
+
+          # Check performance score
+          PERFORMANCE_SCORE=$(jq -r '.categories.performance.score * 100 | floor' lighthouse-blue.json)
+          echo "Performance Score: $PERFORMANCE_SCORE"
+
+          if [ $PERFORMANCE_SCORE -ge 80 ]; then
+            echo "✅ Performance test passed ($PERFORMANCE_SCORE/100)"
+            echo "performance_status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Performance test failed ($PERFORMANCE_SCORE/100)"
+            echo "performance_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Switch CloudFront to Blue (Production Only)
+        if: env.ENVIRONMENT == 'prod' && steps.test_blue.outputs.test_status == 'passed'
+        run: |
+          echo "🔄 Switching CloudFront to blue environment..."
+
+          # Update CloudFront origin to point to blue bucket
+          DISTRIBUTION_ID="${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}"
+
+          # Get current distribution config
+          aws cloudfront get-distribution-config \
+            --id $DISTRIBUTION_ID \
+            --query 'DistributionConfig' > current-config.json
+
+          # Update origin to blue bucket
+          jq --arg BLUE_BUCKET "${{ steps.buckets.outputs.blue_bucket }}.s3.amazonaws.com" \
+             '.Origins.Items[0].DomainName = $BLUE_BUCKET' \
+             current-config.json > blue-config.json
+
+          # Get ETag for update
+          ETAG=$(aws cloudfront get-distribution-config \
+            --id $DISTRIBUTION_ID \
+            --query 'ETag' --output text)
+
+          # Update distribution
+          aws cloudfront update-distribution \
+            --id $DISTRIBUTION_ID \
+            --distribution-config file://blue-config.json \
+            --if-match $ETAG
+
+          echo "✅ CloudFront switched to blue environment"
+
+      - name: Invalidate CloudFront Cache
+        run: |
+          case "${{ env.ENVIRONMENT }}" in
+            dev) DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_DEV }}" ;;
+            staging) DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_STAGING }}" ;;
+            prod) DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}" ;;
+          esac
+
+          aws cloudfront create-invalidation \
+            --distribution-id $DISTRIBUTION \
+            --paths "/*"
+
+          echo "✅ CloudFront cache invalidated"
+
+      - name: Monitor New Deployment
+        if: env.ENVIRONMENT == 'prod'
+        run: |
+          echo "📊 Monitoring new deployment..."
+
+          # Monitor for 3 minutes
+          for i in {1..6}; do
+            echo "Monitoring check $i/6..."
+            
+            # Check if site is accessible
+            if curl -f -s "https://gep.com" > /dev/null; then
+              echo "✅ Site accessible"
+            else
+              echo "❌ Site not accessible"
+              exit 1
+            fi
+            
+            sleep 30
+          done
+
+          echo "✅ Monitoring completed successfully"
+
+      - name: Rollback on Failure
+        if: failure() && env.ENVIRONMENT == 'prod'
+        run: |
+          echo "🔄 Rolling back to green environment..."
+
+          # Switch CloudFront back to green bucket
+          DISTRIBUTION_ID="${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}"
+
+          # Update origin back to green bucket
+          jq --arg GREEN_BUCKET "${{ steps.buckets.outputs.green_bucket }}.s3.amazonaws.com" \
+             '.Origins.Items[0].DomainName = $GREEN_BUCKET' \
+             current-config.json > green-config.json
+
+          # Get current ETag
+          ETAG=$(aws cloudfront get-distribution-config \
+            --id $DISTRIBUTION_ID \
+            --query 'ETag' --output text)
+
+          # Rollback distribution
+          aws cloudfront update-distribution \
+            --id $DISTRIBUTION_ID \
+            --distribution-config file://green-config.json \
+            --if-match $ETAG
+
+          # Invalidate cache
+          aws cloudfront create-invalidation \
+            --distribution-id $DISTRIBUTION_ID \
+            --paths "/*"
+
+          echo "✅ Rollback completed"
+
+      - name: Upload Lighthouse Report
+        if: always() && env.ENVIRONMENT != 'dev'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-blue-green-${{ env.ENVIRONMENT }}
+          path: lighthouse-blue.json
+
+      - name: Deployment Status Notification
+        if: always()
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "Frontend Blue-Green Deployment ${{ job.status == 'success' && 'Succeeded ✅' || 'Failed ❌' }}",
+              "attachments": [{
+                "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
+                "fields": [{
+                  "title": "Environment",
+                  "value": "${{ env.ENVIRONMENT }}",
+                  "short": true
+                }, {
+                  "title": "Deployment Type",
+                  "value": "Blue-Green",
+                  "short": true
+                }, {
+                  "title": "Test Status",
+                  "value": "${{ steps.test_blue.outputs.test_status || 'unknown' }}",
+                  "short": true
+                }, {
+                  "title": "Performance Status",
+                  "value": "${{ steps.lighthouse.outputs.performance_status || 'skipped' }}",
+                  "short": true
+                }]
+              }]
+            }

@@ -1,0 +1,121 @@
+name: Frontend CI/CD Pipeline
+
+on:
+  repository_dispatch:
+    types: [frontend-deployment]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'The environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, staging, prod]
+
+env:
+  ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
+  FRONTEND_REPO: ${{ github.event.client_payload.repository }}
+  COMMIT_SHA: ${{ github.event.client_payload.sha }}
+
+jobs:
+  build-and-test:
+    runs-on: [self-hosted, frontend]
+    steps:
+    - name: Checkout Frontend Code
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ env.FRONTEND_REPO }}
+        ref: ${{ env.COMMIT_SHA }}
+        token: ${{ secrets.FRONTEND_REPO_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install and Build
+      run: |
+        if [ -f "package-lock.json" ]; then
+          npm ci
+        else
+          npm install
+        fi
+        
+        if npm run | grep -q "build:${{ env.ENVIRONMENT }}"; then
+          npm run build:${{ env.ENVIRONMENT }}
+        else
+          npm run build
+        fi
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist-${{ env.ENVIRONMENT }}
+        path: dist/
+
+  deploy-to-s3:
+    needs: build-and-test
+    runs-on: [self-hosted, frontend]
+    steps:
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: dist-${{ env.ENVIRONMENT }}
+        path: dist/
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Deploy to S3
+      run: |
+        case "${{ env.ENVIRONMENT }}" in
+          dev) BUCKET="${{ secrets.S3_BUCKET_DEV }}" ;;
+          staging) BUCKET="${{ secrets.S3_BUCKET_STAGING }}" ;;
+          prod) BUCKET="${{ secrets.S3_BUCKET_PROD }}" ;;
+        esac
+        aws s3 sync dist/ s3://$BUCKET --delete
+
+    - name: Invalidate CloudFront
+      run: |
+        case "${{ env.ENVIRONMENT }}" in
+          dev) DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_DEV }}" ;;
+          staging) DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_STAGING }}" ;;
+          prod) DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}" ;;
+        esac
+        aws cloudfront create-invalidation --distribution-id $DISTRIBUTION --paths "/*"
+
+  notify:
+    needs: [build-and-test, deploy-to-s3]
+    if: always()
+    runs-on: [self-hosted, frontend]
+    steps:
+    - name: Slack Notification
+      uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "Frontend Deployment ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Succeeded ✅' }}",
+            "attachments": [{
+              "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
+              "fields": [{
+                "title": "Environment",
+                "value": "${{ env.ENVIRONMENT }}",
+                "short": true
+              }, {
+                "title": "Repository",
+                "value": "event-planner-frontend",
+                "short": true
+              }, {
+                "title": "Triggered By",
+                "value": "${{ github.actor }}",
+                "short": true
+              }]
+            }]
+          }
