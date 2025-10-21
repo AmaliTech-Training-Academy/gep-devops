@@ -146,7 +146,7 @@ resource "aws_cloudwatch_dashboard" "main" {
           ]
           view    = "timeSeries"
           stacked = false
-          region  = "us-east-1"
+          region  = "eu-west-1"
           title   = "CloudFront CDN"
           period  = 300
         }

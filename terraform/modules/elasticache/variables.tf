@@ -183,20 +183,7 @@ variable "transit_encryption_enabled" {
   default     = true
 }
 
-# variable "auth_token" {
-#   description = "Password to use when transit encryption is enabled"
-#   type        = string
-#   default     = null
-#   sensitive   = true
 
-#   validation {
-#     condition = (
-#       var.auth_token == null ||
-#       (try(length(var.auth_token), 0) >= 16 && try(length(var.auth_token), 0) <= 128)
-#     )
-#     error_message = "Auth token must be null or between 16 and 128 characters if provided."
-#   }
-# }
 variable "auth_token" {
   type        = string
   description = "Redis auth token (optional). Must be 16–128 characters if provided."

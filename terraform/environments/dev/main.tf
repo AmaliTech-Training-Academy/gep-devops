@@ -42,8 +42,8 @@ provider "aws" {
 }
 
 provider "aws" {
-  alias  = "us_east_1"
-  region = "us-east-1"
+  alias  = "eu_west_1"
+  region = "eu-west-1"
 
   default_tags {
     tags = {
@@ -60,7 +60,7 @@ provider "aws" {
 # ==============================================================================
 
 data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
+
 
 # ==============================================================================
 # Local Variables

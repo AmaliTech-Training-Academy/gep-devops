@@ -7,7 +7,7 @@
 variable "aws_region" {
   description = "AWS region for infrastructure deployment"
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-1"
 }
 
 variable "project_name" {
@@ -37,7 +37,7 @@ variable "vpc_cidr" {
 variable "availability_zones" {
   description = "List of availability zones"
   type        = list(string)
-  default     = ["us-east-1a"]
+  default     = ["eu-west-1a"]
 }
 
 variable "domain_name" {

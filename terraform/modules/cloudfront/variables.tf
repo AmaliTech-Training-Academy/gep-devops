@@ -100,7 +100,7 @@ variable "enable_origin_shield" {
 variable "origin_shield_region" {
   description = "Origin Shield region"
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-1"
 }
 
 variable "geo_restriction_type" {

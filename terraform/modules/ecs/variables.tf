@@ -8,14 +8,14 @@ variable "project_name" {
 }
 
 variable "environment" {
-  description = "Environment name (dev, staging, prod)"
+  description = "Environment name (dev, prod)"
   type        = string
 }
 
 variable "aws_region" {
   description = "AWS region"
   type        = string
-  default = "us-east-1"
+  default = "eu-west-1"
 }
 
 variable "vpc_id" {

@@ -11,7 +11,7 @@
 #     aws = {
 #       source                = "hashicorp/aws"
 #       version               = "~> 5.0"
-#       configuration_aliases = [aws.us_east_1]
+#       configuration_aliases = [aws.eu_west_1]
 #     }
 #   }
 # }
@@ -38,7 +38,7 @@
 #   )
 # }
 
-# # ACM Certificate for CloudFront (must be in us-east-1)
+# # ACM Certificate for CloudFront (must be in eu-west-1)
 # resource "aws_acm_certificate" "cloudfront" {
 #   count = var.create_cloudfront_certificate ? 1 : 0
 
@@ -116,7 +116,7 @@
 # resource "aws_acm_certificate_validation" "cloudfront" {
 #   count = var.create_cloudfront_certificate && var.validation_method == "DNS" && var.route53_zone_id != "" ? 1 : 0
 
-#   provider = aws.us_east_1
+#   provider = aws.eu_west_1
 
 #   certificate_arn         = aws_acm_certificate.cloudfront[0].arn
 #   validation_record_fqdns = [for record in aws_route53_record.cloudfront_validation : record.fqdn]
@@ -155,7 +155,7 @@
 # resource "aws_cloudwatch_metric_alarm" "cloudfront_cert_expiration" {
 #   count = var.create_cloudfront_certificate && var.enable_expiration_alarms ? 1 : 0
 
-#   provider = aws.us_east_1
+#   provider = aws.eu_west_1
 
 #   alarm_name          = "${var.project_name}-${var.environment}-cloudfront-cert-expiration"
 #   comparison_operator = "LessThanThreshold"

@@ -7,7 +7,7 @@
 variable "aws_region" {
   description = "AWS region for infrastructure deployment"
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-1"
 }
 
 variable "project_name" {
@@ -37,7 +37,7 @@ variable "vpc_cidr" {
 variable "availability_zones" {
   description = "List of availability zones"
   type        = list(string)
-  default     = ["us-east-1a"]
+  default     = ["eu-west-1a"]
 }
 
 variable "domain_name" {
@@ -46,17 +46,17 @@ variable "domain_name" {
   default     = "sankofagrid.com"
 }
 
-variable "frontend_domain" {
-  description = "Frontend domain name"
-  type        = string
-  default     = "www.sankofagrid.com"
-}
+# variable "frontend_domain" {
+#   description = "Frontend domain name"
+#   type        = string
+#   default     = "www.sankofagrid.com"
+# }
 
-variable "backend_domain" {
-  description = "Backend API domain name"
-  type        = string
-  default     = "api.sankofagrid.com"
-}
+# variable "backend_domain" {
+#   description = "Backend API domain name"
+#   type        = string
+#   default     = "api.sankofagrid.com"
+# }
 
 variable "enable_flow_logs" {
   description = "Enable VPC Flow Logs"

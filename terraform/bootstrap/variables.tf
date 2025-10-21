@@ -7,7 +7,7 @@
 # ==============================================================================
 
 variable "aws_region" {
-  description = "AWS region to deploy the Terraform backend resources (e.g., us-east-1)"
+  description = "AWS region to deploy the Terraform backend resources"
   type        = string
   default     = "eu-west-1"
 }
