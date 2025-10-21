@@ -132,7 +132,7 @@ resource "aws_lb" "main" {
 resource "aws_lb_target_group" "services" {
   for_each = local.services
 
-  name_prefix = "${substr(each.value.name, 0, 6)}-"
+  name_prefix = substr(each.value.name, 0, 6)
   port        = each.value.port
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
@@ -321,4 +321,3 @@ resource "aws_cloudwatch_metric_alarm" "unhealthy_targets" {
 
   tags = local.common_tags
 }
-

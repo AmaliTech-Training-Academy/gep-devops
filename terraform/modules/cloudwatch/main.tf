@@ -3,6 +3,11 @@
 # CloudWatch Module - Monitoring, Logging, and Alerting
 # ==============================================================================
 
+# terraform/modules/cloudwatch/main.tf
+# ==============================================================================
+# CloudWatch Module - Monitoring, Logging, and Alerting
+# ==============================================================================
+
 # SNS Topic for Alerts
 resource "aws_sns_topic" "alerts" {
   name              = "${var.project_name}-${var.environment}-alerts"
@@ -432,3 +437,6 @@ resource "aws_cloudwatch_log_group" "lambda" {
 
   tags = var.common_tags
 }
+
+
+

@@ -186,13 +186,13 @@ resource "aws_ecs_task_definition" "services" {
   cpu                      = each.value.cpu
   memory                   = each.value.memory
   execution_role_arn       = var.task_execution_role_arn
-  task_role_arn            = var.task_role_arns[each.key]
+  task_role_arn            = lookup(var.task_role_arns, each.value.name, null)
 
   # Container definitions
   container_definitions = jsonencode([
     {
       name      = each.value.name
-      image     = "${var.ecr_repository_urls[each.key]}:${var.image_tag}"
+      image     = "${var.ecr_repository_urls[each.value.name]}:${var.image_tag}"
       cpu       = each.value.cpu
       memory    = each.value.memory
       essential = true
@@ -236,28 +236,28 @@ resource "aws_ecs_task_definition" "services" {
         }
       ]
 
-      secrets = [
+      secrets = lookup(var.db_secret_arns, each.value.name, null) != null ? [
         {
           name      = "DB_HOST"
-          valueFrom = "${var.db_secret_arns[each.key]}:host::"
+          valueFrom = "${var.db_secret_arns[each.value.name]}:host::"
         },
         {
           name      = "DB_PORT"
-          valueFrom = "${var.db_secret_arns[each.key]}:port::"
+          valueFrom = "${var.db_secret_arns[each.value.name]}:port::"
         },
         {
           name      = "DB_NAME"
-          valueFrom = "${var.db_secret_arns[each.key]}:dbname::"
+          valueFrom = "${var.db_secret_arns[each.value.name]}:dbname::"
         },
         {
           name      = "DB_USERNAME"
-          valueFrom = "${var.db_secret_arns[each.key]}:username::"
+          valueFrom = "${var.db_secret_arns[each.value.name]}:username::"
         },
         {
           name      = "DB_PASSWORD"
-          valueFrom = "${var.db_secret_arns[each.key]}:password::"
+          valueFrom = "${var.db_secret_arns[each.value.name]}:password::"
         }
-      ]
+      ] : []
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -377,7 +377,6 @@ resource "aws_ecs_service" "services" {
     }
   )
 
-
   lifecycle {
     ignore_changes = [desired_count]
   }
@@ -439,3 +438,6 @@ resource "aws_appautoscaling_policy" "memory" {
     }
   }
 }
+
+
+
