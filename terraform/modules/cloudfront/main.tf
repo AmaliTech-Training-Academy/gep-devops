@@ -155,6 +155,7 @@ resource "aws_cloudfront_distribution" "main" {
   origin {
     domain_name              = var.s3_bucket_regional_domain_name
     origin_id                = "S3-${var.s3_bucket_id}"
+    origin_path              = "/event-planner/browser"
     origin_access_control_id = aws_cloudfront_origin_access_control.s3_oac.id
 
     origin_shield {
