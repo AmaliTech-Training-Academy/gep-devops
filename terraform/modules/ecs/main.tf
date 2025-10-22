@@ -205,7 +205,7 @@ resource "aws_ecs_task_definition" "services" {
         }
       ]
 
-      environment = [
+      environment = concat([
         {
           name  = "SPRING_PROFILES_ACTIVE"
           value = var.environment
@@ -234,7 +234,71 @@ resource "aws_ecs_task_definition" "services" {
           name  = "SERVICE_DISCOVERY_NAMESPACE"
           value = var.service_discovery_namespace
         }
-      ]
+      ],
+      # SQS configuration - only for services that need it
+      each.key == "auth" ? [
+        {
+          name  = "SQS_ENDPOINT"
+          value = "https://sqs.${var.aws_region}.amazonaws.com"
+        },
+        {
+          name  = "USER_REGISTRATION_QUEUE_NAME"
+          value = lookup(var.sqs_queue_names, "user_registration", "")
+        },
+        {
+          name  = "USER_LOGIN_QUEUE_NAME"
+          value = lookup(var.sqs_queue_names, "user_login", "")
+        }
+      ] : [],
+      each.key == "event" ? [
+        {
+          name  = "SQS_ENDPOINT"
+          value = "https://sqs.${var.aws_region}.amazonaws.com"
+        },
+        {
+          name  = "EVENT_CREATED_QUEUE_NAME"
+          value = lookup(var.sqs_queue_names, "event-created", "")
+        },
+        {
+          name  = "EVENT_UPDATED_QUEUE_NAME"
+          value = lookup(var.sqs_queue_names, "event-updated", "")
+        }
+      ] : [],
+      each.key == "booking" ? [
+        {
+          name  = "SQS_ENDPOINT"
+          value = "https://sqs.${var.aws_region}.amazonaws.com"
+        },
+        {
+          name  = "BOOKING_CREATED_QUEUE_NAME"
+          value = lookup(var.sqs_queue_names, "booking-created", "")
+        },
+        {
+          name  = "BOOKING_CANCELLED_QUEUE_NAME"
+          value = lookup(var.sqs_queue_names, "booking-cancelled", "")
+        }
+      ] : [],
+      each.key == "payment" ? [
+        {
+          name  = "SQS_ENDPOINT"
+          value = "https://sqs.${var.aws_region}.amazonaws.com"
+        },
+        {
+          name  = "PAYMENT_PROCESSED_QUEUE_NAME"
+          value = lookup(var.sqs_queue_names, "payment-processed", "")
+        }
+      ] : [],
+      each.key == "notification" ? [
+        {
+          name  = "SQS_ENDPOINT"
+          value = "https://sqs.${var.aws_region}.amazonaws.com"
+        },
+        {
+          name  = "EMAIL_QUEUE_NAME"
+          value = lookup(var.sqs_queue_names, "email-notifications", "")
+        }
+      ] : []
+      )
 
       secrets = lookup(var.db_secret_arns, each.value.name, null) != null ? [
         {

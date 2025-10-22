@@ -129,6 +129,17 @@ resource "aws_iam_role_policy" "auth_service_task" {
         Resource = [
           "${var.frontend_bucket_arn}/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl"
+        ]
+        Resource = "arn:aws:sqs:*:*:event-planner-*"
       }
     ]
   })
@@ -183,6 +194,17 @@ resource "aws_iam_role_policy" "event_service_task" {
         Resource = [
           "${var.frontend_bucket_arn}/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl"
+        ]
+        Resource = "arn:aws:sqs:*:*:event-planner-*"
       }
     ]
   })
@@ -226,6 +248,17 @@ resource "aws_iam_role_policy" "booking_service_task" {
           "sns:Publish"
         ]
         Resource = "arn:aws:sns:*:*:event-planner-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl"
+        ]
+        Resource = "arn:aws:sqs:*:*:event-planner-*"
       }
     ]
   })
@@ -269,6 +302,17 @@ resource "aws_iam_role_policy" "payment_service_task" {
           "sns:Publish"
         ]
         Resource = "arn:aws:sns:*:*:event-planner-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl"
+        ]
+        Resource = "arn:aws:sqs:*:*:event-planner-*"
       }
     ]
   })
@@ -314,6 +358,17 @@ resource "aws_iam_role_policy" "notification_service_task" {
           "sns:Publish"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl"
+        ]
+        Resource = "arn:aws:sqs:*:*:event-planner-*"
       }
     ]
   })

@@ -61,7 +61,6 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
-
 # ==============================================================================
 # Local Variables
 # ==============================================================================
@@ -125,33 +124,28 @@ module "s3" {
 
   project_name = var.project_name
   environment  = var.environment
+  account_id   = data.aws_caller_identity.current.account_id
 
-  account_id = data.aws_caller_identity.current.account_id
+  # Leave empty - bucket policy created separately below to avoid circular dependency
+  cloudfront_distribution_arn = ""
 
-  cloudfront_distribution_arn = "" # Will update after CloudFront
-
-  enable_versioning = false
-
+  enable_versioning      = false
   enable_lifecycle_rules = true
 
-  transition_to_ia_days = 90
-
+  transition_to_ia_days      = 90
   transition_to_glacier_days = 180
 
-  enable_cors = true
-
+  enable_cors          = true
   cors_allowed_origins = ["*"] # Phase 1 - open CORS
 
   enable_access_logging = true
-
-  logs_expiration_days = 90
+  logs_expiration_days  = 90
 
   backup_retention_days = 365
 
   kms_key_arn = null
 
   common_tags = local.common_tags
-
 }
 
 # ==============================================================================
@@ -184,7 +178,8 @@ module "cloudfront" {
   environment                    = var.environment
   s3_bucket_id                   = module.s3.assets_bucket_id
   s3_bucket_regional_domain_name = module.s3.assets_bucket_regional_domain_name
-  alb_domain_name                = "" # Will populate when ALB is ready
+  
+  alb_domain_name = "" # Will populate when ALB is ready
 
   domain_aliases      = []
   acm_certificate_arn = ""
@@ -234,6 +229,41 @@ module "cloudfront" {
   ]
 
   common_tags = local.common_tags
+}
+
+# ==============================================================================
+# CRITICAL: S3 Bucket Policy for CloudFront OAC Access
+# ==============================================================================
+# This must be created AFTER CloudFront to avoid circular dependency.
+# This policy allows CloudFront to access S3 objects via Origin Access Control.
+
+resource "aws_s3_bucket_policy" "cloudfront_access" {
+  bucket = module.s3.assets_bucket_id
+
+  depends_on = [
+    module.cloudfront,
+    module.s3
+  ]
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowCloudFrontServicePrincipal"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${module.s3.assets_bucket_arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = module.cloudfront.distribution_arn
+          }
+        }
+      }
+    ]
+  })
 }
 
 # ==============================================================================
@@ -299,13 +329,13 @@ module "cloudwatch" {
   ecs_cluster_name       = module.ecs.cluster_name
   alb_arn                = module.alb.alb_arn
   alb_arn_suffix         = module.alb.alb_arn_suffix
-  rds_instance_id        = "" # module.rds.primary_instance_ids["auth"] - RDS commented out
+  rds_instance_id        = module.rds.primary_instance_ids["auth"]
   elasticache_cluster_id = module.elasticache.replication_group_id
 
   # Control alarm creation with boolean flags
   create_ecs_alarms         = true
   create_alb_alarms         = true
-  create_rds_alarms         = false # Disabled - RDS commented out
+  create_rds_alarms         = true
   create_elasticache_alarms = true
 
   # Alarm thresholds
@@ -325,7 +355,6 @@ module "cloudwatch" {
 
   common_tags = local.common_tags
 }
-
 
 # ==============================================================================
 # ECR Module
@@ -353,72 +382,71 @@ module "ecr" {
 }
 
 # ==============================================================================
-# RDS Module - COMMENTED OUT DUE TO SCP RESTRICTION
+# RDS Module
 # ==============================================================================
-# Uncomment after AWS admin grants rds:CreateDBInstance permission
 
-# module "rds" {
-#   source = "../../modules/rds"
+module "rds" {
+  source = "../../modules/rds"
 
-  # project_name      = var.project_name
-  # environment       = var.environment
-  # subnet_ids        = module.vpc.private_data_subnet_ids
-  # security_group_id = module.security_groups.rds_security_group_id
+  project_name      = var.project_name
+  environment       = var.environment
+  subnet_ids        = module.vpc.private_data_subnet_ids
+  security_group_id = module.security_groups.rds_security_group_id
 
-  # # Dev: Smaller instances
-  # auth_db_instance_class        = "db.t4g.micro"
-  # auth_db_allocated_storage     = 20
-  # auth_db_max_allocated_storage = 100
+  # Dev: Burstable t3.medium instances
+  auth_db_instance_class        = "db.t3.medium"
+  auth_db_allocated_storage     = 20
+  auth_db_max_allocated_storage = 100
 
-  # event_db_instance_class        = "db.t4g.small"
-  # event_db_allocated_storage     = 20
-  # event_db_max_allocated_storage = 100
+  event_db_instance_class        = "db.t3.medium"
+  event_db_allocated_storage     = 20
+  event_db_max_allocated_storage = 100
 
-  # booking_db_instance_class        = "db.t4g.small"
-  # booking_db_allocated_storage     = 20
-  # booking_db_max_allocated_storage = 100
+  booking_db_instance_class        = "db.t3.medium"
+  booking_db_allocated_storage     = 20
+  booking_db_max_allocated_storage = 100
 
-  # payment_db_instance_class        = "db.t4g.micro"
-  # payment_db_allocated_storage     = 20
-  # payment_db_max_allocated_storage = 100
+  payment_db_instance_class        = "db.t3.medium"
+  payment_db_allocated_storage     = 20
+  payment_db_max_allocated_storage = 100
 
-  # postgres_version = "15.5"
-  # postgres_family  = "postgres15"
-  # master_username  = "dbadmin"
-  # max_connections  = "100"
+  postgres_version = "15.7"
+  postgres_family  = "postgres15"
+  master_username  = "dbadmin"
+  max_connections  = "100"
 
-  # storage_type     = "gp3"
-  # provisioned_iops = 3000
+  storage_type     = "gp3"
+  provisioned_iops = 3000
 
-  # # Dev: Single-AZ, no replicas
-  # multi_az             = false
-  # create_read_replicas = false
+  # Dev: Single-AZ, no replicas
+  multi_az             = false
+  create_read_replicas = false
 
-  # backup_retention_days = 7
-  # backup_window         = "03:00-04:00"
-  # maintenance_window    = "sun:04:00-sun:05:00"
-  # skip_final_snapshot   = true
+  backup_retention_days = 7
+  backup_window         = "03:00-04:00"
+  maintenance_window    = "sun:04:00-sun:05:00"
+  skip_final_snapshot   = true
 
-  # enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
+  enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
-  # kms_key_arn = null
+  kms_key_arn = null
 
-  # enable_enhanced_monitoring  = false
-  # enable_performance_insights = false
+  enable_enhanced_monitoring  = false
+  enable_performance_insights = false
 
-  # deletion_protection        = false
-  # auto_minor_version_upgrade = true
-  # apply_immediately          = true
+  deletion_protection        = false
+  auto_minor_version_upgrade = true
+  apply_immediately          = true
 
-  # secret_recovery_window_days = 7
+  secret_recovery_window_days = 7
 
-  # cpu_alarm_threshold           = 80
-  # storage_alarm_threshold_bytes = 5368709120
-  # connections_alarm_threshold   = 80
-  # alarm_actions                 = [module.cloudwatch.sns_topic_arn]
+  cpu_alarm_threshold           = 80
+  storage_alarm_threshold_bytes = 5368709120
+  connections_alarm_threshold   = 80
+  alarm_actions                 = [module.cloudwatch.sns_topic_arn]
 
-  # tags = local.common_tags
-# }
+  tags = local.common_tags
+}
 
 # ==============================================================================
 # DocumentDB Module
@@ -505,8 +533,6 @@ module "elasticache" {
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
   auth_token                 = null
-
-  #kms_key_arn = null
 
   maxmemory_policy = "allkeys-lru"
   timeout          = "300"
@@ -603,12 +629,15 @@ module "ecs" {
   ecr_repository_urls = module.ecr.repository_urls
   image_tag           = "latest"
 
-  db_secret_arns = {} # module.rds.secret_arns - RDS commented out
+  db_secret_arns = module.rds.secret_arns
   redis_endpoint = module.elasticache.primary_endpoint_address
   docdb_endpoint = module.documentdb.cluster_endpoint
 
+  sqs_queue_urls  = module.sqs-sns.queue_urls
+  sqs_queue_names = module.sqs-sns.queue_names
+
   target_group_arns = module.alb.target_group_arns
-  alb_listener_arn  = module.alb.https_listener_arn
+  alb_listener_arn  = module.alb.http_listener_arn
 
   enable_container_insights = true
   enable_fargate_spot       = false
@@ -623,4 +652,3 @@ module "ecs" {
 
   tags = local.common_tags
 }
-

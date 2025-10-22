@@ -245,28 +245,43 @@ resource "aws_lb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
-    type = var.certificate_arn != "" ? "redirect" : "fixed-response"
+    type = "fixed-response"
 
-    dynamic "redirect" {
-      for_each = var.certificate_arn != "" ? [1] : []
-      content {
-        port        = "443"
-        protocol    = "HTTPS"
-        status_code = "HTTP_301"
-      }
-    }
-
-    dynamic "fixed_response" {
-      for_each = var.certificate_arn == "" ? [1] : []
-      content {
-        content_type = "text/plain"
-        message_body = "ALB is running - Certificate not configured"
-        status_code  = "200"
-      }
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "ALB is running - Certificate not configured"
+      status_code  = "200"
     }
   }
 
   tags = local.common_tags
+}
+
+# HTTP Listener Rules for services (when no HTTPS)
+resource "aws_lb_listener_rule" "http_service_routing" {
+  for_each = var.certificate_arn == "" ? local.services : {}
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = each.value.priority
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.services[each.key].arn
+  }
+
+  condition {
+    path_pattern {
+      values = [each.value.path_pattern]
+    }
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name    = "${var.project_name}-${var.environment}-${each.value.name}-http-rule"
+      Service = each.value.name
+    }
+  )
 }
 
 # ==============================================================================

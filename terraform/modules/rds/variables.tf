@@ -109,7 +109,7 @@ variable "payment_db_max_allocated_storage" {
 variable "postgres_version" {
   description = "PostgreSQL engine version"
   type        = string
-  default     = "15.5"
+  default     = "15.7"
 }
 
 variable "postgres_family" {

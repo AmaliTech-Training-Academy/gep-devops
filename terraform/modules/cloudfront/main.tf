@@ -196,9 +196,12 @@ resource "aws_cloudfront_distribution" "main" {
     origin_request_policy_id   = aws_cloudfront_origin_request_policy.main.id
     response_headers_policy_id = aws_cloudfront_response_headers_policy.security_headers.id
 
-    function_association {
-      event_type   = "viewer-request"
-      function_arn = var.enable_url_rewrite ? aws_cloudfront_function.url_rewrite[0].arn : null
+    dynamic "function_association" {
+      for_each = var.enable_url_rewrite ? [1] : []
+      content {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.url_rewrite[0].arn
+      }
     }
   }
 
@@ -291,9 +294,13 @@ function handler(event) {
     var request = event.request;
     var uri = request.uri;
     
-    // Check if the URI is missing a file extension
-    if (!uri.includes('.')) {
+    // If URI doesn't have a file extension, serve index.html
+    if (!uri.match(/\.[a-zA-Z0-9]+$/)) {
         request.uri = '/index.html';
+    }
+    // If URI ends with /, append index.html
+    else if (uri.endsWith('/')) {
+        request.uri += 'index.html';
     }
     
     return request;

@@ -34,3 +34,11 @@ output "dlq_arns" {
   }
 }
 
+output "queue_names" {
+  description = "Map of queue names to SQS queue names"
+  value = {
+    for queue, config in local.queues :
+    queue => aws_sqs_queue.queues[queue].name
+  }
+}
+

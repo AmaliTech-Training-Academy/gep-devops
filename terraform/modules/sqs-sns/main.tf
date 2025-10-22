@@ -36,6 +36,22 @@ locals {
 
   # SQS queues for event consumption
   queues = {
+    # Auth-related queues
+    user_registration = {
+      name              = "${var.project_name}-${var.environment}-user-registration-queue"
+      topic             = "event"
+      filter_policy     = { event_type = ["user.registered"] }
+      visibility_timeout = 30
+      message_retention  = 345600  # 4 days
+    }
+    user_login = {
+      name              = "${var.project_name}-${var.environment}-user-login-queue"
+      topic             = "event"
+      filter_policy     = { event_type = ["user.login"] }
+      visibility_timeout = 30
+      message_retention  = 345600
+    }
+    
     # Event-related queues
     event_created_notification = {
       name              = "${var.project_name}-${var.environment}-event-created-notification-queue"

@@ -101,6 +101,18 @@ variable "docdb_endpoint" {
   type        = string
 }
 
+variable "sqs_queue_urls" {
+  description = "Map of SQS queue URLs"
+  type        = map(string)
+  default     = {}
+}
+
+variable "sqs_queue_names" {
+  description = "Map of SQS queue names"
+  type        = map(string)
+  default     = {}
+}
+
 # ==============================================================================
 # Load Balancer Configuration
 # ==============================================================================
@@ -111,7 +123,7 @@ variable "target_group_arns" {
 }
 
 variable "alb_listener_arn" {
-  description = "ARN of the ALB HTTPS listener"
+  description = "ARN of the ALB listener (HTTP or HTTPS)"
   type        = string
 }
 

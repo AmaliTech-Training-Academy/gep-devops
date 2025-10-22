@@ -121,11 +121,16 @@ resource "aws_s3_bucket_cors_configuration" "assets" {
   }
 }
 
-# Bucket policy for CloudFront access
-resource "aws_s3_bucket_policy" "assets" {
+# ============================================================================
+# CRITICAL FIX: Bucket policy for CloudFront OAC access
+# ============================================================================
+resource "aws_s3_bucket_policy" "assets_cloudfront" {
   count = var.cloudfront_distribution_arn != "" ? 1 : 0
 
   bucket = aws_s3_bucket.assets.id
+
+  # Ensure public access block is created first
+  depends_on = [aws_s3_bucket_public_access_block.assets]
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -146,11 +151,22 @@ resource "aws_s3_bucket_policy" "assets" {
       }
     ]
   })
-
-  depends_on = [aws_s3_bucket_public_access_block.assets]
 }
 
-# Logging bucket
+# Enable access logging
+resource "aws_s3_bucket_logging" "assets" {
+  count = var.enable_access_logging ? 1 : 0
+
+  bucket = aws_s3_bucket.assets.id
+
+  target_bucket = aws_s3_bucket.logs[0].id
+  target_prefix = "assets-logs/"
+}
+
+# ==============================================================================
+# Logging Bucket
+# ==============================================================================
+
 resource "aws_s3_bucket" "logs" {
   count = var.enable_access_logging ? 1 : 0
 
@@ -166,7 +182,7 @@ resource "aws_s3_bucket" "logs" {
   )
 }
 
-# FIX: Enable ACL for logs bucket (required by CloudFront)
+# Enable ACL for logs bucket (required by CloudFront)
 resource "aws_s3_bucket_ownership_controls" "logs" {
   count = var.enable_access_logging ? 1 : 0
 
@@ -177,7 +193,7 @@ resource "aws_s3_bucket_ownership_controls" "logs" {
   }
 }
 
-# FIX: Configure ACL for CloudFront log delivery
+# Configure ACL for CloudFront log delivery
 resource "aws_s3_bucket_acl" "logs" {
   count = var.enable_access_logging ? 1 : 0
 
@@ -210,7 +226,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
   }
 }
 
-# Bucket policy for ALB access logs
+# Bucket policy for ALB access logs and CloudFront logs
 resource "aws_s3_bucket_policy" "logs" {
   count = var.enable_access_logging ? 1 : 0
 
@@ -278,17 +294,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
   }
 }
 
-# Enable access logging
-resource "aws_s3_bucket_logging" "assets" {
-  count = var.enable_access_logging ? 1 : 0
+# ==============================================================================
+# Backend Files Bucket
+# ==============================================================================
 
-  bucket = aws_s3_bucket.assets.id
-
-  target_bucket = aws_s3_bucket.logs[0].id
-  target_prefix = "assets-logs/"
-}
-
-# S3 Bucket for backend developer files
 resource "aws_s3_bucket" "backend_files" {
   bucket = "${var.project_name}-backend-${var.environment}-files-${var.account_id}"
 
@@ -331,7 +340,10 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "backend_files" {
   }
 }
 
-# S3 Bucket for backups
+# ==============================================================================
+# Backups Bucket
+# ==============================================================================
+
 resource "aws_s3_bucket" "backups" {
   bucket = "${var.project_name}-${var.environment}-backups-${var.account_id}"
 
@@ -373,7 +385,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "backups" {
   }
 }
 
-# FIX: DEEP_ARCHIVE must be at least 90 days after GLACIER_IR (30 + 90 = 120)
 resource "aws_s3_bucket_lifecycle_configuration" "backups" {
   bucket = aws_s3_bucket.backups.id
 
@@ -387,7 +398,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "backups" {
     }
 
     transition {
-      days          = 120  # Changed from 90 to 120 (30 + 90 minimum)
+      days          = 120
       storage_class = "DEEP_ARCHIVE"
     }
 
@@ -398,5 +409,3 @@ resource "aws_s3_bucket_lifecycle_configuration" "backups" {
     filter {}
   }
 }
-
-
