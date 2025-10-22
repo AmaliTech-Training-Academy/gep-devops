@@ -223,16 +223,44 @@ resource "aws_ecs_task_definition" "services" {
           value = var.aws_region
         },
         {
-          name  = "REDIS_ENDPOINT"
+          name  = "SPRING_DATA_REDIS_HOST"
           value = var.redis_endpoint
         },
         {
-          name  = "DOCDB_ENDPOINT"
-          value = var.docdb_endpoint
+          name  = "SPRING_DATA_REDIS_PORT"
+          value = "6379"
+        },
+        {
+          name  = "SPRING_DATA_REDIS_SSL_ENABLED"
+          value = "true"
+        },
+        {
+          name  = "SPRING_DATA_MONGODB_URI"
+          value = "mongodb://${var.docdb_endpoint}:27017/audit?tls=true&replicaSet=rs0&readPreference=secondaryPreferred"
         },
         {
           name  = "SERVICE_DISCOVERY_NAMESPACE"
           value = var.service_discovery_namespace
+        },
+        {
+          name  = "AUTH_SERVICE_URL"
+          value = "http://auth-service.${var.service_discovery_namespace}:8081"
+        },
+        {
+          name  = "EVENT_SERVICE_URL"
+          value = "http://event-service.${var.service_discovery_namespace}:8082"
+        },
+        {
+          name  = "BOOKING_SERVICE_URL"
+          value = "http://booking-service.${var.service_discovery_namespace}:8083"
+        },
+        {
+          name  = "PAYMENT_SERVICE_URL"
+          value = "http://payment-service.${var.service_discovery_namespace}:8084"
+        },
+        {
+          name  = "NOTIFICATION_SERVICE_URL"
+          value = "http://notification-service.${var.service_discovery_namespace}:8085"
         }
       ],
       # SQS configuration - only for services that need it

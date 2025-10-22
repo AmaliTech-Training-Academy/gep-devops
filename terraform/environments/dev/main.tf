@@ -416,7 +416,7 @@ module "rds" {
   max_connections  = "100"
 
   storage_type     = "gp3"
-  provisioned_iops = 3000
+  provisioned_iops = null  # Use gp3 default (3000 IOPS)
 
   # Dev: Single-AZ, no replicas
   multi_az             = false
@@ -518,8 +518,8 @@ module "elasticache" {
   # Dev: Single node
   cluster_mode_enabled    = false
   num_cache_nodes         = 1
-  num_node_groups         = 3
-  replicas_per_node_group = 2
+  num_node_groups         = 1  # Not used in single-node mode
+  replicas_per_node_group = 0  # No replicas in dev
 
   automatic_failover_enabled = false
   multi_az_enabled           = false
