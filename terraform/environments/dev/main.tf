@@ -55,6 +55,20 @@ provider "aws" {
   }
 }
 
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+
+  default_tags {
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "Terraform"
+      CostCenter  = "Engineering"
+    }
+  }
+}
+
 # ==============================================================================
 # Data Sources
 # ==============================================================================
@@ -113,6 +127,33 @@ module "security_groups" {
   vpc_id       = module.vpc.vpc_id
 
   tags = local.common_tags
+}
+
+# ==============================================================================
+# ACM Module - SSL/TLS Certificates
+# ==============================================================================
+
+module "acm" {
+  source = "../../modules/acm"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  # ALB Certificate (eu-west-1)
+  create_alb_certificate        = true
+  alb_domain_name               = "api.sankofagrid.com"
+  alb_subject_alternative_names = []
+
+  # CloudFront certificate already exists manually, skip creation
+  create_cloudfront_certificate = false
+  cloudfront_domain_name        = "events.sankofagrid.com"
+  cloudfront_subject_alternative_names = []
+
+  common_tags = local.common_tags
+
+  providers = {
+    aws.us_east_1 = aws.us_east_1
+  }
 }
 
 # ==============================================================================
@@ -181,8 +222,8 @@ module "cloudfront" {
   
   alb_domain_name = "" # Will populate when ALB is ready
 
-  domain_aliases      = []
-  acm_certificate_arn = ""
+  domain_aliases      = ["events.sankofagrid.com"]
+  acm_certificate_arn = "arn:aws:acm:us-east-1:904570587823:certificate/fa496bd5-865f-4b1e-a189-f30245b0373b"
 
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
@@ -583,8 +624,8 @@ module "alb" {
   public_subnet_ids     = module.vpc.public_subnet_ids
   alb_security_group_id = module.security_groups.alb_security_group_id
 
-  # Placeholder certificate - will be updated in Phase 2
-  certificate_arn = ""
+  # Use regional certificate (once validated)
+  certificate_arn = "arn:aws:acm:eu-west-1:904570587823:certificate/1143628d-3774-492d-b13e-7d768c249652"
   ssl_policy      = "ELBSecurityPolicy-TLS-1-2-2017-01"
 
   health_check_healthy_threshold   = 2

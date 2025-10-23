@@ -208,6 +208,25 @@ output "cloudwatch_dashboard_name" {
 }
 
 # ==============================================================================
+# ACM Certificate Outputs
+# ==============================================================================
+
+output "acm_alb_certificate_arn" {
+  description = "ARN of ALB ACM certificate"
+  value       = module.acm.alb_certificate_arn
+}
+
+output "acm_alb_certificate_status" {
+  description = "Status of ALB certificate (check if ISSUED)"
+  value       = module.acm.alb_certificate_status
+}
+
+output "acm_alb_validation_records" {
+  description = "DNS validation records for ALB certificate - ADD THESE TO CLOUDFLARE"
+  value       = module.acm.alb_validation_records
+}
+
+# ==============================================================================
 # Application URLs
 # ==============================================================================
 
