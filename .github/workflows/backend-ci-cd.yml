@@ -11,19 +11,35 @@ on:
         default: 'dev'
         type: choice
         options: [dev, staging, prod]
+      services:
+        description: 'Services to deploy (JSON array)'
+        required: false
+        default: '["user-service", "event-service", "notification-service", "gateway-service"]'
 
 env:
   ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
   BACKEND_REPO: ${{ github.event.client_payload.repository }}
   COMMIT_SHA: ${{ github.event.client_payload.sha }}
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY_URL }}
+  SERVICES_TO_DEPLOY: ${{ github.event.client_payload.services || inputs.services }}
 
 jobs:
+  prepare:
+    runs-on: [self-hosted, backend]
+    outputs:
+      services: ${{ steps.services.outputs.matrix }}
+    steps:
+    - name: Parse services
+      id: services
+      run: |
+        echo "matrix=${{ env.SERVICES_TO_DEPLOY }}" >> $GITHUB_OUTPUT
+
   build-and-test:
+    needs: prepare
     runs-on: [self-hosted, backend]
     strategy:
       matrix:
-        service: [user-service, event-service, notification-service, gateway-service]
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
     steps:
     - name: Checkout Backend Code
       uses: actions/checkout@v4
@@ -44,11 +60,11 @@ jobs:
         scan-ref: '${{ matrix.service }}'
 
   build-and-push:
-    needs: build-and-test
+    needs: [prepare, build-and-test]
     runs-on: [self-hosted, backend]
     strategy:
       matrix:
-        service: [user-service, event-service, notification-service, gateway-service]
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
     steps:
     - name: Checkout Backend Code
       uses: actions/checkout@v4
@@ -74,11 +90,11 @@ jobs:
         docker push $ECR_REGISTRY/gep-${{ matrix.service }}:${{ env.ENVIRONMENT }}-${{ env.COMMIT_SHA }}
 
   deploy-to-ecs:
-    needs: build-and-push
+    needs: [prepare, build-and-push]
     runs-on: [self-hosted, backend]
     strategy:
       matrix:
-        service: [user-service, event-service, notification-service, gateway-service]
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
     steps:
     - name: Checkout DevOps Config
       uses: actions/checkout@v4
@@ -105,7 +121,7 @@ jobs:
         wait-for-service-stability: true
 
   notify:
-    needs: [build-and-test, build-and-push, deploy-to-ecs]
+    needs: [prepare, build-and-test, build-and-push, deploy-to-ecs]
     if: always()
     runs-on: [self-hosted, backend]
     steps:
@@ -129,16 +145,12 @@ jobs:
                 "value": "${{ env.ENVIRONMENT }}",
                 "short": true
               }, {
-                "title": "Branch",
-                "value": "${{ github.event.client_payload.branch || 'manual' }}",
+                "title": "Services",
+                "value": "${{ env.SERVICES_TO_DEPLOY }}",
                 "short": true
               }, {
                 "title": "Commit",
                 "value": "${{ env.COMMIT_SHA }}",
-                "short": true
-              }, {
-                "title": "Triggered By",
-                "value": "${{ github.actor }}",
                 "short": true
               }]
             }]
