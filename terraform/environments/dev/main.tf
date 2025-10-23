@@ -434,20 +434,20 @@ module "rds" {
   subnet_ids        = module.vpc.private_data_subnet_ids
   security_group_id = module.security_groups.rds_security_group_id
 
-  # Dev: Burstable t3.medium instances
-  auth_db_instance_class        = "db.t3.medium"
+  # Dev: Burstable t3.micro instances
+  auth_db_instance_class        = "db.t3.micro"
   auth_db_allocated_storage     = 20
   auth_db_max_allocated_storage = 100
 
-  event_db_instance_class        = "db.t3.medium"
+  event_db_instance_class        = "db.t3.micro"
   event_db_allocated_storage     = 20
   event_db_max_allocated_storage = 100
 
-  booking_db_instance_class        = "db.t3.medium"
+  booking_db_instance_class        = "db.t3.micro"
   booking_db_allocated_storage     = 20
   booking_db_max_allocated_storage = 100
 
-  payment_db_instance_class        = "db.t3.medium"
+  payment_db_instance_class        = "db.t3.micro"
   payment_db_allocated_storage     = 20
   payment_db_max_allocated_storage = 100
 
@@ -504,7 +504,7 @@ module "documentdb" {
   engine_version = "5.0.0"
   docdb_family   = "docdb5.0"
   port           = 27017
-  instance_class = "db.t3.medium"
+  instance_class = "db.t4g.medium"
   replica_count  = 0 # Dev: No replicas
 
   master_username = "docdbadmin"
