@@ -61,7 +61,7 @@ variable "port" {
 variable "instance_class" {
   description = "Instance class for DocumentDB cluster instances"
   type        = string
-  default     = "db.t3.medium"
+  default     = "db.t4g.medium"
 
   validation {
     condition     = can(regex("^db\\.", var.instance_class))
