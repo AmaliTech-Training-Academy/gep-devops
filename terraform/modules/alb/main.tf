@@ -244,13 +244,29 @@ resource "aws_lb_listener" "http" {
   port              = "80"
   protocol          = "HTTP"
 
-  default_action {
-    type = "fixed-response"
+  # Redirect to HTTPS when certificate exists
+  dynamic "default_action" {
+    for_each = var.certificate_arn != "" ? [1] : []
+    content {
+      type = "redirect"
+      redirect {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
 
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "ALB is running - Certificate not configured"
-      status_code  = "200"
+  # Fixed response when no certificate
+  dynamic "default_action" {
+    for_each = var.certificate_arn == "" ? [1] : []
+    content {
+      type = "fixed-response"
+      fixed_response {
+        content_type = "text/plain"
+        message_body = "ALB is running - Certificate not configured"
+        status_code  = "200"
+      }
     }
   }
 
