@@ -502,7 +502,7 @@ module "elasticache" {
 
   maxmemory_policy = "allkeys-lru"
   timeout          = "300"
-  appendonly       = false
+ # appendonly       = false
 
   slow_log_destination        = null
   slow_log_destination_type   = "cloudwatch-logs"
