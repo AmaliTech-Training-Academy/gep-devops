@@ -250,7 +250,7 @@ module "cloudfront" {
 
   cors_allowed_origins = ["*"]
 
-  content_security_policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;"
+  content_security_policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com; connect-src 'self' https:;"
 
   enable_url_rewrite = true
 
@@ -504,7 +504,7 @@ module "documentdb" {
   engine_version = "5.0.0"
   docdb_family   = "docdb5.0"
   port           = 27017
-  instance_class = "db.t4g.medium"
+  instance_class = "db.t3.medium"
   replica_count  = 0 # Dev: No replicas
 
   master_username = "docdbadmin"
@@ -625,7 +625,7 @@ module "alb" {
   alb_security_group_id = module.security_groups.alb_security_group_id
 
   # Use regional certificate (once validated)
-  certificate_arn = "arn:aws:acm:eu-west-1:904570587823:certificate/1143628d-3774-492d-b13e-7d768c249652"
+  certificate_arn = module.acm.alb_certificate_arn
   ssl_policy      = "ELBSecurityPolicy-TLS-1-2-2017-01"
 
   health_check_healthy_threshold   = 2
