@@ -86,8 +86,8 @@ jobs:
     - name: Build and Push Docker Image
       run: |
         cd ${{ matrix.service }}
-        docker build -t $ECR_REGISTRY/gep-${{ matrix.service }}:${{ env.ENVIRONMENT }}-${{ env.COMMIT_SHA }} .
-        docker push $ECR_REGISTRY/gep-${{ matrix.service }}:${{ env.ENVIRONMENT }}-${{ env.COMMIT_SHA }}
+        docker build -t $ECR_REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }} .
+        docker push $ECR_REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}
 
   deploy-to-ecs:
     needs: [prepare, build-and-push]
@@ -108,7 +108,7 @@ jobs:
 
     - name: Update ECS Task Definition
       run: |
-        jq --arg IMAGE "$ECR_REGISTRY/gep-${{ matrix.service }}:${{ env.ENVIRONMENT }}-${{ env.COMMIT_SHA }}" \
+        jq --arg IMAGE "$ECR_REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}" \
            '.containerDefinitions[0].image = $IMAGE' \
            ecs/task-definitions/${{ matrix.service }}.json > /tmp/task-def.json
 
