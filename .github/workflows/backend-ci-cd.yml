@@ -17,10 +17,10 @@ on:
         default: '["auth-service", "notification-service"]'
 
 env:
-  ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
-  BACKEND_REPO: ${{ github.event.client_payload.repository || 'AmaliTech-Training-Academy/gep-backend' }}
-  COMMIT_SHA: ${{ github.event.client_payload.sha || github.sha }}
-  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY_URL }}
+  ENVIRONMENT: "${{ github.event.client_payload.environment || inputs.environment }}"
+  BACKEND_REPO: "${{ github.event.client_payload.repository || 'AmaliTech-Training-Academy/gep-backend' }}"
+  COMMIT_SHA: "${{ github.event.client_payload.sha || github.sha }}"
+  ECR_REGISTRY: "${{ secrets.ECR_REGISTRY_URL }}"
   SERVICES_TO_DEPLOY: "${{ github.event.client_payload.services || inputs.services }}"
 
 jobs:
