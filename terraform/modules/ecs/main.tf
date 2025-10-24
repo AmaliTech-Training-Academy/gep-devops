@@ -233,6 +233,14 @@ resource "aws_ecs_task_definition" "services" {
           value = var.aws_region
         },
         {
+          name  = "AWS_ACCESS_KEY"
+          value = var.aws_access_key_id
+        },
+        {
+          name  = "AWS_SECRET_KEY"
+          value = var.aws_secret_access_key
+        },
+        {
           name  = "SPRING_DATA_REDIS_HOST"
           value = var.redis_endpoint
         },
@@ -247,6 +255,10 @@ resource "aws_ecs_task_definition" "services" {
         {
           name  = "SPRING_DATA_MONGODB_URI"
           value = "mongodb://${var.docdb_endpoint}:27017/audit?tls=true&replicaSet=rs0&readPreference=secondaryPreferred"
+        },
+        {
+          name  = "MANAGEMENT_HEALTH_MONGO_ENABLED"
+          value = "false"
         },
         {
           name  = "SERVICE_DISCOVERY_NAMESPACE"
@@ -301,6 +313,18 @@ resource "aws_ecs_task_definition" "services" {
         {
           name  = "USER_LOGIN_QUEUE_NAME"
           value = lookup(var.sqs_queue_names, "user_login", "")
+        },
+        {
+          name  = "USER_REGISTRATION_QUEUE"
+          value = lookup(var.sqs_queue_urls, "user_registration", "")
+        },
+        {
+          name  = "USER_LOGIN_QUEUE"
+          value = lookup(var.sqs_queue_urls, "user_login", "")
+        },
+        {
+          name  = "PASSWORD_RESET_QUEUE"
+          value = lookup(var.sqs_queue_urls, "password_reset", "")
         }
       ] : [],
       each.key == "event" ? [
@@ -354,27 +378,33 @@ resource "aws_ecs_task_definition" "services" {
       )
 
       secrets = concat(
-        # Database secrets - Spring Boot standard properties
-        lookup(var.db_secret_arns, each.value.name, null) != null ? [
-          {
-            name      = "SPRING_DATASOURCE_URL"
-            valueFrom = "${var.db_secret_arns[each.value.name]}:url::"
-          },
-          {
-            name      = "SPRING_DATASOURCE_USERNAME"
-            valueFrom = "${var.db_secret_arns[each.value.name]}:username::"
-          },
-          {
-            name      = "SPRING_DATASOURCE_PASSWORD"
-            valueFrom = "${var.db_secret_arns[each.value.name]}:password::"
-          },
+        # Service-specific database credentials - use each.key (auth, event) not each.value.name (auth-service)
+        each.key == "auth" && lookup(var.db_secret_arns, each.key, null) != null ? [
           {
             name      = "AUTH_SERVICE_DB_URL"
-            valueFrom = "${var.db_secret_arns[each.value.name]}:url::"
+            valueFrom = "${var.db_secret_arns[each.key]}:url::"
           },
           {
+            name      = "AUTH_SERVICE_DB_USER"
+            valueFrom = "${var.db_secret_arns[each.key]}:username::"
+          },
+          {
+            name      = "AUTH_SERVICE_DB_PASSWORD"
+            valueFrom = "${var.db_secret_arns[each.key]}:password::"
+          }
+        ] : [],
+        each.key == "event" && lookup(var.db_secret_arns, each.key, null) != null ? [
+          {
             name      = "EVENT_SERVICE_DB_URL"
-            valueFrom = "${var.db_secret_arns[each.value.name]}:url::"
+            valueFrom = "${var.db_secret_arns[each.key]}:url::"
+          },
+          {
+            name      = "EVENT_SERVICE_DB_USER"
+            valueFrom = "${var.db_secret_arns[each.key]}:username::"
+          },
+          {
+            name      = "EVENT_SERVICE_DB_PASSWORD"
+            valueFrom = "${var.db_secret_arns[each.key]}:password::"
           }
         ] : [],
         # JWT secret for auth service

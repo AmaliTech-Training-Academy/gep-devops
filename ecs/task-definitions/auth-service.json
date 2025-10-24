@@ -23,7 +23,8 @@
       {"name": "REDIS_HOST", "value": "${redis_endpoint}"},
       {"name": "REDIS_PORT", "value": "6379"},
       {"name": "DOCDB_HOST", "value": "${docdb_endpoint}"},
-      {"name": "DOCDB_PORT", "value": "27017"}
+      {"name": "DOCDB_PORT", "value": "27017"},
+      {"name": "AUTH_SERVICE_DB_URL", "value": "jdbc:postgresql://${auth_db_endpoint}:5432/authdb"}
     ],
     "secrets": [
       {"name": "DB_HOST", "valueFrom": "${db_host_secret_arn}:host::"},

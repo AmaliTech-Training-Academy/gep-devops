@@ -51,6 +51,13 @@ locals {
       visibility_timeout = 30
       message_retention  = 345600
     }
+    password_reset = {
+      name              = "${var.project_name}-${var.environment}-password-reset-queue"
+      topic             = "event"
+      filter_policy     = { event_type = ["password.reset"] }
+      visibility_timeout = 30
+      message_retention  = 345600
+    }
     
     # Event-related queues
     event_created_notification = {

@@ -729,5 +729,8 @@ module "ecs" {
   scale_in_cooldown   = 300
   scale_out_cooldown  = 60
 
+  aws_access_key_id     = var.aws_access_key_id
+  aws_secret_access_key = var.aws_secret_access_key
+
   tags = local.common_tags
 }

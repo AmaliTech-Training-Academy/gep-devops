@@ -8,6 +8,7 @@
 **/*.auto.tfvars
 **/secrets.tfvars
 **/sensitive.tfvars
+**/terraform.tfvars
 **/.terraform/
 **/.terraform.lock.hcl
 **/crash.log
