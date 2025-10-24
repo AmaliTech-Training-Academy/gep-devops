@@ -228,7 +228,25 @@ jobs:
           
           echo "✅ Service $SERVICE_NAME is stable"
 
+      - name: Store Previous Task Definition
+        id: backup
+        run: |
+          SERVICE_NAME="${{ matrix.service }}"
+          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
+          
+          # Get current task definition before deployment
+          CURRENT_TASK_DEF=$(aws ecs describe-services \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].taskDefinition' \
+            --output text)
+          
+          echo "previous_task_def=$CURRENT_TASK_DEF" >> $GITHUB_OUTPUT
+          echo "📋 Stored previous task definition: $CURRENT_TASK_DEF"
+
       - name: Get Deployment Status
+        id: deployment_status
         run: |
           SERVICE_NAME="${{ matrix.service }}"
           CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
@@ -239,6 +257,58 @@ jobs:
             --services "$SERVICE_NAME" \
             --region ${{ env.AWS_REGION }} \
             --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount,Deployments:deployments[*].{Status:status,TaskDef:taskDefinition,Running:runningCount}}' \
+            --output table
+
+  rollback-on-failure:
+    needs: [prepare, deploy-to-ecs]
+    if: failure()
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Rollback Deployment
+        run: |
+          SERVICE_NAME="${{ matrix.service }}"
+          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
+          
+          echo "🔄 Rolling back $SERVICE_NAME due to deployment failure"
+          
+          # Get the previous stable task definition
+          PREVIOUS_TASK_DEF=$(aws ecs describe-services \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].deployments[?status==`PRIMARY`].taskDefinition' \
+            --output text | head -1)
+          
+          if [ -n "$PREVIOUS_TASK_DEF" ] && [ "$PREVIOUS_TASK_DEF" != "None" ]; then
+            echo "📋 Rolling back to task definition: $PREVIOUS_TASK_DEF"
+            
+            # Update service to use previous task definition
+            aws ecs update-service \
+              --cluster "$CLUSTER_NAME" \
+              --service "$SERVICE_NAME" \
+              --task-definition "$PREVIOUS_TASK_DEF" \
+              --region ${{ env.AWS_REGION }}
+            
+            echo "⏳ Waiting for rollback to stabilize..."
+            aws ecs wait services-stable \
+              --cluster "$CLUSTER_NAME" \
+              --services "$SERVICE_NAME" \
+              --region ${{ env.AWS_REGION }}
+            
+            echo "✅ Rollback completed for $SERVICE_NAME"
+          else
+            echo "❌ No previous task definition found for rollback"
+          fi:taskDefinition,Running:runningCount}}' \
             --output table
 
   notify:
@@ -255,6 +325,53 @@ jobs:
           custom_payload: |
             {
               "text": "Backend Deployment ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Succeeded ✅' }}",
+              "attachments": [
+                {
+                  "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
+                  "fields": [
+                    {
+                      "title": "Repository",
+                      "value": "gep-backend",
+                      "short": true
+                    },
+                    {
+                      "title": "Environment",
+                      "value": "${{ env.ENVIRONMENT }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Services",
+                      "value": "${{ env.SERVICES_TO_DEPLOY }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Commit SHA",
+                      "value": "${{ env.COMMIT_SHA }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Cluster",
+                      "value": "${{ env.ECS_CLUSTER }}",
+                      "short": true
+                    }
+                  ]
+                }
+              ]
+            }
+  notify:
+    needs: [prepare, deploy-to-ecs, rollback-on-failure]
+    if: always()
+    runs-on: [self-hosted, backend]
+    steps:
+      - name: Slack Notification
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "Backend Deployment ${{ contains(needs.*.result, 'failure') && (needs.rollback-on-failure.result == 'success' && 'Failed but Rolled Back 🔄' || 'Failed ❌') || 'Succeeded ✅' }}",
               "attachments": [
                 {
                   "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
