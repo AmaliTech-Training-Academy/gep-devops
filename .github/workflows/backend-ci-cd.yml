@@ -52,12 +52,12 @@ jobs:
       - name: Discover Available Services
         id: services
         run: |
-          # Only deploy auth-service and notification-service (enabled in Terraform)
-          echo 'matrix=["auth-service","notification-service"]' >> "$GITHUB_OUTPUT"
-          echo "Deploying services: auth-service, notification-service"
+          # Only deploy auth-service (enabled in Terraform)
+          echo 'matrix=["auth-service"]' >> "$GITHUB_OUTPUT"
+          echo "Deploying services: auth-service"
           
-          # Note: booking-service, payment-service, event-service are disabled in Terraform
-          echo "⚠️ Disabled services (not in Terraform): booking-service, payment-service, event-service"
+          # Note: other services are disabled in Terraform
+          echo "⚠️ Disabled services (not in Terraform): notification-service, booking-service, payment-service, event-service"
 
   build-and-test:
     needs: prepare
@@ -272,58 +272,58 @@ jobs:
             --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount,Deployments:deployments[*].{Status:status,TaskDef:taskDefinition,Running:runningCount}}' \
             --output table
 
-  rollback-on-failure:
-    needs: [prepare, deploy-to-ecs]
-    if: failure()
-    runs-on: [self-hosted, backend]
-    strategy:
-      matrix:
-        service: ${{ fromJson(needs.prepare.outputs.services) }}
-    steps:
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Rollback Deployment
-        run: |
-          SERVICE_NAME="${{ matrix.service }}"
-          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
-          
-          echo "🔄 Rolling back $SERVICE_NAME due to deployment failure"
-          
-          # Get the previous stable task definition
-          PREVIOUS_TASK_DEF=$(aws ecs describe-services \
-            --cluster "$CLUSTER_NAME" \
-            --services "$SERVICE_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'services[0].deployments[?status==`PRIMARY`].taskDefinition' \
-            --output text | head -1)
-          
-          if [ -n "$PREVIOUS_TASK_DEF" ] && [ "$PREVIOUS_TASK_DEF" != "None" ]; then
-            echo "📋 Rolling back to task definition: $PREVIOUS_TASK_DEF"
-            
-            # Update service to use previous task definition
-            aws ecs update-service \
-              --cluster "$CLUSTER_NAME" \
-              --service "$SERVICE_NAME" \
-              --task-definition "$PREVIOUS_TASK_DEF" \
-              --region ${{ env.AWS_REGION }}
-            
-            echo "⏳ Waiting for rollback to stabilize..."
-            aws ecs wait services-stable \
-              --cluster "$CLUSTER_NAME" \
-              --services "$SERVICE_NAME" \
-              --region ${{ env.AWS_REGION }}
-            
-            echo "✅ Rollback completed for $SERVICE_NAME"
-          else
-            echo "❌ No previous task definition found for rollback"
-          fi
+  # rollback-on-failure:
+  #   needs: [prepare, deploy-to-ecs]
+  #   if: failure()
+  #   runs-on: [self-hosted, backend]
+  #   strategy:
+  #     matrix:
+  #       service: ${{ fromJson(needs.prepare.outputs.services) }}
+  #   steps:
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: ${{ env.AWS_REGION }}
+  #
+  #     - name: Rollback Deployment
+  #       run: |
+  #         SERVICE_NAME="${{ matrix.service }}"
+  #         CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
+  #         
+  #         echo "🔄 Rolling back $SERVICE_NAME due to deployment failure"
+  #         
+  #         # Get the previous stable task definition
+  #         PREVIOUS_TASK_DEF=$(aws ecs describe-services \
+  #           --cluster "$CLUSTER_NAME" \
+  #           --services "$SERVICE_NAME" \
+  #           --region ${{ env.AWS_REGION }} \
+  #           --query 'services[0].deployments[?status==`PRIMARY`].taskDefinition' \
+  #           --output text | head -1)
+  #         
+  #         if [ -n "$PREVIOUS_TASK_DEF" ] && [ "$PREVIOUS_TASK_DEF" != "None" ]; then
+  #           echo "📋 Rolling back to task definition: $PREVIOUS_TASK_DEF"
+  #           
+  #           # Update service to use previous task definition
+  #           aws ecs update-service \
+  #             --cluster "$CLUSTER_NAME" \
+  #             --service "$SERVICE_NAME" \
+  #             --task-definition "$PREVIOUS_TASK_DEF" \
+  #             --region ${{ env.AWS_REGION }}
+  #           
+  #           echo "⏳ Waiting for rollback to stabilize..."
+  #           aws ecs wait services-stable \
+  #             --cluster "$CLUSTER_NAME" \
+  #             --services "$SERVICE_NAME" \
+  #             --region ${{ env.AWS_REGION }}
+  #           
+  #           echo "✅ Rollback completed for $SERVICE_NAME"
+  #         else
+  #           echo "❌ No previous task definition found for rollback"
+  #         fi
   notify:
-    needs: [prepare, deploy-to-ecs, rollback-on-failure]
+    needs: [prepare, deploy-to-ecs]
     if: always()
     runs-on: [self-hosted, backend]
     steps:
@@ -352,7 +352,7 @@ jobs:
                     },
                     {
                       "title": "Services",
-                      "value": "auth-service, notification-service",
+                      "value": "auth-service",
                       "short": true
                     },
                     {
