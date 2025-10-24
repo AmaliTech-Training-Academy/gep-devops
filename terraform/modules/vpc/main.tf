@@ -208,7 +208,7 @@ resource "aws_route_table" "public" {
 
 # Private route tables for application subnets (routes to NAT Gateway)
 resource "aws_route_table" "private_app" {
-  count  = var.enable_nat_gateway ? length(var.availability_zones) : 1
+  count  = length(var.availability_zones)
   vpc_id = aws_vpc.main.id
 
   # Route to NAT Gateway (if enabled)
@@ -256,7 +256,7 @@ resource "aws_route_table_association" "public" {
 resource "aws_route_table_association" "private_app" {
   count          = length(var.availability_zones)
   subnet_id      = aws_subnet.private_app[count.index].id
-  route_table_id = aws_route_table.private_app[var.single_nat_gateway ? 0 : count.index].id
+  route_table_id = aws_route_table.private_app[count.index].id
 }
 
 # Associate private data subnets with private data route tables

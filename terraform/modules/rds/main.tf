@@ -33,6 +33,8 @@ terraform {
 
 locals {
   # Database configurations
+  # COST OPTIMIZATION: Commented out databases for services not yet deployed
+  # To re-enable: Uncomment the database blocks below and run terraform apply
   databases = {
     auth = {
       instance_class       = var.auth_db_instance_class
@@ -48,20 +50,24 @@ locals {
       read_replica_count    = var.create_read_replicas ? 2 : 0
       port                  = 5432
     }
-    booking = {
-      instance_class        = var.booking_db_instance_class
-      allocated_storage     = var.booking_db_allocated_storage
-      max_allocated_storage = var.booking_db_max_allocated_storage
-      read_replica_count    = var.create_read_replicas ? 2 : 0
-      port                  = 5432
-    }
-    payment = {
-      instance_class        = var.payment_db_instance_class
-      allocated_storage     = var.payment_db_allocated_storage
-      max_allocated_storage = var.payment_db_max_allocated_storage
-      read_replica_count    = var.create_read_replicas ? 2 : 0
-      port                  = 5432
-    }
+    # TEMPORARILY DISABLED: Booking database not needed yet
+    # Uncomment when booking service is ready to deploy
+    # booking = {
+    #   instance_class        = var.booking_db_instance_class
+    #   allocated_storage     = var.booking_db_allocated_storage
+    #   max_allocated_storage = var.booking_db_max_allocated_storage
+    #   read_replica_count    = var.create_read_replicas ? 2 : 0
+    #   port                  = 5432
+    # }
+    # TEMPORARILY DISABLED: Payment database not needed yet
+    # Uncomment when payment service is ready to deploy
+    # payment = {
+    #   instance_class        = var.payment_db_instance_class
+    #   allocated_storage     = var.payment_db_allocated_storage
+    #   max_allocated_storage = var.payment_db_max_allocated_storage
+    #   read_replica_count    = var.create_read_replicas ? 2 : 0
+    #   port                  = 5432
+    # }
   }
 
   common_tags = merge(

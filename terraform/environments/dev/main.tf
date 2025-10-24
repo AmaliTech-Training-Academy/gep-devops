@@ -103,10 +103,16 @@ module "vpc" {
   availability_zones = var.availability_zones
   aws_region         = var.aws_region
 
-  enable_nat_gateway = true
-  single_nat_gateway = true
+  # COST OPTIMIZATION: NAT Gateway disabled - VPC Endpoints handle all AWS service access
+  # Savings: ~$32/month (NAT Gateway hourly charge) + ~$5-20/month (data transfer)
+  # ECS can still pull images via ECR VPC Endpoints
+  # Services can still access Secrets Manager, CloudWatch, S3 via VPC Endpoints
+  # TO RE-ENABLE: Change enable_nat_gateway to true and run terraform apply
+  enable_nat_gateway = false  # Changed from true - saves ~$37-52/month
+  single_nat_gateway = true   # Not used when enable_nat_gateway = false
 
-  enable_vpc_endpoints = true
+  # CRITICAL: VPC Endpoints MUST remain enabled for ECS to work without NAT Gateway
+  enable_vpc_endpoints = true  # Required for ECR, Secrets Manager, CloudWatch access
 
   enable_flow_logs         = var.enable_flow_logs
   flow_logs_retention_days = 7
@@ -490,54 +496,62 @@ module "rds" {
 }
 
 # ==============================================================================
-# DocumentDB Module
+# DocumentDB Module - TEMPORARILY DISABLED FOR COST SAVINGS
+# ==============================================================================
+# DocumentDB is used for audit logs but not yet needed by developers.
+# Cost savings: ~$60/month (db.t3.medium instance)
+#
+# TO RE-ENABLE:
+# 1. Uncomment the entire module block below
+# 2. Uncomment the docdb_endpoint reference in the ECS module call
+# 3. Run: terraform plan && terraform apply
 # ==============================================================================
 
-module "documentdb" {
-  source = "../../modules/documentdb"
-
-  project_name      = var.project_name
-  environment       = var.environment
-  subnet_ids        = module.vpc.private_data_subnet_ids
-  security_group_id = module.security_groups.documentdb_security_group_id
-
-  engine_version = "5.0.0"
-  docdb_family   = "docdb5.0"
-  port           = 27017
-  instance_class = "db.t3.medium"
-  replica_count  = 0 # Dev: No replicas
-
-  master_username = "docdbadmin"
-
-  backup_retention_days = 7
-  backup_window         = "03:00-04:00"
-  maintenance_window    = "sun:04:00-sun:05:00"
-  skip_final_snapshot   = true
-
-  kms_key_arn = null
-
-  tls_enabled                 = true
-  deletion_protection         = false
-  secret_recovery_window_days = 7
-
-  audit_logs_enabled    = true
-  ttl_monitor_enabled   = true
-  profiler_enabled      = true
-  profiler_threshold_ms = "100"
-
-  enabled_cloudwatch_logs_exports = ["audit", "profiler"]
-  enable_performance_insights     = false
-
-  cpu_alarm_threshold           = 80
-  connections_alarm_threshold   = 100
-  storage_alarm_threshold_bytes = 10737418240
-  alarm_actions                 = [module.cloudwatch.sns_topic_arn]
-
-  apply_immediately          = true
-  auto_minor_version_upgrade = true
-
-  tags = local.common_tags
-}
+# module "documentdb" {
+#   source = "../../modules/documentdb"
+#
+#   project_name      = var.project_name
+#   environment       = var.environment
+#   subnet_ids        = module.vpc.private_data_subnet_ids
+#   security_group_id = module.security_groups.documentdb_security_group_id
+#
+#   engine_version = "5.0.0"
+#   docdb_family   = "docdb5.0"
+#   port           = 27017
+#   instance_class = "db.t3.medium"
+#   replica_count  = 0 # Dev: No replicas
+#
+#   master_username = "docdbadmin"
+#
+#   backup_retention_days = 7
+#   backup_window         = "03:00-04:00"
+#   maintenance_window    = "sun:04:00-sun:05:00"
+#   skip_final_snapshot   = true
+#
+#   kms_key_arn = null
+#
+#   tls_enabled                 = true
+#   deletion_protection         = false
+#   secret_recovery_window_days = 7
+#
+#   audit_logs_enabled    = true
+#   ttl_monitor_enabled   = true
+#   profiler_enabled      = true
+#   profiler_threshold_ms = "100"
+#
+#   enabled_cloudwatch_logs_exports = ["audit", "profiler"]
+#   enable_performance_insights     = false
+#
+#   cpu_alarm_threshold           = 80
+#   connections_alarm_threshold   = 100
+#   storage_alarm_threshold_bytes = 10737418240
+#   alarm_actions                 = [module.cloudwatch.sns_topic_arn]
+#
+#   apply_immediately          = true
+#   auto_minor_version_upgrade = true
+#
+#   tags = local.common_tags
+# }
 
 # ==============================================================================
 # ElastiCache Module
@@ -672,7 +686,10 @@ module "ecs" {
 
   db_secret_arns = module.rds.secret_arns
   redis_endpoint = module.elasticache.primary_endpoint_address
-  docdb_endpoint = module.documentdb.cluster_endpoint
+  # TEMPORARILY DISABLED: DocumentDB not deployed yet
+  # Uncomment when DocumentDB module is re-enabled
+  docdb_endpoint = "localhost" # Placeholder - DocumentDB disabled for cost savings
+  # docdb_endpoint = module.documentdb.cluster_endpoint
 
   sqs_queue_urls  = module.sqs-sns.queue_urls
   sqs_queue_names = module.sqs-sns.queue_names

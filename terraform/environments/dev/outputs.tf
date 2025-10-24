@@ -120,20 +120,21 @@ output "rds_secret_arns" {
 }
 
 # ==============================================================================
-# DocumentDB Outputs
+# DocumentDB Outputs - TEMPORARILY DISABLED
 # ==============================================================================
+# Uncomment when DocumentDB module is re-enabled
 
-output "documentdb_endpoint" {
-  description = "DocumentDB cluster endpoint"
-  value       = module.documentdb.cluster_endpoint
-  sensitive   = true
-}
+# output "documentdb_endpoint" {
+#   description = "DocumentDB cluster endpoint"
+#   value       = module.documentdb.cluster_endpoint
+#   sensitive   = true
+# }
 
-output "documentdb_secret_arn" {
-  description = "DocumentDB secret ARN"
-  value       = module.documentdb.secret_arn
-  sensitive   = true
-}
+# output "documentdb_secret_arn" {
+#   description = "DocumentDB secret ARN"
+#   value       = module.documentdb.secret_arn
+#   sensitive   = true
+# }
 
 # ==============================================================================
 # ElastiCache Outputs
@@ -268,17 +269,23 @@ output "next_steps" {
     INFRASTRUCTURE DEPLOYMENT COMPLETE!
     ========================================
     
-     Services Deployed:
+     Services Deployed (Cost-Optimized):
     - VPC with networking
-    - ECS Fargate cluster with 5 microservices
-    - RDS PostgreSQL databases (4)
-    - DocumentDB for audit logs
+    - ECS Fargate cluster with 2 microservices (auth, event)
+    - RDS PostgreSQL databases (2: auth, event)
     - ElastiCache Redis
     - Application Load Balancer
     - S3 + CloudFront
     - Route53 DNS
     - SQS/SNS messaging
     - CloudWatch monitoring
+    
+     Services Temporarily Disabled (Cost Savings: ~$93/month):
+    - ECS: booking, payment, notification services
+    - RDS: booking, payment databases
+    - DocumentDB cluster
+    
+    See COST_OPTIMIZATION_CHANGES.md for re-enable instructions
     
      Access Points:
     Frontend: https://${module.cloudfront.distribution_domain_name}
