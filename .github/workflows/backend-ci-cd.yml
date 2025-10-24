@@ -10,10 +10,7 @@ on:
         required: true
         default: 'dev'
         type: choice
-        options:
-          - dev
-          - staging
-          - prod
+        options: [dev, staging, prod]
       services:
         description: 'Services to deploy (JSON array)'
         required: false
