@@ -46,8 +46,8 @@ jobs:
     - name: Discover Available Services
       id: services
       run: |
-        # Look for services in services/ directory
-        SERVICES=$(find services/ -maxdepth 1 -type d -name "*-service" | sed 's|services/||' | sort)
+        # Look for services in services/ directory (including api-gateway)
+        SERVICES=$(find services/ -maxdepth 1 -type d \( -name "*-service" -o -name "api-gateway" \) | sed 's|services/||' | sort)
         
         if [ -z "$SERVICES" ]; then
           echo "No services found, using default list"
@@ -57,6 +57,9 @@ jobs:
           SERVICES_JSON=$(echo "$SERVICES" | jq -R -s -c 'split("\n")[:-1]')
           echo "matrix=$SERVICES_JSON" >> $GITHUB_OUTPUT
         fi
+        
+        # Debug: Show what will be in the matrix
+        echo "Matrix will be: $(cat $GITHUB_OUTPUT | grep matrix)"
 
   build-and-test:
     needs: prepare
@@ -73,6 +76,14 @@ jobs:
         ref: ${{ env.COMMIT_SHA }}
         token: ${{ secrets.BACKEND_REPO_TOKEN }}
 
+    - name: Debug Service Path
+      run: |
+        echo "Processing service: ${{ matrix.service }}"
+        echo "Current directory: $(pwd)"
+        echo "Looking for: services/${{ matrix.service }}"
+        ls -la services/ || echo "services/ directory not found"
+        ls -la services/${{ matrix.service }} || echo "services/${{ matrix.service }} not found"
+    
     - name: Build and Test
       run: |
         cd services/${{ matrix.service }}
