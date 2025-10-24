@@ -30,7 +30,7 @@ env:
 
 jobs:
   terraform-validate:
-    runs-on: [self-hosted, frontend]
+    runs-on: [self-hosted, infrastructure]
     strategy:
       matrix:
         environment: ${{ github.ref == 'refs/heads/dev' && fromJSON('["dev"]') || github.ref == 'refs/heads/staging' && fromJSON('["staging"]') || github.ref == 'refs/heads/main' && fromJSON('["prod"]') || github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.environment)) || fromJSON('["dev", "staging", "prod"]') }}
