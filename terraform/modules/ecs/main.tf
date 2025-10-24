@@ -433,7 +433,7 @@ resource "aws_ecs_task_definition" "services" {
       }
     }
   ])
-
+#############################################
   tags = merge(
     local.common_tags,
     {
