@@ -84,6 +84,7 @@ jobs:
 
       - name: Build and Test Service
         run: |
+          export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository"
           cd services/${{ matrix.service }}
           mvn clean package -DskipTests
 
