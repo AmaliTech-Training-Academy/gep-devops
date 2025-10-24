@@ -14,12 +14,12 @@ on:
       services:
         description: 'Services to deploy (JSON array)'
         required: false
-        default: '["user-service", "event-service", "notification-service", "gateway-service"]'
+        default: '["auth-service", "booking-service", "event-service", "notification-service", "payment-service"]'
 
 env:
   ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
-  BACKEND_REPO: ${{ github.event.client_payload.repository }}
-  COMMIT_SHA: ${{ github.event.client_payload.sha }}
+  BACKEND_REPO: ${{ github.event.client_payload.repository || 'your-org/gep-backend' }}
+  COMMIT_SHA: ${{ github.event.client_payload.sha || github.sha }}
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY_URL }}
   SERVICES_TO_DEPLOY: ${{ github.event.client_payload.services || inputs.services }}
 
@@ -37,6 +37,7 @@ jobs:
   build-and-test:
     needs: prepare
     runs-on: [self-hosted, backend]
+    if: github.event_name == 'repository_dispatch'
     strategy:
       matrix:
         service: ${{ fromJson(needs.prepare.outputs.services) }}
@@ -62,6 +63,7 @@ jobs:
   build-and-push:
     needs: [prepare, build-and-test]
     runs-on: [self-hosted, backend]
+    if: github.event_name == 'repository_dispatch'
     strategy:
       matrix:
         service: ${{ fromJson(needs.prepare.outputs.services) }}
@@ -90,7 +92,7 @@ jobs:
         docker push $ECR_REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}
 
   deploy-to-ecs:
-    needs: [prepare, build-and-push]
+    needs: [prepare]
     runs-on: [self-hosted, backend]
     strategy:
       matrix:
@@ -119,9 +121,10 @@ jobs:
         service: gep-${{ matrix.service }}-${{ env.ENVIRONMENT }}
         cluster: gep-cluster-${{ env.ENVIRONMENT }}
         wait-for-service-stability: true
+      if: github.event_name == 'repository_dispatch'
 
   notify:
-    needs: [prepare, build-and-test, build-and-push, deploy-to-ecs]
+    needs: [prepare, deploy-to-ecs]
     if: always()
     runs-on: [self-hosted, backend]
     steps:
