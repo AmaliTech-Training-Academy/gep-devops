@@ -1,0 +1,256 @@
+name: Backend CI/CD Pipeline
+
+on:
+  repository_dispatch:
+    types: [backend-deployment]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      services:
+        description: 'Services to deploy (JSON array)'
+        required: false
+        default: '["auth-service", "notification-service"]'
+        type: string
+
+env:
+  ENVIRONMENT: "${{ github.event.client_payload.environment || inputs.environment }}"
+  BACKEND_REPO: "${{ github.event.client_payload.repository || 'AmaliTech-Training-Academy/gep-backend' }}"
+  COMMIT_SHA: "${{ github.event.client_payload.sha || github.sha }}"
+  AWS_REGION: eu-west-1
+  # Terraform-managed naming convention
+  ECS_CLUSTER: "event-planner-${{ github.event.client_payload.environment || inputs.environment }}-cluster"
+  SERVICES_TO_DEPLOY: "${{ github.event.client_payload.services && toJson(github.event.client_payload.services) || inputs.services }}"
+
+jobs:
+  prepare:
+    runs-on: [self-hosted, backend]
+    outputs:
+      services: ${{ steps.services.outputs.matrix }}
+    steps:
+      - name: Checkout Backend Code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.BACKEND_REPO }}
+          ref: ${{ env.COMMIT_SHA }}
+          token: ${{ secrets.BACKEND_REPO_TOKEN }}
+
+      - name: List Repository Contents
+        run: |
+          echo "Repository contents:"
+          ls -la
+          echo "Looking for service directories..."
+          find . -maxdepth 2 -type d -name "*service*" || echo "No service directories found"
+
+      - name: Discover Available Services
+        id: services
+        run: |
+          # Only deploy auth-service and notification-service (enabled in Terraform)
+          echo 'matrix=["auth-service","notification-service"]' >> "$GITHUB_OUTPUT"
+          echo "Deploying services: auth-service, notification-service"
+          
+          # Note: booking-service, payment-service, event-service are disabled in Terraform
+          echo "⚠️ Disabled services (not in Terraform): booking-service, payment-service, event-service"
+
+  build-and-test:
+    needs: prepare
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    steps:
+      - name: Checkout Backend Code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.BACKEND_REPO }}
+          ref: ${{ env.COMMIT_SHA }}
+          token: ${{ secrets.BACKEND_REPO_TOKEN }}
+
+      - name: Verify Java Environment
+        run: |
+          echo "Java version:"
+          java --version
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "Maven version:"
+          mvn --version
+          export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
+          echo "Updated JAVA_HOME: $JAVA_HOME"
+
+      - name: Debug Service Path
+        run: |
+          echo "Processing service: ${{ matrix.service }}"
+          echo "Looking for directory: services/${{ matrix.service }}"
+          ls -la services/ || echo "services/ directory not found"
+          ls -la services/${{ matrix.service }} || echo "services/${{ matrix.service }} not found"
+
+      - name: Build and Test Service
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+          export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository"
+          cd services/${{ matrix.service }}
+          mvn clean package -DskipTests
+
+      - name: Security Scan (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'services/${{ matrix.service }}'
+
+  build-and-push:
+    needs: [prepare, build-and-test]
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    steps:
+      - name: Checkout Backend Code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.BACKEND_REPO }}
+          ref: ${{ env.COMMIT_SHA }}
+          token: ${{ secrets.BACKEND_REPO_TOKEN }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Docker Image
+        run: |
+          cd services/${{ matrix.service }}
+          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          
+          # Use Terraform naming convention: event-planner-{env}-{service}
+          REPO_NAME="event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}"
+          IMAGE_TAG="${{ env.COMMIT_SHA }}"
+          
+          echo "Building image: $REGISTRY/$REPO_NAME:$IMAGE_TAG"
+          docker build -t "$REGISTRY/$REPO_NAME:$IMAGE_TAG" .
+          docker push "$REGISTRY/$REPO_NAME:$IMAGE_TAG"
+          
+          # Also tag as latest (Terraform uses 'latest' by default)
+          docker tag "$REGISTRY/$REPO_NAME:$IMAGE_TAG" "$REGISTRY/$REPO_NAME:latest"
+          docker push "$REGISTRY/$REPO_NAME:latest"
+          
+          echo "✅ Pushed images:"
+          echo "  - $REGISTRY/$REPO_NAME:$IMAGE_TAG"
+          echo "  - $REGISTRY/$REPO_NAME:latest"
+
+  deploy-to-ecs:
+    needs: [prepare, build-and-push]
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to ECS (Force New Deployment)
+        run: |
+          # Terraform-managed service names
+          SERVICE_NAME="${{ matrix.service }}"
+          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
+          
+          echo "🚀 Deploying $SERVICE_NAME to $CLUSTER_NAME"
+          echo "📦 New image will be pulled from ECR (tag: latest)"
+          
+          # Force new deployment (ECS will pull latest image)
+          aws ecs update-service \
+            --cluster "$CLUSTER_NAME" \
+            --service "$SERVICE_NAME" \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ Deployment initiated for $SERVICE_NAME"
+
+      - name: Wait for Service Stability
+        run: |
+          SERVICE_NAME="${{ matrix.service }}"
+          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
+          
+          echo "⏳ Waiting for service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ Service $SERVICE_NAME is stable"
+
+      - name: Get Deployment Status
+        run: |
+          SERVICE_NAME="${{ matrix.service }}"
+          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
+          
+          echo "📊 Service Status:"
+          aws ecs describe-services \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount,Deployments:deployments[*].{Status:status,TaskDef:taskDefinition,Running:runningCount}}' \
+            --output table
+
+  notify:
+    needs: [prepare, deploy-to-ecs]
+    if: always()
+    runs-on: [self-hosted, backend]
+    steps:
+      - name: Slack Notification
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "Backend Deployment ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Succeeded ✅' }}",
+              "attachments": [
+                {
+                  "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
+                  "fields": [
+                    {
+                      "title": "Repository",
+                      "value": "gep-backend",
+                      "short": true
+                    },
+                    {
+                      "title": "Environment",
+                      "value": "${{ env.ENVIRONMENT }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Services",
+                      "value": "${{ env.SERVICES_TO_DEPLOY }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Commit SHA",
+                      "value": "${{ env.COMMIT_SHA }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Cluster",
+                      "value": "${{ env.ECS_CLUSTER }}",
+                      "short": true
+                    }
+                  ]
+                }
+              ]
+            }
