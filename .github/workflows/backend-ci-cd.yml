@@ -127,22 +127,14 @@ jobs:
           aws-region: eu-west-1
 
       - name: Login to ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and Push Docker Image
         run: |
           cd services/${{ matrix.service }}
-          echo "ECR Registry: $ECR_REGISTRY"
-          echo "Environment: ${{ env.ENVIRONMENT }}"
-          echo "Service: ${{ matrix.service }}"
-          echo "Commit SHA: ${{ env.COMMIT_SHA }}"
-          
-          if [ -z "$ECR_REGISTRY" ]; then
-            echo "Error: ECR_REGISTRY is empty"
-            exit 1
-          fi
-          
-          IMAGE="$ECR_REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}"
+          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          IMAGE="$REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}"
           echo "Full image name: $IMAGE"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
