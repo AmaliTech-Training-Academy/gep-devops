@@ -30,6 +30,8 @@ terraform {
 
 locals {
   # Microservices configuration
+  # COST OPTIMIZATION: Commented out services not yet needed by developers
+  # To re-enable: Uncomment the service blocks below and run terraform apply
   services = {
     auth = {
       name          = "auth-service"
@@ -49,33 +51,39 @@ locals {
       min_capacity  = var.environment == "dev" ? 1 : 2
       max_capacity  = var.environment == "dev" ? 2 : 4
     }
-    booking = {
-      name          = "booking-service"
-      port          = 8083
-      cpu           = var.environment == "dev" ? 256 : 512
-      memory        = var.environment == "dev" ? 512 : 1024
-      desired_count = var.environment == "dev" ? 1 : 2
-      min_capacity  = var.environment == "dev" ? 1 : 2
-      max_capacity  = var.environment == "dev" ? 2 : 4
-    }
-    payment = {
-      name          = "payment-service"
-      port          = 8084
-      cpu           = var.environment == "dev" ? 256 : 512
-      memory        = var.environment == "dev" ? 512 : 1024
-      desired_count = var.environment == "dev" ? 1 : 2
-      min_capacity  = var.environment == "dev" ? 1 : 2
-      max_capacity  = var.environment == "dev" ? 2 : 4
-    }
-    notification = {
-      name          = "notification-service"
-      port          = 8085
-      cpu           = var.environment == "dev" ? 256 : 512
-      memory        = var.environment == "dev" ? 512 : 1024
-      desired_count = var.environment == "dev" ? 1 : 2
-      min_capacity  = var.environment == "dev" ? 1 : 1
-      max_capacity  = var.environment == "dev" ? 2 : 3
-    }
+    # TEMPORARILY DISABLED: Booking service not yet ready
+    # Uncomment when developers are ready to deploy
+    # booking = {
+    #   name          = "booking-service"
+    #   port          = 8083
+    #   cpu           = var.environment == "dev" ? 256 : 512
+    #   memory        = var.environment == "dev" ? 512 : 1024
+    #   desired_count = var.environment == "dev" ? 1 : 2
+    #   min_capacity  = var.environment == "dev" ? 1 : 2
+    #   max_capacity  = var.environment == "dev" ? 2 : 4
+    # }
+    # TEMPORARILY DISABLED: Payment service not yet ready
+    # Uncomment when developers are ready to deploy
+    # payment = {
+    #   name          = "payment-service"
+    #   port          = 8084
+    #   cpu           = var.environment == "dev" ? 256 : 512
+    #   memory        = var.environment == "dev" ? 512 : 1024
+    #   desired_count = var.environment == "dev" ? 1 : 2
+    #   min_capacity  = var.environment == "dev" ? 1 : 2
+    #   max_capacity  = var.environment == "dev" ? 2 : 4
+    # }
+    # TEMPORARILY DISABLED: Notification service not yet ready
+    # Uncomment when developers are ready to deploy
+    # notification = {
+    #   name          = "notification-service"
+    #   port          = 8085
+    #   cpu           = var.environment == "dev" ? 256 : 512
+    #   memory        = var.environment == "dev" ? 512 : 1024
+    #   desired_count = var.environment == "dev" ? 1 : 2
+    #   min_capacity  = var.environment == "dev" ? 1 : 1
+    #   max_capacity  = var.environment == "dev" ? 2 : 3
+    # }
   }
 
   common_tags = merge(
@@ -250,18 +258,20 @@ resource "aws_ecs_task_definition" "services" {
           name  = "EVENT_SERVICE_URL"
           value = "http://event-service.${var.service_discovery_namespace}:8082"
         },
-        {
-          name  = "BOOKING_SERVICE_URL"
-          value = "http://booking-service.${var.service_discovery_namespace}:8083"
-        },
-        {
-          name  = "PAYMENT_SERVICE_URL"
-          value = "http://payment-service.${var.service_discovery_namespace}:8084"
-        },
-        {
-          name  = "NOTIFICATION_SERVICE_URL"
-          value = "http://notification-service.${var.service_discovery_namespace}:8085"
-        }
+        # TEMPORARILY DISABLED: Service URLs for services not yet deployed
+        # Uncomment when booking, payment, and notification services are ready
+        # {
+        #   name  = "BOOKING_SERVICE_URL"
+        #   value = "http://booking-service.${var.service_discovery_namespace}:8083"
+        # },
+        # {
+        #   name  = "PAYMENT_SERVICE_URL"
+        #   value = "http://payment-service.${var.service_discovery_namespace}:8084"
+        # },
+        # {
+        #   name  = "NOTIFICATION_SERVICE_URL"
+        #   value = "http://notification-service.${var.service_discovery_namespace}:8085"
+        # }
       ],
       # SQS configuration - only for services that need it
       each.key == "auth" ? [
