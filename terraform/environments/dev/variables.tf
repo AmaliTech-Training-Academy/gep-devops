@@ -18,7 +18,7 @@ variable "aws_region" {
   description = "AWS region where all infrastructure will be deployed (e.g., eu-west-1, us-east-1)"
   type        = string
   default     = "eu-west-1"
-  
+
   validation {
     condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]{1}$", var.aws_region))
     error_message = "AWS region must be in valid format (e.g., us-east-1, eu-west-1)."
@@ -33,7 +33,7 @@ variable "project_name" {
   description = "Project name used as prefix for all resource names (e.g., event-planner-dev-vpc)"
   type        = string
   default     = "event-planner"
-  
+
   validation {
     condition     = can(regex("^[a-z0-9-]+$", var.project_name))
     error_message = "Project name must contain only lowercase letters, numbers, and hyphens."
@@ -44,7 +44,7 @@ variable "environment" {
   description = "Environment name (dev, staging, prod) - used for resource naming and configuration"
   type        = string
   default     = "dev"
-  
+
   validation {
     condition     = contains(["dev", "staging", "prod"], var.environment)
     error_message = "Environment must be dev, staging, or prod."
@@ -69,7 +69,7 @@ variable "vpc_cidr" {
   description = "CIDR block for VPC (10.0.0.0/16 provides 65,536 IP addresses)"
   type        = string
   default     = "10.0.0.0/16"
-  
+
   validation {
     condition     = can(cidrhost(var.vpc_cidr, 0))
     error_message = "VPC CIDR must be a valid IPv4 CIDR block."
@@ -80,7 +80,7 @@ variable "availability_zones" {
   description = "List of availability zones for resource deployment. Dev uses 1 AZ for cost savings, Prod uses 2+ for high availability"
   type        = list(string)
   default     = ["eu-west-1a"] # Single AZ for dev environment (cost-optimized)
-  
+
   validation {
     condition     = length(var.availability_zones) > 0
     error_message = "At least one availability zone must be specified."
@@ -144,8 +144,8 @@ variable "tags" {
   description = "Additional tags to apply to all resources for cost tracking, organization, and compliance"
   type        = map(string)
   default = {
-    CostCenter = "Engineering"  # For cost allocation reports
-    Owner      = "DevOps Team"  # Team responsible for infrastructure
+    CostCenter = "Engineering" # For cost allocation reports
+    Owner      = "DevOps Team" # Team responsible for infrastructure
   }
 }
 

@@ -108,11 +108,11 @@ module "vpc" {
   # ECS can still pull images via ECR VPC Endpoints
   # Services can still access Secrets Manager, CloudWatch, S3 via VPC Endpoints
   # TO RE-ENABLE: Change enable_nat_gateway to true and run terraform apply
-  enable_nat_gateway = false  # Changed from true - saves ~$37-52/month
-  single_nat_gateway = true   # Not used when enable_nat_gateway = false
+  enable_nat_gateway = false # Changed from true - saves ~$37-52/month
+  single_nat_gateway = true  # Not used when enable_nat_gateway = false
 
   # CRITICAL: VPC Endpoints MUST remain enabled for ECS to work without NAT Gateway
-  enable_vpc_endpoints = true  # Required for ECR, Secrets Manager, CloudWatch access
+  enable_vpc_endpoints = true # Required for ECR, Secrets Manager, CloudWatch access
 
   enable_flow_logs         = var.enable_flow_logs
   flow_logs_retention_days = 7
@@ -151,8 +151,8 @@ module "acm" {
   alb_subject_alternative_names = []
 
   # CloudFront certificate already exists manually, skip creation
-  create_cloudfront_certificate = false
-  cloudfront_domain_name        = "events.sankofagrid.com"
+  create_cloudfront_certificate        = false
+  cloudfront_domain_name               = "events.sankofagrid.com"
   cloudfront_subject_alternative_names = []
 
   common_tags = local.common_tags
@@ -202,9 +202,11 @@ module "s3" {
 module "secrets_manager" {
   source = "../../modules/secrets-manager"
 
-  project_name              = var.project_name
-  environment               = var.environment
-  recovery_window_in_days   = 7
+  project_name            = var.project_name
+  environment             = var.environment
+  recovery_window_in_days = 7
+  aws_access_key_id       = var.aws_access_key_id
+  aws_secret_access_key   = var.aws_secret_access_key
 
   tags = local.common_tags
 }
@@ -241,7 +243,7 @@ module "cloudfront" {
   environment                    = var.environment
   s3_bucket_id                   = module.s3.assets_bucket_id
   s3_bucket_regional_domain_name = module.s3.assets_bucket_regional_domain_name
-  
+
   alb_domain_name = "" # Will populate when ALB is ready
 
   domain_aliases      = ["events.sankofagrid.com"]
@@ -479,7 +481,7 @@ module "rds" {
   max_connections  = "100"
 
   storage_type     = "gp3"
-  provisioned_iops = null  # Use gp3 default (3000 IOPS)
+  provisioned_iops = null # Use gp3 default (3000 IOPS)
 
   # Dev: Single-AZ, no replicas
   multi_az             = false
@@ -589,8 +591,8 @@ module "elasticache" {
   # Dev: Single node
   cluster_mode_enabled    = false
   num_cache_nodes         = 1
-  num_node_groups         = 1  # Not used in single-node mode
-  replicas_per_node_group = 0  # No replicas in dev
+  num_node_groups         = 1 # Not used in single-node mode
+  replicas_per_node_group = 0 # No replicas in dev
 
   automatic_failover_enabled = false
   multi_az_enabled           = false
@@ -729,8 +731,7 @@ module "ecs" {
   scale_in_cooldown   = 300
   scale_out_cooldown  = 60
 
-  aws_access_key_id     = var.aws_access_key_id
-  aws_secret_access_key = var.aws_secret_access_key
+  aws_credentials_secret_arn = module.secrets_manager.aws_credentials_secret_arn
 
   tags = local.common_tags
 }

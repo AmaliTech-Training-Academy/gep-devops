@@ -312,11 +312,17 @@ jobs:
           -backend-config="encrypt=true"
 
     - name: Terraform Plan
+      env:
+        TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         cd terraform/environments/dev
         terraform plan -out=tfplan
 
     - name: Terraform Apply
+      env:
+        TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         cd terraform/environments/dev
         terraform apply -auto-approve tfplan
@@ -411,11 +417,17 @@ jobs:
           -backend-config="encrypt=true"
 
     - name: Terraform Plan
+      env:
+        TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         cd terraform/environments/staging
         terraform plan -out=tfplan
 
     - name: Terraform Apply
+      env:
+        TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         cd terraform/environments/staging
         terraform apply -auto-approve tfplan
@@ -510,11 +522,17 @@ jobs:
           -backend-config="encrypt=true"
 
     - name: Terraform Plan
+      env:
+        TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         cd terraform/environments/prod
         terraform plan -out=tfplan
 
     - name: Terraform Apply
+      env:
+        TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         cd terraform/environments/prod
         terraform apply -auto-approve tfplan

@@ -54,3 +54,28 @@ resource "aws_secretsmanager_secret_version" "jwt_secret" {
     JWT_SECRET = random_password.jwt_secret.result
   })
 }
+
+# ==============================================================================
+# AWS Credentials Secret for ECS Services
+# ==============================================================================
+
+resource "aws_secretsmanager_secret" "aws_credentials" {
+  name                    = "${var.project_name}-${var.environment}-aws-credentials"
+  description             = "AWS credentials for ECS services in ${var.environment}"
+  recovery_window_in_days = var.recovery_window_in_days
+
+  tags = merge(
+    var.tags,
+    {
+      Name = "${var.project_name}-${var.environment}-aws-credentials"
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "aws_credentials" {
+  secret_id = aws_secretsmanager_secret.aws_credentials.id
+  secret_string = jsonencode({
+    AWS_ACCESS_KEY_ID     = var.aws_access_key_id
+    AWS_SECRET_ACCESS_KEY = var.aws_secret_access_key
+  })
+}

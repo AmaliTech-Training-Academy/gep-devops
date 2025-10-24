@@ -229,14 +229,8 @@ variable "tags" {
 # AWS Credentials Configuration
 # ==============================================================================
 
-variable "aws_access_key_id" {
-  description = "AWS Access Key ID for services to access AWS resources"
+variable "aws_credentials_secret_arn" {
+  description = "ARN of AWS credentials secret in Secrets Manager"
   type        = string
-  sensitive   = true
-}
-
-variable "aws_secret_access_key" {
-  description = "AWS Secret Access Key for services to access AWS resources"
-  type        = string
-  sensitive   = true
+  default     = null
 }

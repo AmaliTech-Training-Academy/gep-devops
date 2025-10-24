@@ -233,14 +233,6 @@ resource "aws_ecs_task_definition" "services" {
           value = var.aws_region
         },
         {
-          name  = "AWS_ACCESS_KEY"
-          value = var.aws_access_key_id
-        },
-        {
-          name  = "AWS_SECRET_KEY"
-          value = var.aws_secret_access_key
-        },
-        {
           name  = "SPRING_DATA_REDIS_HOST"
           value = var.redis_endpoint
         },
@@ -251,10 +243,6 @@ resource "aws_ecs_task_definition" "services" {
         {
           name  = "SPRING_DATA_REDIS_SSL_ENABLED"
           value = "true"
-        },
-        {
-          name  = "SPRING_DATA_MONGODB_URI"
-          value = "mongodb://${var.docdb_endpoint}:27017/audit?tls=true&replicaSet=rs0&readPreference=secondaryPreferred"
         },
         {
           name  = "MANAGEMENT_HEALTH_MONGO_ENABLED"
@@ -378,6 +366,17 @@ resource "aws_ecs_task_definition" "services" {
       )
 
       secrets = concat(
+        # AWS Credentials from Secrets Manager
+        var.aws_credentials_secret_arn != null ? [
+          {
+            name      = "AWS_ACCESS_KEY_ID"
+            valueFrom = "${var.aws_credentials_secret_arn}:AWS_ACCESS_KEY_ID::"
+          },
+          {
+            name      = "AWS_SECRET_ACCESS_KEY"
+            valueFrom = "${var.aws_credentials_secret_arn}:AWS_SECRET_ACCESS_KEY::"
+          }
+        ] : [],
         # Service-specific database credentials - use each.key (auth, event) not each.value.name (auth-service)
         each.key == "auth" && lookup(var.db_secret_arns, each.key, null) != null ? [
           {
