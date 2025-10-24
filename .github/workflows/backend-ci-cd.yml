@@ -24,7 +24,9 @@ env:
   ENVIRONMENT: "${{ github.event.client_payload.environment || inputs.environment }}"
   BACKEND_REPO: "${{ github.event.client_payload.repository || 'AmaliTech-Training-Academy/gep-backend' }}"
   COMMIT_SHA: "${{ github.event.client_payload.sha || github.sha }}"
-  ECR_REGISTRY: "${{ secrets.ECR_REGISTRY_URL }}"
+  AWS_REGION: eu-west-1
+  # Terraform-managed naming convention
+  ECS_CLUSTER: "event-planner-${{ github.event.client_payload.environment || inputs.environment }}-cluster"
   SERVICES_TO_DEPLOY: "${{ github.event.client_payload.services && toJson(github.event.client_payload.services) || inputs.services }}"
 
 jobs:
@@ -50,16 +52,12 @@ jobs:
       - name: Discover Available Services
         id: services
         run: |
-          # Find all service folders (api-gateway + *-service)
-          SERVICES=$(find services/ -maxdepth 1 -type d \( -name "*-service" -o -name "api-gateway" \) | sed 's|services/||' | sort)
-          
-          # For now, restrict to only auth-service and notification-service
+          # Only deploy auth-service and notification-service (enabled in Terraform)
           echo 'matrix=["auth-service","notification-service"]' >> "$GITHUB_OUTPUT"
-          echo "Using limited service list: auth-service, notification-service"
+          echo "Deploying services: auth-service, notification-service"
           
-          # Debug output
-          echo "Matrix will be:"
-          cat "$GITHUB_OUTPUT"
+          # Note: booking-service, payment-service, event-service are disabled in Terraform
+          echo "⚠️ Disabled services (not in Terraform): booking-service, payment-service, event-service"
 
   build-and-test:
     needs: prepare
@@ -124,7 +122,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to ECR
         id: login-ecr
@@ -134,10 +132,22 @@ jobs:
         run: |
           cd services/${{ matrix.service }}
           REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-          IMAGE="$REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}"
-          echo "Full image name: $IMAGE"
-          docker build -t "$IMAGE" .
-          docker push "$IMAGE"
+          
+          # Use Terraform naming convention: event-planner-{env}-{service}
+          REPO_NAME="event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}"
+          IMAGE_TAG="${{ env.COMMIT_SHA }}"
+          
+          echo "Building image: $REGISTRY/$REPO_NAME:$IMAGE_TAG"
+          docker build -t "$REGISTRY/$REPO_NAME:$IMAGE_TAG" .
+          docker push "$REGISTRY/$REPO_NAME:$IMAGE_TAG"
+          
+          # Also tag as latest (Terraform uses 'latest' by default)
+          docker tag "$REGISTRY/$REPO_NAME:$IMAGE_TAG" "$REGISTRY/$REPO_NAME:latest"
+          docker push "$REGISTRY/$REPO_NAME:latest"
+          
+          echo "✅ Pushed images:"
+          echo "  - $REGISTRY/$REPO_NAME:$IMAGE_TAG"
+          echo "  - $REGISTRY/$REPO_NAME:latest"
 
   deploy-to-ecs:
     needs: [prepare, build-and-push]
@@ -146,63 +156,56 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.prepare.outputs.services) }}
     steps:
-      - name: Checkout DevOps Config
-        uses: actions/checkout@v4
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Check Task Definition
+      - name: Deploy to ECS (Force New Deployment)
         run: |
-          echo "Looking for task definition file..."
-          find . -name "*${{ matrix.service }}*" -type f || echo "No files found for ${{ matrix.service }}"
-          ls -la ecs/ || echo "ecs/ directory not found"
-          ls -la ecs/task-definitions/ || echo "ecs/task-definitions/ directory not found"
+          # Terraform-managed service names
+          SERVICE_NAME="${{ matrix.service }}"
+          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
+          
+          echo "🚀 Deploying $SERVICE_NAME to $CLUSTER_NAME"
+          echo "📦 New image will be pulled from ECR (tag: latest)"
+          
+          # Force new deployment (ECS will pull latest image)
+          aws ecs update-service \
+            --cluster "$CLUSTER_NAME" \
+            --service "$SERVICE_NAME" \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ Deployment initiated for $SERVICE_NAME"
 
-      - name: Update ECS Task Definition
+      - name: Wait for Service Stability
         run: |
-          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-          IMAGE="$REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}"
-          echo "Using image: $IMAGE"
+          SERVICE_NAME="${{ matrix.service }}"
+          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
           
-          if [ ! -f "ecs/task-definitions/${{ matrix.service }}.json" ]; then
-            echo "Task definition file not found: ecs/task-definitions/${{ matrix.service }}.json"
-            echo "Available files:"
-            find . -name "*.json" -type f || echo "No JSON files found"
-            exit 1
-          fi
+          echo "⏳ Waiting for service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
+            --region ${{ env.AWS_REGION }}
           
-          echo "Inspecting task definition structure:"
-          jq '.' ecs/task-definitions/${{ matrix.service }}.json | head -20
-          
-          # Check if it's a task definition object or array
-          if jq -e '.containerDefinitions' ecs/task-definitions/${{ matrix.service }}.json > /dev/null; then
-            # Standard task definition format
-            jq --arg IMAGE "$IMAGE" \
-              '.containerDefinitions[0].image = $IMAGE' \
-              ecs/task-definitions/${{ matrix.service }}.json > /tmp/task-def.json
-          else
-            # Might be an array or different format
-            jq --arg IMAGE "$IMAGE" \
-              '.[0].image = $IMAGE' \
-              ecs/task-definitions/${{ matrix.service }}.json > /tmp/task-def.json
-          fi
+          echo "✅ Service $SERVICE_NAME is stable"
 
-      - name: Deploy to ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: /tmp/task-def.json
-          service: gep-${{ matrix.service }}-${{ env.ENVIRONMENT }}
-          cluster: gep-cluster-${{ env.ENVIRONMENT }}
-          wait-for-service-stability: true
+      - name: Get Deployment Status
+        run: |
+          SERVICE_NAME="${{ matrix.service }}"
+          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
+          
+          echo "📊 Service Status:"
+          aws ecs describe-services \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount,Deployments:deployments[*].{Status:status,TaskDef:taskDefinition,Running:runningCount}}' \
+            --output table
 
   notify:
     needs: [prepare, deploy-to-ecs]
@@ -240,6 +243,11 @@ jobs:
                     {
                       "title": "Commit SHA",
                       "value": "${{ env.COMMIT_SHA }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Cluster",
+                      "value": "${{ env.ECS_CLUSTER }}",
                       "short": true
                     }
                   ]
