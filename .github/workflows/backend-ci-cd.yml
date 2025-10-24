@@ -75,6 +75,16 @@ jobs:
           ref: ${{ env.COMMIT_SHA }}
           token: ${{ secrets.BACKEND_REPO_TOKEN }}
 
+      - name: Verify Java Environment
+        run: |
+          echo "Java version:"
+          java --version
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "Maven version:"
+          mvn --version
+          export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
+          echo "Updated JAVA_HOME: $JAVA_HOME"
+
       - name: Debug Service Path
         run: |
           echo "Processing service: ${{ matrix.service }}"
@@ -84,6 +94,7 @@ jobs:
 
       - name: Build and Test Service
         run: |
+          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
           export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository"
           cd services/${{ matrix.service }}
           mvn clean package -DskipTests
@@ -116,12 +127,15 @@ jobs:
           aws-region: eu-west-1
 
       - name: Login to ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and Push Docker Image
         run: |
           cd services/${{ matrix.service }}
-          IMAGE="$ECR_REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}"
+          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          IMAGE="$REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}"
+          echo "Full image name: $IMAGE"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
 
@@ -142,9 +156,30 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-1
 
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Check Task Definition
+        run: |
+          echo "Looking for task definition file..."
+          find . -name "*${{ matrix.service }}*" -type f || echo "No files found for ${{ matrix.service }}"
+          ls -la ecs/ || echo "ecs/ directory not found"
+          ls -la ecs/task-definitions/ || echo "ecs/task-definitions/ directory not found"
+
       - name: Update ECS Task Definition
         run: |
-          IMAGE="$ECR_REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}"
+          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          IMAGE="$REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}"
+          echo "Using image: $IMAGE"
+          
+          if [ ! -f "ecs/task-definitions/${{ matrix.service }}.json" ]; then
+            echo "Task definition file not found: ecs/task-definitions/${{ matrix.service }}.json"
+            echo "Available files:"
+            find . -name "*.json" -type f || echo "No JSON files found"
+            exit 1
+          fi
+          
           jq --arg IMAGE "$IMAGE" \
             '.containerDefinitions[0].image = $IMAGE' \
             ecs/task-definitions/${{ matrix.service }}.json > /tmp/task-def.json
