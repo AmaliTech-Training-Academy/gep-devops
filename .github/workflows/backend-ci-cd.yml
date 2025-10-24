@@ -52,11 +52,11 @@ jobs:
         run: |
           # Find all service folders (api-gateway + *-service)
           SERVICES=$(find services/ -maxdepth 1 -type d \( -name "*-service" -o -name "api-gateway" \) | sed 's|services/||' | sort)
-
+          
           # For now, restrict to only auth-service and notification-service
           echo 'matrix=["auth-service","notification-service"]' >> "$GITHUB_OUTPUT"
           echo "Using limited service list: auth-service, notification-service"
-
+          
           # Debug output
           echo "Matrix will be:"
           cat "$GITHUB_OUTPUT"
@@ -145,8 +145,8 @@ jobs:
         run: |
           IMAGE="$ECR_REGISTRY/event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ env.COMMIT_SHA }}"
           jq --arg IMAGE "$IMAGE" \
-             '.containerDefinitions[0].image = $IMAGE' \
-             ecs/task-definitions/${{ matrix.service }}.json > /tmp/task-def.json
+            '.containerDefinitions[0].image = $IMAGE' \
+            ecs/task-definitions/${{ matrix.service }}.json > /tmp/task-def.json
 
       - name: Deploy to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -170,24 +170,31 @@ jobs:
           custom_payload: |
             {
               "text": "Backend Deployment ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Succeeded ✅' }}",
-              "attachments": [{
-                "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
-                "fields": [{
-                  "title": "Repository",
-                  "value": "gep-backend",
-                  "short": true
-                }, {
-                  "title": "Environment",
-                  "value": "${{ env.ENVIRONMENT }}",
-                  "short": true
-                }, {
-                  "title": "Services",
-                  "value": "${{ env.SERVICES_TO_DEPLOY }}",
-                  "short": true
-                }, {
-                  "title": "Commit SHA",
-                  "value": "${{ env.COMMIT_SHA }}",
-                  "short": true
-                }]
-              }]
+              "attachments": [
+                {
+                  "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
+                  "fields": [
+                    {
+                      "title": "Repository",
+                      "value": "gep-backend",
+                      "short": true
+                    },
+                    {
+                      "title": "Environment",
+                      "value": "${{ env.ENVIRONMENT }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Services",
+                      "value": "${{ env.SERVICES_TO_DEPLOY }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Commit SHA",
+                      "value": "${{ env.COMMIT_SHA }}",
+                      "short": true
+                    }
+                  ]
+                }
+              ]
             }
