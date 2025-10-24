@@ -20,3 +20,5 @@
 **/plan.txt
 **/.terraformrc
 **/terraform.rc
+/ext
+scripts/

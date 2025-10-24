@@ -180,9 +180,21 @@ jobs:
             exit 1
           fi
           
-          jq --arg IMAGE "$IMAGE" \
-            '.containerDefinitions[0].image = $IMAGE' \
-            ecs/task-definitions/${{ matrix.service }}.json > /tmp/task-def.json
+          echo "Inspecting task definition structure:"
+          jq '.' ecs/task-definitions/${{ matrix.service }}.json | head -20
+          
+          # Check if it's a task definition object or array
+          if jq -e '.containerDefinitions' ecs/task-definitions/${{ matrix.service }}.json > /dev/null; then
+            # Standard task definition format
+            jq --arg IMAGE "$IMAGE" \
+              '.containerDefinitions[0].image = $IMAGE' \
+              ecs/task-definitions/${{ matrix.service }}.json > /tmp/task-def.json
+          else
+            # Might be an array or different format
+            jq --arg IMAGE "$IMAGE" \
+              '.[0].image = $IMAGE' \
+              ecs/task-definitions/${{ matrix.service }}.json > /tmp/task-def.json
+          fi
 
       - name: Deploy to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
