@@ -25,6 +25,12 @@ variable "frontend_bucket_arn" {
   type        = string
 }
 
+variable "jwt_secret_arn" {
+  description = "ARN of JWT secret in Secrets Manager for auth service"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Additional tags to apply to all IAM roles"
   type        = map(string)

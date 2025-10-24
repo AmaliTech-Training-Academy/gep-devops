@@ -42,15 +42,17 @@ locals {
       min_capacity  = var.environment == "dev" ? 1 : 2
       max_capacity  = var.environment == "dev" ? 2 : 4
     }
-    event = {
-      name          = "event-service"
-      port          = 8082
-      cpu           = var.environment == "dev" ? 256 : 512
-      memory        = var.environment == "dev" ? 512 : 1024
-      desired_count = var.environment == "dev" ? 1 : 2
-      min_capacity  = var.environment == "dev" ? 1 : 2
-      max_capacity  = var.environment == "dev" ? 2 : 4
-    }
+    # TEMPORARILY DISABLED: Event service not yet ready
+    # Uncomment when developers are ready to deploy
+    # event = {
+    #   name          = "event-service"
+    #   port          = 8082
+    #   cpu           = var.environment == "dev" ? 256 : 512
+    #   memory        = var.environment == "dev" ? 512 : 1024
+    #   desired_count = var.environment == "dev" ? 1 : 2
+    #   min_capacity  = var.environment == "dev" ? 1 : 2
+    #   max_capacity  = var.environment == "dev" ? 2 : 4
+    # }
     # TEMPORARILY DISABLED: Booking service not yet ready
     # Uncomment when developers are ready to deploy
     # booking = {
@@ -257,7 +259,9 @@ resource "aws_ecs_task_definition" "services" {
         {
           name  = "EVENT_SERVICE_URL"
           value = "http://event-service.${var.service_discovery_namespace}:8082"
-        },
+        }
+      ],
+      [
         # TEMPORARILY DISABLED: Service URLs for services not yet deployed
         # Uncomment when booking, payment, and notification services are ready
         # {
@@ -272,7 +276,18 @@ resource "aws_ecs_task_definition" "services" {
         #   name  = "NOTIFICATION_SERVICE_URL"
         #   value = "http://notification-service.${var.service_discovery_namespace}:8085"
         # }
+        # JWT configuration for auth service
       ],
+      each.key == "auth" ? [
+        {
+          name  = "JWT_ACCESS_EXPIRATION"
+          value = tostring(var.jwt_access_expiration)
+        },
+        {
+          name  = "JWT_REFRESH_EXPIRATION"
+          value = tostring(var.jwt_refresh_expiration)
+        }
+      ] : [],
       # SQS configuration - only for services that need it
       each.key == "auth" ? [
         {
@@ -338,28 +353,38 @@ resource "aws_ecs_task_definition" "services" {
       ] : []
       )
 
-      secrets = lookup(var.db_secret_arns, each.value.name, null) != null ? [
-        {
-          name      = "DB_HOST"
-          valueFrom = "${var.db_secret_arns[each.value.name]}:host::"
-        },
-        {
-          name      = "DB_PORT"
-          valueFrom = "${var.db_secret_arns[each.value.name]}:port::"
-        },
-        {
-          name      = "DB_NAME"
-          valueFrom = "${var.db_secret_arns[each.value.name]}:dbname::"
-        },
-        {
-          name      = "DB_USERNAME"
-          valueFrom = "${var.db_secret_arns[each.value.name]}:username::"
-        },
-        {
-          name      = "DB_PASSWORD"
-          valueFrom = "${var.db_secret_arns[each.value.name]}:password::"
-        }
-      ] : []
+      secrets = concat(
+        # Database secrets - Spring Boot standard properties
+        lookup(var.db_secret_arns, each.value.name, null) != null ? [
+          {
+            name      = "SPRING_DATASOURCE_URL"
+            valueFrom = "${var.db_secret_arns[each.value.name]}:url::"
+          },
+          {
+            name      = "SPRING_DATASOURCE_USERNAME"
+            valueFrom = "${var.db_secret_arns[each.value.name]}:username::"
+          },
+          {
+            name      = "SPRING_DATASOURCE_PASSWORD"
+            valueFrom = "${var.db_secret_arns[each.value.name]}:password::"
+          },
+          {
+            name      = "AUTH_SERVICE_DB_URL"
+            valueFrom = "${var.db_secret_arns[each.value.name]}:url::"
+          },
+          {
+            name      = "EVENT_SERVICE_DB_URL"
+            valueFrom = "${var.db_secret_arns[each.value.name]}:url::"
+          }
+        ] : [],
+        # JWT secret for auth service
+        each.key == "auth" && var.jwt_secret_arn != null ? [
+          {
+            name      = "JWT_SECRET"
+            valueFrom = "${var.jwt_secret_arn}:JWT_SECRET::"
+          }
+        ] : []
+      )
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -375,7 +400,7 @@ resource "aws_ecs_task_definition" "services" {
         interval    = 30
         timeout     = 5
         retries     = 3
-        startPeriod = 60
+        startPeriod = 120
       }
     }
   ])
@@ -468,8 +493,8 @@ resource "aws_ecs_service" "services" {
   enable_ecs_managed_tags = true
   propagate_tags          = "SERVICE"
 
-  # Health check grace period
-  health_check_grace_period_seconds = 60
+  # Health check grace period (allow time for Spring Boot startup)
+  health_check_grace_period_seconds = 180
 
   tags = merge(
     local.common_tags,

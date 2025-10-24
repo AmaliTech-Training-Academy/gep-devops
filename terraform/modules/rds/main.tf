@@ -43,13 +43,15 @@ locals {
       read_replica_count   = var.create_read_replicas ? 2 : 0
       port                 = 5432
     }
-    event = {
-      instance_class        = var.event_db_instance_class
-      allocated_storage     = var.event_db_allocated_storage
-      max_allocated_storage = var.event_db_max_allocated_storage
-      read_replica_count    = var.create_read_replicas ? 2 : 0
-      port                  = 5432
-    }
+    # TEMPORARILY DISABLED: Event database not needed yet
+    # Uncomment when event service is ready to deploy
+    # event = {
+    #   instance_class        = var.event_db_instance_class
+    #   allocated_storage     = var.event_db_allocated_storage
+    #   max_allocated_storage = var.event_db_max_allocated_storage
+    #   read_replica_count    = var.create_read_replicas ? 2 : 0
+    #   port                  = 5432
+    # }
     # TEMPORARILY DISABLED: Booking database not needed yet
     # Uncomment when booking service is ready to deploy
     # booking = {
@@ -187,6 +189,7 @@ resource "aws_secretsmanager_secret_version" "db_credentials" {
     host     = aws_db_instance.primary[each.key].address
     port     = each.value.port
     dbname   = "${each.key}db"
+    url      = "jdbc:postgresql://${aws_db_instance.primary[each.key].address}:${each.value.port}/${each.key}db"
   })
 }
 

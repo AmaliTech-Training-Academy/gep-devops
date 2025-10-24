@@ -228,6 +228,16 @@ output "acm_alb_validation_records" {
 }
 
 # ==============================================================================
+# Secrets Manager Outputs
+# ==============================================================================
+
+output "jwt_secret_arn" {
+  description = "ARN of JWT secret in Secrets Manager"
+  value       = module.secrets_manager.jwt_secret_arn
+  sensitive   = true
+}
+
+# ==============================================================================
 # Application URLs
 # ==============================================================================
 
@@ -271,8 +281,8 @@ output "next_steps" {
     
      Services Deployed (Cost-Optimized):
     - VPC with networking
-    - ECS Fargate cluster with 2 microservices (auth, event)
-    - RDS PostgreSQL databases (2: auth, event)
+    - ECS Fargate cluster with 1 microservice (auth only)
+    - RDS PostgreSQL database (1: auth only)
     - ElastiCache Redis
     - Application Load Balancer
     - S3 + CloudFront
@@ -280,9 +290,9 @@ output "next_steps" {
     - SQS/SNS messaging
     - CloudWatch monitoring
     
-     Services Temporarily Disabled (Cost Savings: ~$93/month):
-    - ECS: booking, payment, notification services
-    - RDS: booking, payment databases
+     Services Temporarily Disabled (Cost Savings: ~$108/month):
+    - ECS: event, booking, payment, notification services
+    - RDS: event, booking, payment databases
     - DocumentDB cluster
     
     See COST_OPTIMIZATION_CHANGES.md for re-enable instructions

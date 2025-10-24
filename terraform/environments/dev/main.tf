@@ -196,6 +196,20 @@ module "s3" {
 }
 
 # ==============================================================================
+# Secrets Manager Module - JWT Secret
+# ==============================================================================
+
+module "secrets_manager" {
+  source = "../../modules/secrets-manager"
+
+  project_name              = var.project_name
+  environment               = var.environment
+  recovery_window_in_days   = 7
+
+  tags = local.common_tags
+}
+
+# ==============================================================================
 # IAM Module
 # ==============================================================================
 
@@ -210,6 +224,8 @@ module "iam" {
   db_secrets_arns = [
     "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/*"
   ]
+
+  jwt_secret_arn = module.secrets_manager.jwt_secret_arn
 
   tags = local.common_tags
 }
@@ -690,6 +706,11 @@ module "ecs" {
   # Uncomment when DocumentDB module is re-enabled
   docdb_endpoint = "localhost" # Placeholder - DocumentDB disabled for cost savings
   # docdb_endpoint = module.documentdb.cluster_endpoint
+
+  # JWT configuration for auth service
+  jwt_secret_arn         = module.secrets_manager.jwt_secret_arn
+  jwt_access_expiration  = var.jwt_access_expiration
+  jwt_refresh_expiration = var.jwt_refresh_expiration
 
   sqs_queue_urls  = module.sqs-sns.queue_urls
   sqs_queue_names = module.sqs-sns.queue_names

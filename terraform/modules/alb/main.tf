@@ -36,42 +36,47 @@ terraform {
 
 locals {
   # Microservices configuration
+  # Backend uses /api/v1/* pattern (versioned API)
   services = {
     auth = {
       name              = "auth-service"
       port              = 8081
-      path_pattern      = "/api/auth/*"
+      path_pattern      = "/api/v1/auth/*"
       health_check_path = "/actuator/health"
       priority          = 100
     }
-    event = {
-      name              = "event-service"
-      port              = 8082
-      path_pattern      = "/api/events/*"
-      health_check_path = "/actuator/health"
-      priority          = 200
-    }
-    booking = {
-      name              = "booking-service"
-      port              = 8083
-      path_pattern      = "/api/bookings/*"
-      health_check_path = "/actuator/health"
-      priority          = 300
-    }
-    payment = {
-      name              = "payment-service"
-      port              = 8084
-      path_pattern      = "/api/payments/*"
-      health_check_path = "/actuator/health"
-      priority          = 400
-    }
-    notification = {
-      name              = "notification-service"
-      port              = 8085
-      path_pattern      = "/api/notifications/*"
-      health_check_path = "/actuator/health"
-      priority          = 500
-    }
+    # TEMPORARILY DISABLED: Event service not yet ready
+    # event = {
+    #   name              = "event-service"
+    #   port              = 8082
+    #   path_pattern      = "/api/v1/events/*"
+    #   health_check_path = "/actuator/health"
+    #   priority          = 200
+    # }
+    # TEMPORARILY DISABLED: Booking service not yet ready
+    # booking = {
+    #   name              = "booking-service"
+    #   port              = 8083
+    #   path_pattern      = "/api/v1/bookings/*"
+    #   health_check_path = "/actuator/health"
+    #   priority          = 300
+    # }
+    # TEMPORARILY DISABLED: Payment service not yet ready
+    # payment = {
+    #   name              = "payment-service"
+    #   port              = 8084
+    #   path_pattern      = "/api/v1/payments/*"
+    #   health_check_path = "/actuator/health"
+    #   priority          = 400
+    # }
+    # TEMPORARILY DISABLED: Notification service not yet ready
+    # notification = {
+    #   name              = "notification-service"
+    #   port              = 8085
+    #   path_pattern      = "/api/v1/notifications/*"
+    #   health_check_path = "/actuator/health"
+    #   priority          = 500
+    # }
   }
 
   common_tags = merge(

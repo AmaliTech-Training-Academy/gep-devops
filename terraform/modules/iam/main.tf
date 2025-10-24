@@ -57,7 +57,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Policy for Secrets Manager access
+# Policy for Secrets Manager access (DB secrets + JWT secret)
 resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
   name_prefix = "secrets-access-"
   role        = aws_iam_role.ecs_task_execution.id
@@ -70,7 +70,10 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
         Action = [
           "secretsmanager:GetSecretValue"
         ]
-        Resource = var.db_secrets_arns
+        Resource = concat(
+          var.db_secrets_arns,
+          var.jwt_secret_arn != null ? [var.jwt_secret_arn] : []
+        )
       }
     ]
   })

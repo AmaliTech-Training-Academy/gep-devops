@@ -101,6 +101,24 @@ variable "docdb_endpoint" {
   type        = string
 }
 
+variable "jwt_secret_arn" {
+  description = "ARN of JWT secret in Secrets Manager for auth service"
+  type        = string
+  default     = null
+}
+
+variable "jwt_access_expiration" {
+  description = "JWT access token expiration time in milliseconds"
+  type        = number
+  default     = 3600000  # 1 hour
+}
+
+variable "jwt_refresh_expiration" {
+  description = "JWT refresh token expiration time in milliseconds"
+  type        = number
+  default     = 86400000  # 24 hours
+}
+
 variable "sqs_queue_urls" {
   description = "Map of SQS queue URLs"
   type        = map(string)

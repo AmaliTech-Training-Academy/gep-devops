@@ -121,6 +121,22 @@ variable "enable_flow_logs" {
 }
 
 # ==============================================================================
+# JWT Configuration
+# ==============================================================================
+
+variable "jwt_access_expiration" {
+  description = "JWT access token expiration time in milliseconds (default: 3600000 = 1 hour)"
+  type        = number
+  default     = 3600000
+}
+
+variable "jwt_refresh_expiration" {
+  description = "JWT refresh token expiration time in milliseconds (default: 86400000 = 24 hours)"
+  type        = number
+  default     = 86400000
+}
+
+# ==============================================================================
 # Resource Tagging
 # ==============================================================================
 
