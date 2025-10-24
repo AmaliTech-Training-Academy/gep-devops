@@ -14,7 +14,7 @@ on:
       services:
         description: 'Services to deploy (JSON array)'
         required: false
-        default: '["auth-service", "booking-service", "event-service", "notification-service", "payment-service"]'
+        default: '["user-service", "event-service", "notification-service", "gateway-service"]'
 
 env:
   ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
@@ -29,10 +29,25 @@ jobs:
     outputs:
       services: ${{ steps.services.outputs.matrix }}
     steps:
-    - name: Parse services
+    - name: Checkout Backend Code
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ env.BACKEND_REPO }}
+        ref: ${{ env.COMMIT_SHA }}
+        token: ${{ secrets.BACKEND_REPO_TOKEN }}
+      if: github.event_name == 'repository_dispatch'
+
+    - name: Discover Available Services
       id: services
       run: |
-        echo "matrix=${{ env.SERVICES_TO_DEPLOY }}" >> $GITHUB_OUTPUT
+        if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+          # Get services from backend repo directories
+          AVAILABLE_SERVICES=$(find . -maxdepth 1 -type d -name "*-service" | sed 's|./||' | jq -R -s -c 'split("\n")[:-1]')
+          echo "matrix=$AVAILABLE_SERVICES" >> $GITHUB_OUTPUT
+        else
+          # Use provided services for manual dispatch
+          echo "matrix=${{ env.SERVICES_TO_DEPLOY }}" >> $GITHUB_OUTPUT
+        fi
 
   build-and-test:
     needs: prepare
