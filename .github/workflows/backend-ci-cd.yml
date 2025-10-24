@@ -163,9 +163,43 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Check Service Status
+        run: |
+          SERVICE_NAME="${{ matrix.service }}"
+          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
+          
+          echo "🔍 Checking if service $SERVICE_NAME exists in cluster $CLUSTER_NAME"
+          
+          # Check if service exists and get its status
+          SERVICE_STATUS=$(aws ecs describe-services \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].status' \
+            --output text 2>/dev/null || echo "NOT_FOUND")
+          
+          echo "Service status: $SERVICE_STATUS"
+          
+          if [ "$SERVICE_STATUS" = "NOT_FOUND" ] || [ "$SERVICE_STATUS" = "None" ]; then
+            echo "❌ Service $SERVICE_NAME not found in cluster $CLUSTER_NAME"
+            echo "Available services:"
+            aws ecs list-services --cluster "$CLUSTER_NAME" --region ${{ env.AWS_REGION }} --output table
+            exit 1
+          elif [ "$SERVICE_STATUS" != "ACTIVE" ]; then
+            echo "⚠️ Service $SERVICE_NAME is in $SERVICE_STATUS state, not ACTIVE"
+            echo "Service details:"
+            aws ecs describe-services \
+              --cluster "$CLUSTER_NAME" \
+              --services "$SERVICE_NAME" \
+              --region ${{ env.AWS_REGION }} \
+              --output table
+            exit 1
+          fi
+          
+          echo "✅ Service $SERVICE_NAME is ACTIVE and ready for deployment"
+
       - name: Deploy to ECS (Force New Deployment)
         run: |
-          # Terraform-managed service names
           SERVICE_NAME="${{ matrix.service }}"
           CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
           
