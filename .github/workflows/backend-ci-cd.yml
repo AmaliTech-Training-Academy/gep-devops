@@ -75,6 +75,16 @@ jobs:
           ref: ${{ env.COMMIT_SHA }}
           token: ${{ secrets.BACKEND_REPO_TOKEN }}
 
+      - name: Verify Java Environment
+        run: |
+          echo "Java version:"
+          java --version
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "Maven version:"
+          mvn --version
+          export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
+          echo "Updated JAVA_HOME: $JAVA_HOME"
+
       - name: Debug Service Path
         run: |
           echo "Processing service: ${{ matrix.service }}"
@@ -84,6 +94,7 @@ jobs:
 
       - name: Build and Test Service
         run: |
+          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
           export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository"
           cd services/${{ matrix.service }}
           mvn clean package -DskipTests
