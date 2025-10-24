@@ -8,13 +8,17 @@ on:
       environment:
         description: 'Environment to deploy'
         required: true
-        default: 'dev'
+        default: dev
         type: choice
-        options: [dev, staging, prod]
+        options:
+          - dev
+          - staging
+          - prod
       services:
         description: 'Services to deploy (JSON array)'
         required: false
         default: '["auth-service", "notification-service"]'
+        type: string
 
 env:
   ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
