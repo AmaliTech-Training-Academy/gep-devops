@@ -490,9 +490,9 @@ resource "aws_ecs_service" "services" {
   launch_type      = "FARGATE"
   platform_version = "LATEST"
 
-  # Network configuration
+  # Network configuration - Deploy in first AZ only for dev cost optimization
   network_configuration {
-    subnets          = var.private_subnet_ids
+    subnets          = [var.private_subnet_ids[0]]
     security_groups  = [var.ecs_security_group_id]
     assign_public_ip = false
   }
