@@ -40,7 +40,7 @@ terraform {
   backend "s3" {
     # S3 bucket name for state storage (created by bootstrap module)
     # Format: {project}-terraform-state-{region}-{account-id}
-    bucket = "event-planner-terraform-state-eu-west-1-904570587823"
+    
 
     # Path within the bucket where this environment's state will be stored
     # Each environment (dev/prod) has its own state file
@@ -51,7 +51,7 @@ terraform {
 
     # DynamoDB table for state locking (prevents concurrent modifications)
     # Format: {project}-terraform-locks
-    dynamodb_table = "event-planner-terraform-locks"
+ 
 
     # Enable server-side encryption for state file at rest
     # Uses AWS-managed keys (SSE-S3)
@@ -60,7 +60,6 @@ terraform {
     # Note: Sensitive credentials (AWS access keys) are configured via:
     # - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
     # - AWS CLI profiles (aws configure)
-    # - Add the key values
 
   }
 }
