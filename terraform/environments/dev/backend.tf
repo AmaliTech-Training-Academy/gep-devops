@@ -60,6 +60,7 @@ terraform {
     # Note: Sensitive credentials (AWS access keys) are configured via:
     # - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
     # - AWS CLI profiles (aws configure)
+    # - Add the key values
 
   }
 }
