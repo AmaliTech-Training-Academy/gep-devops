@@ -242,11 +242,11 @@ resource "aws_cloudfront_distribution" "main" {
   #   cloudfront_default_certificate = var.acm_certificate_arn == "" ? true : false
   # }
   viewer_certificate {
-  acm_certificate_arn            = var.acm_certificate_arn
-  ssl_support_method             = var.acm_certificate_arn != "" ? "sni-only" : null
-  minimum_protocol_version       = var.acm_certificate_arn != "" ? "TLSv1.2_2021" : "TLSv1"
-  cloudfront_default_certificate = var.acm_certificate_arn == "" ? true : false
-}
+    acm_certificate_arn            = var.acm_certificate_arn
+    ssl_support_method             = var.acm_certificate_arn != "" ? "sni-only" : null
+    minimum_protocol_version       = var.acm_certificate_arn != "" ? "TLSv1.2_2021" : "TLSv1"
+    cloudfront_default_certificate = var.acm_certificate_arn == "" ? true : false
+  }
 
   # Geo restrictions
   restrictions {

@@ -384,6 +384,44 @@ resource "aws_vpc_endpoint" "ssm" {
   )
 }
 
+# SQS Interface Endpoint (for message queues)
+resource "aws_vpc_endpoint" "sqs" {
+  count = var.enable_vpc_endpoints ? 1 : 0
+
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.sqs"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private_app[0].id]
+  security_group_ids  = [aws_security_group.vpc_endpoints[0].id]
+  private_dns_enabled = true
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-sqs-endpoint"
+    }
+  )
+}
+
+# SNS Interface Endpoint (for pub/sub messaging)
+resource "aws_vpc_endpoint" "sns" {
+  count = var.enable_vpc_endpoints ? 1 : 0
+
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.sns"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private_app[0].id]
+  security_group_ids  = [aws_security_group.vpc_endpoints[0].id]
+  private_dns_enabled = true
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-sns-endpoint"
+    }
+  )
+}
+
 # ==============================================================================
 # Security Group for VPC Endpoints
 # ==============================================================================

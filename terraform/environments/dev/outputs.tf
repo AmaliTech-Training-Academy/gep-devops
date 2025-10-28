@@ -47,7 +47,6 @@ output "security_groups" {
     alb         = module.security_groups.alb_security_group_id
     ecs         = module.security_groups.ecs_security_group_id
     rds         = module.security_groups.rds_security_group_id
-    documentdb  = module.security_groups.documentdb_security_group_id
     elasticache = module.security_groups.elasticache_security_group_id
   }
 }
@@ -206,6 +205,11 @@ output "cloudwatch_sns_topic_arn" {
 output "cloudwatch_dashboard_name" {
   description = "CloudWatch dashboard name"
   value       = module.cloudwatch.dashboard_name
+}
+
+output "auth_service_dashboard_name" {
+  description = "Auth service CloudWatch dashboard name"
+  value       = module.cloudwatch_dashboards.auth_service_dashboard_name
 }
 
 # ==============================================================================

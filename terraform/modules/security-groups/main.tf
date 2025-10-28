@@ -180,21 +180,6 @@ resource "aws_vpc_security_group_egress_rule" "ecs_to_rds" {
   }
 }
 
-# Allow outbound to DocumentDB
-resource "aws_vpc_security_group_egress_rule" "ecs_to_documentdb" {
-  security_group_id = aws_security_group.ecs.id
-  description       = "Allow MongoDB to DocumentDB"
-
-  from_port                    = 27017
-  to_port                      = 27017
-  ip_protocol                  = "tcp"
-  referenced_security_group_id = aws_security_group.documentdb.id
-
-  tags = {
-    Name = "allow-mongodb-to-documentdb"
-  }
-}
-
 # Allow outbound to ElastiCache
 resource "aws_vpc_security_group_egress_rule" "ecs_to_elasticache" {
   security_group_id = aws_security_group.ecs.id
@@ -265,41 +250,40 @@ resource "aws_vpc_security_group_ingress_rule" "rds_from_ecs" {
 # No outbound rules (databases don't initiate connections)
 
 # ==============================================================================
-# DocumentDB Security Group
+# DocumentDB Security Group - COMMENTED OUT (using PostgreSQL JSONB instead)
 # ==============================================================================
+# Uncomment if DocumentDB is needed in the future
 
-# Security group for DocumentDB cluster
-resource "aws_security_group" "documentdb" {
-  name_prefix = "${var.project_name}-${var.environment}-documentdb-"
-  description = "Security group for DocumentDB cluster"
-  vpc_id      = var.vpc_id
-
-  tags = merge(
-    local.common_tags,
-    {
-      Name = "${var.project_name}-${var.environment}-documentdb-sg"
-    }
-  )
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Allow MongoDB from ECS only
-resource "aws_vpc_security_group_ingress_rule" "documentdb_from_ecs" {
-  security_group_id = aws_security_group.documentdb.id
-  description       = "Allow MongoDB from ECS tasks"
-
-  from_port                    = 27017
-  to_port                      = 27017
-  ip_protocol                  = "tcp"
-  referenced_security_group_id = aws_security_group.ecs.id
-
-  tags = {
-    Name = "allow-mongodb-from-ecs"
-  }
-}
+# resource "aws_security_group" "documentdb" {
+#   name_prefix = "${var.project_name}-${var.environment}-documentdb-"
+#   description = "Security group for DocumentDB cluster"
+#   vpc_id      = var.vpc_id
+#
+#   tags = merge(
+#     local.common_tags,
+#     {
+#       Name = "${var.project_name}-${var.environment}-documentdb-sg"
+#     }
+#   )
+#
+#   lifecycle {
+#     create_before_destroy = true
+#   }
+# }
+#
+# resource "aws_vpc_security_group_ingress_rule" "documentdb_from_ecs" {
+#   security_group_id = aws_security_group.documentdb.id
+#   description       = "Allow MongoDB from ECS tasks"
+#
+#   from_port                    = 27017
+#   to_port                      = 27017
+#   ip_protocol                  = "tcp"
+#   referenced_security_group_id = aws_security_group.ecs.id
+#
+#   tags = {
+#     Name = "allow-mongodb-from-ecs"
+#   }
+# }
 
 # ==============================================================================
 # ElastiCache Security Group

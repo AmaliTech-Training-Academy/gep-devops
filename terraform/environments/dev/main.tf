@@ -90,6 +90,8 @@ locals {
   )
 }
 
+
+
 # ==============================================================================
 # VPC Module
 # ==============================================================================
@@ -205,8 +207,6 @@ module "secrets_manager" {
   project_name            = var.project_name
   environment             = var.environment
   recovery_window_in_days = 7
-  aws_access_key_id       = var.aws_access_key_id
-  aws_secret_access_key   = var.aws_secret_access_key
 
   tags = local.common_tags
 }
@@ -422,6 +422,25 @@ module "cloudwatch" {
 }
 
 # ==============================================================================
+# CloudWatch Service Dashboards Module
+# ==============================================================================
+
+module "cloudwatch_dashboards" {
+  source = "../../modules/cloudwatch-dashboards"
+
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+
+  ecs_cluster_name             = module.ecs.cluster_name
+  auth_target_group_arn_suffix = module.alb.target_group_arn_suffixes["auth"]
+  auth_db_instance_id          = module.rds.primary_instance_ids["auth"]
+  elasticache_cluster_id       = module.elasticache.replication_group_id
+
+  tags = local.common_tags
+}
+
+# ==============================================================================
 # ECR Module
 # ==============================================================================
 
@@ -458,24 +477,27 @@ module "rds" {
   subnet_ids        = module.vpc.private_data_subnet_ids
   security_group_id = module.security_groups.rds_security_group_id
 
-  # Dev: Burstable t3.micro instances
-  auth_db_instance_class        = "db.t3.micro"
+  # Auth DB - Currently running (upgraded to t3.medium)
+  auth_db_instance_class        = "db.t3.medium"
   auth_db_allocated_storage     = 20
   auth_db_max_allocated_storage = 100
 
-  event_db_instance_class        = "db.t3.micro"
-  event_db_allocated_storage     = 20
-  event_db_max_allocated_storage = 100
+  # Event DB - Not created yet
+  # event_db_instance_class        = "db.t3.micro"
+  # event_db_allocated_storage     = 20
+  # event_db_max_allocated_storage = 100
 
-  booking_db_instance_class        = "db.t3.micro"
-  booking_db_allocated_storage     = 20
-  booking_db_max_allocated_storage = 100
+  # Booking DB - Not created yet
+  # booking_db_instance_class        = "db.t3.micro"
+  # booking_db_allocated_storage     = 20
+  # booking_db_max_allocated_storage = 100
 
-  payment_db_instance_class        = "db.t3.micro"
-  payment_db_allocated_storage     = 20
-  payment_db_max_allocated_storage = 100
+  # Payment DB - Not created yet
+  # payment_db_instance_class        = "db.t3.micro"
+  # payment_db_allocated_storage     = 20
+  # payment_db_max_allocated_storage = 100
 
-  postgres_version = "15.7"
+  postgres_version = "15.12"
   postgres_family  = "postgres15"
   master_username  = "dbadmin"
   max_connections  = "100"
@@ -513,63 +535,7 @@ module "rds" {
   tags = local.common_tags
 }
 
-# ==============================================================================
-# DocumentDB Module - TEMPORARILY DISABLED FOR COST SAVINGS
-# ==============================================================================
-# DocumentDB is used for audit logs but not yet needed by developers.
-# Cost savings: ~$60/month (db.t3.medium instance)
-#
-# TO RE-ENABLE:
-# 1. Uncomment the entire module block below
-# 2. Uncomment the docdb_endpoint reference in the ECS module call
-# 3. Run: terraform plan && terraform apply
-# ==============================================================================
 
-# module "documentdb" {
-#   source = "../../modules/documentdb"
-#
-#   project_name      = var.project_name
-#   environment       = var.environment
-#   subnet_ids        = module.vpc.private_data_subnet_ids
-#   security_group_id = module.security_groups.documentdb_security_group_id
-#
-#   engine_version = "5.0.0"
-#   docdb_family   = "docdb5.0"
-#   port           = 27017
-#   instance_class = "db.t3.medium"
-#   replica_count  = 0 # Dev: No replicas
-#
-#   master_username = "docdbadmin"
-#
-#   backup_retention_days = 7
-#   backup_window         = "03:00-04:00"
-#   maintenance_window    = "sun:04:00-sun:05:00"
-#   skip_final_snapshot   = true
-#
-#   kms_key_arn = null
-#
-#   tls_enabled                 = true
-#   deletion_protection         = false
-#   secret_recovery_window_days = 7
-#
-#   audit_logs_enabled    = true
-#   ttl_monitor_enabled   = true
-#   profiler_enabled      = true
-#   profiler_threshold_ms = "100"
-#
-#   enabled_cloudwatch_logs_exports = ["audit", "profiler"]
-#   enable_performance_insights     = false
-#
-#   cpu_alarm_threshold           = 80
-#   connections_alarm_threshold   = 100
-#   storage_alarm_threshold_bytes = 10737418240
-#   alarm_actions                 = [module.cloudwatch.sns_topic_arn]
-#
-#   apply_immediately          = true
-#   auto_minor_version_upgrade = true
-#
-#   tags = local.common_tags
-# }
 
 # ==============================================================================
 # ElastiCache Module
@@ -704,12 +670,7 @@ module "ecs" {
 
   db_secret_arns = module.rds.secret_arns
   redis_endpoint = module.elasticache.primary_endpoint_address
-  # TEMPORARILY DISABLED: DocumentDB not deployed yet
-  # Uncomment when DocumentDB module is re-enabled
-  docdb_endpoint = "localhost" # Placeholder - DocumentDB disabled for cost savings
-  # docdb_endpoint = module.documentdb.cluster_endpoint
 
-  # JWT configuration for auth service
   jwt_secret_arn         = module.secrets_manager.jwt_secret_arn
   jwt_access_expiration  = var.jwt_access_expiration
   jwt_refresh_expiration = var.jwt_refresh_expiration
@@ -730,8 +691,6 @@ module "ecs" {
   memory_target_value = 75
   scale_in_cooldown   = 300
   scale_out_cooldown  = 60
-
-  aws_credentials_secret_arn = module.secrets_manager.aws_credentials_secret_arn
 
   tags = local.common_tags
 }

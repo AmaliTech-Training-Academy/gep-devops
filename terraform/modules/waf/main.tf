@@ -5,7 +5,7 @@
 
 terraform {
   required_version = ">= 1.5.0"
-  
+
   required_providers {
     aws = {
       source                = "hashicorp/aws"
@@ -207,7 +207,7 @@ resource "aws_wafv2_web_acl" "alb" {
     action {
       block {
         custom_response {
-          response_code = 429
+          response_code            = 429
           custom_response_body_key = "rate_limit_response"
         }
       }
@@ -229,8 +229,8 @@ resource "aws_wafv2_web_acl" "alb" {
 
   # Custom response body for rate limiting
   custom_response_body {
-    key          = "rate_limit_response"
-    content      = jsonencode({
+    key = "rate_limit_response"
+    content = jsonencode({
       error   = "Too Many Requests"
       message = "Rate limit exceeded. Please try again later."
     })

@@ -7,8 +7,8 @@ output "primary_endpoints" {
   value = {
     for db, config in local.databases :
     db => {
-      address = aws_db_instance.primary[db].address
-      port    = aws_db_instance.primary[db].port
+      address  = aws_db_instance.primary[db].address
+      port     = aws_db_instance.primary[db].port
       endpoint = aws_db_instance.primary[db].endpoint
     }
   }

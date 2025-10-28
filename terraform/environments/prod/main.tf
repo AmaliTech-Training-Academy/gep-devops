@@ -126,25 +126,25 @@ module "s3" {
   project_name = var.project_name
   environment  = var.environment
 
-  account_id                  = data.aws_caller_identity.current.account_id
+  account_id = data.aws_caller_identity.current.account_id
 
   cloudfront_distribution_arn = "" # Will update after CloudFront
 
-  enable_versioning          = false
+  enable_versioning = false
 
-  enable_lifecycle_rules     = true
+  enable_lifecycle_rules = true
 
-  transition_to_ia_days      = 90
+  transition_to_ia_days = 90
 
   transition_to_glacier_days = 180
 
-  enable_cors          = true
+  enable_cors = true
 
   cors_allowed_origins = ["*"] # Phase 1 - open CORS
 
   enable_access_logging = true
 
-  logs_expiration_days  = 90
+  logs_expiration_days = 90
 
   backup_retention_days = 365
 
@@ -502,7 +502,7 @@ module "elasticache" {
 
   maxmemory_policy = "allkeys-lru"
   timeout          = "300"
- # appendonly       = false
+  # appendonly       = false
 
   slow_log_destination        = null
   slow_log_destination_type   = "cloudwatch-logs"

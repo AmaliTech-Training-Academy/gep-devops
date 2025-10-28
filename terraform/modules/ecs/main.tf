@@ -38,9 +38,9 @@ locals {
       port          = 8081
       cpu           = var.environment == "dev" ? 256 : 512
       memory        = var.environment == "dev" ? 512 : 1024
-      desired_count = var.environment == "dev" ? 1 : 2
-      min_capacity  = var.environment == "dev" ? 1 : 2
-      max_capacity  = var.environment == "dev" ? 2 : 4
+      desired_count = 1
+      min_capacity  = 1
+      max_capacity  = 1
     }
     # TEMPORARILY DISABLED: Event service not yet ready
     # Uncomment when developers are ready to deploy
@@ -245,10 +245,6 @@ resource "aws_ecs_task_definition" "services" {
           value = "true"
         },
         {
-          name  = "MANAGEMENT_HEALTH_MONGO_ENABLED"
-          value = "false"
-        },
-        {
           name  = "SERVICE_DISCOVERY_NAMESPACE"
           value = var.service_discovery_namespace
         },
@@ -260,123 +256,112 @@ resource "aws_ecs_task_definition" "services" {
           name  = "EVENT_SERVICE_URL"
           value = "http://event-service.${var.service_discovery_namespace}:8082"
         }
-      ],
-      [
-        # TEMPORARILY DISABLED: Service URLs for services not yet deployed
-        # Uncomment when booking, payment, and notification services are ready
-        # {
-        #   name  = "BOOKING_SERVICE_URL"
-        #   value = "http://booking-service.${var.service_discovery_namespace}:8083"
-        # },
-        # {
-        #   name  = "PAYMENT_SERVICE_URL"
-        #   value = "http://payment-service.${var.service_discovery_namespace}:8084"
-        # },
-        # {
-        #   name  = "NOTIFICATION_SERVICE_URL"
-        #   value = "http://notification-service.${var.service_discovery_namespace}:8085"
-        # }
-        # JWT configuration for auth service
-      ],
-      each.key == "auth" ? [
-        {
-          name  = "JWT_ACCESS_EXPIRATION"
-          value = tostring(var.jwt_access_expiration)
-        },
-        {
-          name  = "JWT_REFRESH_EXPIRATION"
-          value = tostring(var.jwt_refresh_expiration)
-        }
-      ] : [],
-      # SQS configuration - only for services that need it
-      each.key == "auth" ? [
-        {
-          name  = "SQS_ENDPOINT"
-          value = "https://sqs.${var.aws_region}.amazonaws.com"
-        },
-        {
-          name  = "USER_REGISTRATION_QUEUE_NAME"
-          value = lookup(var.sqs_queue_names, "user_registration", "")
-        },
-        {
-          name  = "USER_LOGIN_QUEUE_NAME"
-          value = lookup(var.sqs_queue_names, "user_login", "")
-        },
-        {
-          name  = "USER_REGISTRATION_QUEUE"
-          value = lookup(var.sqs_queue_urls, "user_registration", "")
-        },
-        {
-          name  = "USER_LOGIN_QUEUE"
-          value = lookup(var.sqs_queue_urls, "user_login", "")
-        },
-        {
-          name  = "PASSWORD_RESET_QUEUE"
-          value = lookup(var.sqs_queue_urls, "password_reset", "")
-        }
-      ] : [],
-      each.key == "event" ? [
-        {
-          name  = "SQS_ENDPOINT"
-          value = "https://sqs.${var.aws_region}.amazonaws.com"
-        },
-        {
-          name  = "EVENT_CREATED_QUEUE_NAME"
-          value = lookup(var.sqs_queue_names, "event-created", "")
-        },
-        {
-          name  = "EVENT_UPDATED_QUEUE_NAME"
-          value = lookup(var.sqs_queue_names, "event-updated", "")
-        }
-      ] : [],
-      each.key == "booking" ? [
-        {
-          name  = "SQS_ENDPOINT"
-          value = "https://sqs.${var.aws_region}.amazonaws.com"
-        },
-        {
-          name  = "BOOKING_CREATED_QUEUE_NAME"
-          value = lookup(var.sqs_queue_names, "booking-created", "")
-        },
-        {
-          name  = "BOOKING_CANCELLED_QUEUE_NAME"
-          value = lookup(var.sqs_queue_names, "booking-cancelled", "")
-        }
-      ] : [],
-      each.key == "payment" ? [
-        {
-          name  = "SQS_ENDPOINT"
-          value = "https://sqs.${var.aws_region}.amazonaws.com"
-        },
-        {
-          name  = "PAYMENT_PROCESSED_QUEUE_NAME"
-          value = lookup(var.sqs_queue_names, "payment-processed", "")
-        }
-      ] : [],
-      each.key == "notification" ? [
-        {
-          name  = "SQS_ENDPOINT"
-          value = "https://sqs.${var.aws_region}.amazonaws.com"
-        },
-        {
-          name  = "EMAIL_QUEUE_NAME"
-          value = lookup(var.sqs_queue_names, "email-notifications", "")
-        }
-      ] : []
+        ],
+        [
+          # TEMPORARILY DISABLED: Service URLs for services not yet deployed
+          # Uncomment when booking, payment, and notification services are ready
+          # {
+          #   name  = "BOOKING_SERVICE_URL"
+          #   value = "http://booking-service.${var.service_discovery_namespace}:8083"
+          # },
+          # {
+          #   name  = "PAYMENT_SERVICE_URL"
+          #   value = "http://payment-service.${var.service_discovery_namespace}:8084"
+          # },
+          # {
+          #   name  = "NOTIFICATION_SERVICE_URL"
+          #   value = "http://notification-service.${var.service_discovery_namespace}:8085"
+          # }
+          # JWT configuration for auth service
+        ],
+        each.key == "auth" ? [
+          {
+            name  = "JWT_ACCESS_EXPIRATION"
+            value = tostring(var.jwt_access_expiration)
+          },
+          {
+            name  = "JWT_REFRESH_EXPIRATION"
+            value = tostring(var.jwt_refresh_expiration)
+          }
+        ] : [],
+        # SQS configuration - only for services that need it
+        each.key == "auth" ? [
+          {
+            name  = "SQS_ENDPOINT"
+            value = "https://sqs.${var.aws_region}.amazonaws.com"
+          },
+          {
+            name  = "USER_REGISTRATION_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "user_registration", "")
+          },
+          {
+            name  = "USER_LOGIN_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "user_login", "")
+          },
+          {
+            name  = "USER_REGISTRATION_QUEUE"
+            value = lookup(var.sqs_queue_urls, "user_registration", "")
+          },
+          {
+            name  = "USER_LOGIN_QUEUE"
+            value = lookup(var.sqs_queue_urls, "user_login", "")
+          },
+          {
+            name  = "PASSWORD_RESET_QUEUE"
+            value = lookup(var.sqs_queue_urls, "password_reset", "")
+          }
+        ] : [],
+        each.key == "event" ? [
+          {
+            name  = "SQS_ENDPOINT"
+            value = "https://sqs.${var.aws_region}.amazonaws.com"
+          },
+          {
+            name  = "EVENT_CREATED_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "event-created", "")
+          },
+          {
+            name  = "EVENT_UPDATED_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "event-updated", "")
+          }
+        ] : [],
+        each.key == "booking" ? [
+          {
+            name  = "SQS_ENDPOINT"
+            value = "https://sqs.${var.aws_region}.amazonaws.com"
+          },
+          {
+            name  = "BOOKING_CREATED_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "booking-created", "")
+          },
+          {
+            name  = "BOOKING_CANCELLED_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "booking-cancelled", "")
+          }
+        ] : [],
+        each.key == "payment" ? [
+          {
+            name  = "SQS_ENDPOINT"
+            value = "https://sqs.${var.aws_region}.amazonaws.com"
+          },
+          {
+            name  = "PAYMENT_PROCESSED_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "payment-processed", "")
+          }
+        ] : [],
+        each.key == "notification" ? [
+          {
+            name  = "SQS_ENDPOINT"
+            value = "https://sqs.${var.aws_region}.amazonaws.com"
+          },
+          {
+            name  = "EMAIL_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "email-notifications", "")
+          }
+        ] : []
       )
 
       secrets = concat(
-        # AWS Credentials from Secrets Manager
-        var.aws_credentials_secret_arn != null ? [
-          {
-            name      = "AWS_ACCESS_KEY_ID"
-            valueFrom = "${var.aws_credentials_secret_arn}:AWS_ACCESS_KEY_ID::"
-          },
-          {
-            name      = "AWS_SECRET_ACCESS_KEY"
-            valueFrom = "${var.aws_credentials_secret_arn}:AWS_SECRET_ACCESS_KEY::"
-          }
-        ] : [],
         # Service-specific database credentials - use each.key (auth, event) not each.value.name (auth-service)
         each.key == "auth" && lookup(var.db_secret_arns, each.key, null) != null ? [
           {
@@ -433,7 +418,7 @@ resource "aws_ecs_task_definition" "services" {
       }
     }
   ])
-#############################################
+  #############################################
   tags = merge(
     local.common_tags,
     {

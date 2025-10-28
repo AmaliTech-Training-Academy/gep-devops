@@ -16,7 +16,7 @@ variable "environment" {
 }
 
 variable "db_secrets_arns" {
-  description = "List of ARNs for database secrets (RDS, DocumentDB, ElastiCache) that ECS tasks need to access"
+  description = "List of ARNs for database secrets (RDS) that ECS tasks need to access"
   type        = list(string)
 }
 
