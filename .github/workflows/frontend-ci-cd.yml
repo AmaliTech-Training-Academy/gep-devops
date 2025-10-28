@@ -14,8 +14,8 @@ on:
 
 env:
   ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
-  FRONTEND_REPO: ${{ github.event.client_payload.repository }}
-  COMMIT_SHA: ${{ github.event.client_payload.sha }}
+  FRONTEND_REPO: ${{ github.event.client_payload.repository || 'AmaliTech-Training-Academy/event-planner-frontend' }}
+  COMMIT_SHA: ${{ github.event.client_payload.sha || github.sha }}
 
 jobs:
   build-and-test:
@@ -77,6 +77,12 @@ jobs:
           staging) BUCKET="${{ secrets.S3_BUCKET_STAGING }}" ;;
           prod) BUCKET="${{ secrets.S3_BUCKET_PROD }}" ;;
         esac
+        
+        if [ -z "$BUCKET" ]; then
+          echo "::error::S3 bucket not configured for environment ${{ env.ENVIRONMENT }}"
+          exit 1
+        fi
+        
         aws s3 sync dist/ s3://$BUCKET --delete
 
     - name: Invalidate CloudFront
@@ -86,6 +92,12 @@ jobs:
           staging) DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_STAGING }}" ;;
           prod) DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}" ;;
         esac
+        
+        if [ -z "$DISTRIBUTION" ]; then
+          echo "::error::CloudFront distribution not configured for environment ${{ env.ENVIRONMENT }}"
+          exit 1
+        fi
+        
         aws cloudfront create-invalidation --distribution-id $DISTRIBUTION --paths "/*"
 
   notify:
@@ -104,18 +116,22 @@ jobs:
             "text": "Frontend Deployment ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Succeeded ✅' }}",
             "attachments": [{
               "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
-              "fields": [{
-                "title": "Environment",
-                "value": "${{ env.ENVIRONMENT }}",
-                "short": true
-              }, {
-                "title": "Repository",
-                "value": "event-planner-frontend",
-                "short": true
-              }, {
-                "title": "Triggered By",
-                "value": "${{ github.actor }}",
-                "short": true
-              }]
+              "fields": [
+                {
+                  "title": "Environment",
+                  "value": "${{ env.ENVIRONMENT }}",
+                  "short": true
+                },
+                {
+                  "title": "Repository",
+                  "value": "event-planner-frontend",
+                  "short": true
+                },
+                {
+                  "title": "Triggered By",
+                  "value": "${{ github.actor }}",
+                  "short": true
+                }
+              ]
             }]
           }

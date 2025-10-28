@@ -57,8 +57,13 @@ jobs:
           prod) DB_HOST="${{ secrets.DB_HOST_PROD }}" ;;
         esac
         
+        if [ -z "$DB_HOST" ]; then
+          echo "::error::Database host not configured for environment ${{ matrix.environment }}"
+          exit 1
+        fi
+        
         timeout 10 bash -c "</dev/tcp/$DB_HOST/5432" || {
-          echo "::error::Database connection failed for ${{ matrix.environment }}"
+          echo "::error::Database connection failed for ${{ matrix.environment }} (host: $DB_HOST)"
           exit 1
         }
 
