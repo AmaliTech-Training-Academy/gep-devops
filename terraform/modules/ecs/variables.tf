@@ -96,11 +96,6 @@ variable "redis_endpoint" {
   type        = string
 }
 
-variable "docdb_endpoint" {
-  description = "DocumentDB endpoint for audit logs"
-  type        = string
-}
-
 variable "jwt_secret_arn" {
   description = "ARN of JWT secret in Secrets Manager for auth service"
   type        = string
@@ -110,13 +105,13 @@ variable "jwt_secret_arn" {
 variable "jwt_access_expiration" {
   description = "JWT access token expiration time in milliseconds"
   type        = number
-  default     = 3600000  # 1 hour
+  default     = 3600000 # 1 hour
 }
 
 variable "jwt_refresh_expiration" {
   description = "JWT refresh token expiration time in milliseconds"
   type        = number
-  default     = 86400000  # 24 hours
+  default     = 86400000 # 24 hours
 }
 
 variable "sqs_queue_urls" {
@@ -223,14 +218,4 @@ variable "tags" {
   description = "Additional tags for ECS resources"
   type        = map(string)
   default     = {}
-}
-
-# ==============================================================================
-# AWS Credentials Configuration
-# ==============================================================================
-
-variable "aws_credentials_secret_arn" {
-  description = "ARN of AWS credentials secret in Secrets Manager"
-  type        = string
-  default     = null
 }

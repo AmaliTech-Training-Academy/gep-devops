@@ -37,11 +37,11 @@ locals {
   # To re-enable: Uncomment the database blocks below and run terraform apply
   databases = {
     auth = {
-      instance_class       = var.auth_db_instance_class
-      allocated_storage    = var.auth_db_allocated_storage
+      instance_class        = var.auth_db_instance_class
+      allocated_storage     = var.auth_db_allocated_storage
       max_allocated_storage = var.auth_db_max_allocated_storage
-      read_replica_count   = var.create_read_replicas ? 2 : 0
-      port                 = 5432
+      read_replica_count    = var.create_read_replicas ? 2 : 0
+      port                  = 5432
     }
     # TEMPORARILY DISABLED: Event database not needed yet
     # Uncomment when event service is ready to deploy
@@ -115,21 +115,21 @@ resource "aws_db_parameter_group" "postgres" {
 
   # Query logging (disable in prod for performance)
   parameter {
-    name  = "log_statement"
-    value = var.environment == "prod" ? "none" : "all"
+    name         = "log_statement"
+    value        = var.environment == "prod" ? "none" : "all"
     apply_method = "pending-reboot"
   }
 
   parameter {
-    name  = "log_min_duration_statement"
-    value = var.environment == "prod" ? "5000" : "1000"
+    name         = "log_min_duration_statement"
+    value        = var.environment == "prod" ? "5000" : "1000"
     apply_method = "immediate"
   }
 
   # SSL enforcement
   parameter {
-    name  = "rds.force_ssl"
-    value = "1"
+    name         = "rds.force_ssl"
+    value        = "1"
     apply_method = "pending-reboot"
   }
 
@@ -235,11 +235,11 @@ resource "aws_db_instance" "primary" {
   parameter_group_name = aws_db_parameter_group.postgres.name
 
   # Backup configuration
-  backup_retention_period = var.backup_retention_days
-  backup_window           = var.backup_window
-  maintenance_window      = var.maintenance_window
-  copy_tags_to_snapshot   = true
-  skip_final_snapshot     = var.skip_final_snapshot
+  backup_retention_period   = var.backup_retention_days
+  backup_window             = var.backup_window
+  maintenance_window        = var.maintenance_window
+  copy_tags_to_snapshot     = true
+  skip_final_snapshot       = var.skip_final_snapshot
   final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.project_name}-${var.environment}-${each.key}-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
 
   # Enable automated backups
@@ -250,10 +250,10 @@ resource "aws_db_instance" "primary" {
   kms_key_id        = var.kms_key_arn
 
   # Monitoring
-  monitoring_interval             = var.enable_enhanced_monitoring ? 60 : 0
-  monitoring_role_arn             = var.enable_enhanced_monitoring ? aws_iam_role.rds_monitoring[0].arn : null
-  performance_insights_enabled    = var.enable_performance_insights
-  performance_insights_kms_key_id = var.enable_performance_insights ? var.kms_key_arn : null
+  monitoring_interval                   = var.enable_enhanced_monitoring ? 60 : 0
+  monitoring_role_arn                   = var.enable_enhanced_monitoring ? aws_iam_role.rds_monitoring[0].arn : null
+  performance_insights_enabled          = var.enable_performance_insights
+  performance_insights_kms_key_id       = var.enable_performance_insights ? var.kms_key_arn : null
   performance_insights_retention_period = var.enable_performance_insights ? 7 : null
 
   # Deletion protection
@@ -268,15 +268,15 @@ resource "aws_db_instance" "primary" {
   tags = merge(
     local.common_tags,
     {
-      Name     = "${var.project_name}-${var.environment}-${each.key}-db"
-      Service  = each.key
-      Role     = "primary"
+      Name    = "${var.project_name}-${var.environment}-${each.key}-db"
+      Service = each.key
+      Role    = "primary"
     }
   )
 
   lifecycle {
     ignore_changes = [
-      password,  # Password managed by Secrets Manager rotation
+      password, # Password managed by Secrets Manager rotation
       final_snapshot_identifier
     ]
   }
@@ -290,13 +290,13 @@ resource "aws_db_instance" "primary" {
 resource "aws_db_instance" "read_replica_1" {
   for_each = var.create_read_replicas ? local.databases : {}
 
-  identifier              = "${var.project_name}-${var.environment}-${each.key}-replica-1"
-  replicate_source_db     = aws_db_instance.primary[each.key].identifier
-  instance_class          = each.value.instance_class
-  publicly_accessible     = false
-  skip_final_snapshot     = true
-  vpc_security_group_ids  = [var.security_group_id]
-  
+  identifier             = "${var.project_name}-${var.environment}-${each.key}-replica-1"
+  replicate_source_db    = aws_db_instance.primary[each.key].identifier
+  instance_class         = each.value.instance_class
+  publicly_accessible    = false
+  skip_final_snapshot    = true
+  vpc_security_group_ids = [var.security_group_id]
+
   # Use same AZ as primary for low-latency reads
   availability_zone = aws_db_instance.primary[each.key].availability_zone
 
@@ -316,9 +316,9 @@ resource "aws_db_instance" "read_replica_1" {
   tags = merge(
     local.common_tags,
     {
-      Name     = "${var.project_name}-${var.environment}-${each.key}-replica-1"
-      Service  = each.key
-      Role     = "read_replica"
+      Name          = "${var.project_name}-${var.environment}-${each.key}-replica-1"
+      Service       = each.key
+      Role          = "read_replica"
       ReplicaNumber = "1"
     }
   )
@@ -328,15 +328,15 @@ resource "aws_db_instance" "read_replica_1" {
 resource "aws_db_instance" "read_replica_2" {
   for_each = var.create_read_replicas ? local.databases : {}
 
-  identifier              = "${var.project_name}-${var.environment}-${each.key}-replica-2"
-  replicate_source_db     = aws_db_instance.primary[each.key].identifier
-  instance_class          = each.value.instance_class
-  publicly_accessible     = false
-  skip_final_snapshot     = true
-  vpc_security_group_ids  = [var.security_group_id]
-  
+  identifier             = "${var.project_name}-${var.environment}-${each.key}-replica-2"
+  replicate_source_db    = aws_db_instance.primary[each.key].identifier
+  instance_class         = each.value.instance_class
+  publicly_accessible    = false
+  skip_final_snapshot    = true
+  vpc_security_group_ids = [var.security_group_id]
+
   # Place in different AZ for cross-AZ redundancy
-  multi_az = false  # Read replicas don't support Multi-AZ
+  multi_az = false # Read replicas don't support Multi-AZ
 
   # Encryption (inherited from primary)
   storage_encrypted = true
@@ -354,9 +354,9 @@ resource "aws_db_instance" "read_replica_2" {
   tags = merge(
     local.common_tags,
     {
-      Name     = "${var.project_name}-${var.environment}-${each.key}-replica-2"
-      Service  = each.key
-      Role     = "read_replica"
+      Name          = "${var.project_name}-${var.environment}-${each.key}-replica-2"
+      Service       = each.key
+      Role          = "read_replica"
       ReplicaNumber = "2"
     }
   )

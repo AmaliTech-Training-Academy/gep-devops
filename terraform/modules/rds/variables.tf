@@ -30,7 +30,7 @@ variable "security_group_id" {
 variable "auth_db_instance_class" {
   description = "Instance class for auth database"
   type        = string
-  default     = "db.t3.micro"
+  default     = "db.t3.medium"
 }
 
 variable "auth_db_allocated_storage" {
@@ -272,7 +272,7 @@ variable "cpu_alarm_threshold" {
 variable "storage_alarm_threshold_bytes" {
   description = "Free storage alarm threshold (bytes)"
   type        = number
-  default     = 5368709120  # 5 GB
+  default     = 5368709120 # 5 GB
 }
 
 variable "connections_alarm_threshold" {

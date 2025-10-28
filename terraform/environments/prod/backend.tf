@@ -4,7 +4,7 @@ terraform {
     key     = "prod/terraform.tfstate"
     encrypt = true
 
-    region         = "eu-west-1"
+    region = "eu-west-1"
     # bucket         = ""
     # dynamodb_table = ""
   }

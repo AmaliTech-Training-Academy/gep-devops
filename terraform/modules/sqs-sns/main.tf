@@ -29,90 +29,69 @@ terraform {
 locals {
   # SNS topics for event publishing
   topics = {
-    event    = "${var.project_name}-${var.environment}-event-topic"
-    booking  = "${var.project_name}-${var.environment}-booking-topic"
-    payment  = "${var.project_name}-${var.environment}-payment-topic"
+    event   = "${var.project_name}-${var.environment}-event-topic"
+    booking = "${var.project_name}-${var.environment}-booking-topic"
+    payment = "${var.project_name}-${var.environment}-payment-topic"
   }
 
-  # SQS queues for event consumption
+  # SQS queues for event consumption (auth, event, notification services only)
   queues = {
-    # Auth-related queues
+    # Auth service queues
     user_registration = {
-      name              = "${var.project_name}-${var.environment}-user-registration-queue"
-      topic             = "event"
-      filter_policy     = { event_type = ["user.registered"] }
+      name               = "${var.project_name}-${var.environment}-user-registration-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["user.registered"] }
       visibility_timeout = 30
-      message_retention  = 345600  # 4 days
+      message_retention  = 345600
     }
     user_login = {
-      name              = "${var.project_name}-${var.environment}-user-login-queue"
-      topic             = "event"
-      filter_policy     = { event_type = ["user.login"] }
+      name               = "${var.project_name}-${var.environment}-user-login-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["user.login"] }
       visibility_timeout = 30
       message_retention  = 345600
     }
     password_reset = {
-      name              = "${var.project_name}-${var.environment}-password-reset-queue"
-      topic             = "event"
-      filter_policy     = { event_type = ["password.reset"] }
+      name               = "${var.project_name}-${var.environment}-password-reset-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["password.reset"] }
       visibility_timeout = 30
       message_retention  = 345600
     }
-    
-    # Event-related queues
+
+    # Event service queues
     event_created_notification = {
-      name              = "${var.project_name}-${var.environment}-event-created-notification-queue"
-      topic             = "event"
-      filter_policy     = { event_type = ["event.created"] }
-      visibility_timeout = 30
-      message_retention  = 345600  # 4 days
-    }
-    event_created_booking = {
-      name              = "${var.project_name}-${var.environment}-event-created-booking-queue"
-      topic             = "event"
-      filter_policy     = { event_type = ["event.created"] }
+      name               = "${var.project_name}-${var.environment}-event-created-notification-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["event.created"] }
       visibility_timeout = 30
       message_retention  = 345600
     }
-    
-    # Booking-related queues
-    booking_created_notification = {
-      name              = "${var.project_name}-${var.environment}-booking-created-notification-queue"
-      topic             = "booking"
-      filter_policy     = { event_type = ["booking.created"] }
+
+    # Notification service queues
+    email_notifications = {
+      name               = "${var.project_name}-${var.environment}-email-notifications-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["notification.email"] }
       visibility_timeout = 30
       message_retention  = 345600
     }
-    booking_created_event = {
-      name              = "${var.project_name}-${var.environment}-booking-created-event-queue"
-      topic             = "booking"
-      filter_policy     = { event_type = ["booking.created"] }
-      visibility_timeout = 30
-      message_retention  = 345600
-    }
-    
-    # Payment-related queues
-    payment_completed_notification = {
-      name              = "${var.project_name}-${var.environment}-payment-completed-notification-queue"
-      topic             = "payment"
-      filter_policy     = { event_type = ["payment.completed"] }
-      visibility_timeout = 30
-      message_retention  = 345600
-    }
-    payment_completed_booking = {
-      name              = "${var.project_name}-${var.environment}-payment-completed-booking-queue"
-      topic             = "payment"
-      filter_policy     = { event_type = ["payment.completed"] }
-      visibility_timeout = 30
-      message_retention  = 345600
-    }
-    payment_failed_notification = {
-      name              = "${var.project_name}-${var.environment}-payment-failed-notification-queue"
-      topic             = "payment"
-      filter_policy     = { event_type = ["payment.failed"] }
-      visibility_timeout = 30
-      message_retention  = 345600
-    }
+
+    # COMMENTED OUT: Booking and Payment queues (not needed yet)
+    # booking_created_notification = {
+    #   name               = "${var.project_name}-${var.environment}-booking-created-notification-queue"
+    #   topic              = "booking"
+    #   filter_policy      = { event_type = ["booking.created"] }
+    #   visibility_timeout = 30
+    #   message_retention  = 345600
+    # }
+    # payment_completed_notification = {
+    #   name               = "${var.project_name}-${var.environment}-payment-completed-notification-queue"
+    #   topic              = "payment"
+    #   filter_policy      = { event_type = ["payment.completed"] }
+    #   visibility_timeout = 30
+    #   message_retention  = 345600
+    # }
   }
 
   common_tags = merge(
@@ -153,7 +132,7 @@ resource "aws_sqs_queue" "dlq" {
   for_each = local.queues
 
   name                      = "${each.value.name}-dlq"
-  message_retention_seconds = 1209600  # 14 days
+  message_retention_seconds = 1209600 # 14 days
   kms_master_key_id         = var.kms_key_arn
 
   tags = merge(
@@ -176,8 +155,8 @@ resource "aws_sqs_queue" "queues" {
   visibility_timeout_seconds = each.value.visibility_timeout
   message_retention_seconds  = each.value.message_retention
   delay_seconds              = 0
-  max_message_size           = 262144  # 256 KB
-  receive_wait_time_seconds  = 20      # Long polling
+  max_message_size           = 262144 # 256 KB
+  receive_wait_time_seconds  = 20     # Long polling
   kms_master_key_id          = var.kms_key_arn
 
   # Dead letter queue configuration
@@ -283,7 +262,7 @@ resource "aws_cloudwatch_metric_alarm" "queue_age" {
   namespace           = "AWS/SQS"
   period              = "300"
   statistic           = "Maximum"
-  threshold           = "300"  # 5 minutes
+  threshold           = "300" # 5 minutes
   alarm_description   = "Messages aging in ${each.value.name}"
   alarm_actions       = var.alarm_actions
 
