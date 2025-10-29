@@ -45,39 +45,68 @@ locals {
       health_check_path = "/actuator/health"
       priority          = 100
     }
-    # TEMPORARILY DISABLED: Event service not yet ready
-    # event = {
-    #   name              = "event-service"
-    #   port              = 8082
-    #   path_pattern      = "/api/v1/events/*"
-    #   health_check_path = "/actuator/health"
-    #   priority          = 200
-    # }
-    # TEMPORARILY DISABLED: Booking service not yet ready
-    # booking = {
-    #   name              = "booking-service"
-    #   port              = 8083
-    #   path_pattern      = "/api/v1/bookings/*"
-    #   health_check_path = "/actuator/health"
-    #   priority          = 300
-    # }
-    # TEMPORARILY DISABLED: Payment service not yet ready
-    # payment = {
-    #   name              = "payment-service"
-    #   port              = 8084
-    #   path_pattern      = "/api/v1/payments/*"
-    #   health_check_path = "/actuator/health"
-    #   priority          = 400
-    # }
-    # TEMPORARILY DISABLED: Notification service not yet ready
-    # notification = {
-    #   name              = "notification-service"
-    #   port              = 8085
-    #   path_pattern      = "/api/v1/notifications/*"
-    #   health_check_path = "/actuator/health"
-    #   priority          = 500
-    # }
+    notification = {
+      name              = "notification-service"
+      port              = 8085
+      path_pattern      = "/api/v1/notifications/*"
+      health_check_path = "/actuator/health"
+      priority          = 500
+    }
   }
+
+  # Swagger documentation routes (separate from API routes)
+  swagger_routes = {
+    auth_swagger_ui = {
+      service_key  = "auth"
+      path_pattern = "/auth/swagger-ui/*"
+      priority     = 90
+    }
+    auth_swagger_html = {
+      service_key  = "auth"
+      path_pattern = "/auth/swagger-ui.html"
+      priority     = 91
+    }
+    auth_api_docs = {
+      service_key  = "auth"
+      path_pattern = "/auth/v3/api-docs*"
+      priority     = 92
+    }
+    auth_users = {
+      service_key  = "auth"
+      path_pattern = "/api/v1/users*"
+      priority     = 93
+    }
+  }
+
+  # TEMPORARILY DISABLED: Other services not yet ready
+  # event = {
+  #   name              = "event-service"
+  #   port              = 8082
+  #   path_pattern      = "/api/v1/events/*"
+  #   health_check_path = "/actuator/health"
+  #   priority          = 200
+  # }
+  # booking = {
+  #   name              = "booking-service"
+  #   port              = 8083
+  #   path_pattern      = "/api/v1/bookings/*"
+  #   health_check_path = "/actuator/health"
+  #   priority          = 300
+  # }
+  # payment = {
+  #   name              = "payment-service"
+  #   port              = 8084
+  #   path_pattern      = "/api/v1/payments/*"
+  #   health_check_path = "/actuator/health"
+  #   priority          = 400
+  # }
+  # notification = {
+  #   name              = "notification-service"
+  #   port              = 8085
+  #   path_pattern      = "/api/v1/notifications/*"
+  #   health_check_path = "/actuator/health"
+  #   priority          = 500
+  # }
 
   common_tags = merge(
     var.tags,
@@ -241,6 +270,35 @@ resource "aws_lb_listener_rule" "service_routing" {
 }
 
 # ==============================================================================
+# HTTPS Listener Rules - Swagger Documentation Routes
+# ==============================================================================
+
+resource "aws_lb_listener_rule" "swagger_routing" {
+  for_each = var.certificate_arn != "" ? local.swagger_routes : {}
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = each.value.priority
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.services[each.value.service_key].arn
+  }
+
+  condition {
+    path_pattern {
+      values = [each.value.path_pattern]
+    }
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-${each.key}-swagger-rule"
+    }
+  )
+}
+
+# ==============================================================================
 # HTTP Listener (Port 80) - Redirect to HTTPS
 # ==============================================================================
 
@@ -301,6 +359,32 @@ resource "aws_lb_listener_rule" "http_service_routing" {
     {
       Name    = "${var.project_name}-${var.environment}-${each.value.name}-http-rule"
       Service = each.value.name
+    }
+  )
+}
+
+# HTTP Listener Rules - Swagger Documentation Routes (when no HTTPS)
+resource "aws_lb_listener_rule" "http_swagger_routing" {
+  for_each = var.certificate_arn == "" ? local.swagger_routes : {}
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = each.value.priority
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.services[each.value.service_key].arn
+  }
+
+  condition {
+    path_pattern {
+      values = [each.value.path_pattern]
+    }
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-${each.key}-http-swagger-rule"
     }
   )
 }

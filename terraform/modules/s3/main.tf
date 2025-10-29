@@ -389,18 +389,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "backups" {
   bucket = aws_s3_bucket.backups.id
 
   rule {
-    id     = "transition-old-backups"
+    id     = "expire-old-backups"
     status = "Enabled"
-
-    transition {
-      days          = 30
-      storage_class = "GLACIER_IR"
-    }
-
-    transition {
-      days          = 120
-      storage_class = "DEEP_ARCHIVE"
-    }
 
     expiration {
       days = var.backup_retention_days

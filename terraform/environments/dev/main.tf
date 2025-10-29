@@ -86,6 +86,12 @@ locals {
       Project     = var.project_name
       Environment = var.environment
       ManagedBy   = "Terraform"
+      Repository  = "get-devops"
+      Team        = "DevOps"
+      CostCenter  = "Engineering"
+      Compliance  = "Standard"
+      Backup      = "Daily"
+      Monitoring  = "Enabled"
     }
   )
 }
@@ -105,19 +111,19 @@ module "vpc" {
   availability_zones = var.availability_zones
   aws_region         = var.aws_region
 
-  # COST OPTIMIZATION: NAT Gateway disabled - VPC Endpoints handle all AWS service access
-  # Savings: ~$32/month (NAT Gateway hourly charge) + ~$5-20/month (data transfer)
-  # ECS can still pull images via ECR VPC Endpoints
-  # Services can still access Secrets Manager, CloudWatch, S3 via VPC Endpoints
-  # TO RE-ENABLE: Change enable_nat_gateway to true and run terraform apply
-  enable_nat_gateway = false # Changed from true - saves ~$37-52/month
-  single_nat_gateway = true  # Not used when enable_nat_gateway = false
+  # NAT Gateway enabled for external connectivity (SMTP, etc.)
+  # Cost: ~$32/month (NAT Gateway hourly charge) + ~$5-20/month (data transfer)
+  # Required for notification service to send emails via Gmail SMTP
+  # ECS can pull images via ECR VPC Endpoints
+  # Services can access Secrets Manager, CloudWatch, S3 via VPC Endpoints
+  enable_nat_gateway = true  # Required for external SMTP access
+  single_nat_gateway = true  # Single NAT for cost optimization
 
   # CRITICAL: VPC Endpoints MUST remain enabled for ECS to work without NAT Gateway
   enable_vpc_endpoints = true # Required for ECR, Secrets Manager, CloudWatch access
 
   enable_flow_logs         = var.enable_flow_logs
-  flow_logs_retention_days = 7
+  flow_logs_retention_days = 3
   flow_logs_traffic_type   = "ALL"
 
   tags = local.common_tags
@@ -188,9 +194,9 @@ module "s3" {
   cors_allowed_origins = ["*"] # Phase 1 - open CORS
 
   enable_access_logging = true
-  logs_expiration_days  = 90
+  logs_expiration_days  = 3
 
-  backup_retention_days = 365
+  backup_retention_days = 3
 
   kms_key_arn = null
 
@@ -207,6 +213,9 @@ module "secrets_manager" {
   project_name            = var.project_name
   environment             = var.environment
   recovery_window_in_days = 7
+
+  aws_access_key_id     = var.aws_access_key_id
+  aws_secret_access_key = var.aws_secret_access_key
 
   tags = local.common_tags
 }
@@ -252,8 +261,9 @@ module "cloudfront" {
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
 
-  default_ttl = 86400
-  max_ttl     = 31536000
+  # Low TTL for dev - users get fresh content quickly (5 minutes)
+  default_ttl = 300
+  max_ttl     = 3600
   min_ttl     = 0
 
   forward_cookies         = false
@@ -415,7 +425,7 @@ module "cloudwatch" {
   elasticache_memory_threshold    = 90
   elasticache_evictions_threshold = 1000
 
-  log_retention_days = 30
+  log_retention_days = 3
   kms_key_arn        = null
 
   common_tags = local.common_tags
@@ -436,6 +446,8 @@ module "cloudwatch_dashboards" {
   auth_target_group_arn_suffix = module.alb.target_group_arn_suffixes["auth"]
   auth_db_instance_id          = module.rds.primary_instance_ids["auth"]
   elasticache_cluster_id       = module.elasticache.replication_group_id
+  cloudfront_distribution_id   = module.cloudfront.distribution_id
+  s3_bucket_name               = module.s3.assets_bucket_id
 
   tags = local.common_tags
 }
@@ -509,7 +521,7 @@ module "rds" {
   multi_az             = false
   create_read_replicas = false
 
-  backup_retention_days = 7
+  backup_retention_days = 3
   backup_window         = "03:00-04:00"
   maintenance_window    = "sun:04:00-sun:05:00"
   skip_final_snapshot   = true
@@ -565,7 +577,7 @@ module "elasticache" {
 
   maintenance_window         = "sun:05:00-sun:06:00"
   snapshot_window            = "03:00-04:00"
-  snapshot_retention_limit   = 5
+  snapshot_retention_limit   = 3
   auto_minor_version_upgrade = true
   apply_immediately          = true
 
@@ -675,6 +687,9 @@ module "ecs" {
   jwt_access_expiration  = var.jwt_access_expiration
   jwt_refresh_expiration = var.jwt_refresh_expiration
 
+  aws_credentials_secret_arn = module.secrets_manager.aws_credentials_secret_arn
+  google_credentials_secret_arn = module.secrets_manager.google_credentials_secret_arn
+
   sqs_queue_urls  = module.sqs-sns.queue_urls
   sqs_queue_names = module.sqs-sns.queue_names
 
@@ -684,7 +699,7 @@ module "ecs" {
   enable_container_insights = true
   enable_fargate_spot       = false
 
-  log_retention_days = 7
+  log_retention_days = 3
   kms_key_arn        = null
 
   cpu_target_value    = 70
