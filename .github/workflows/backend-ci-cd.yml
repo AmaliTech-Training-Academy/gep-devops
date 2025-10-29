@@ -52,12 +52,12 @@ jobs:
       - name: Discover Available Services
         id: services
         run: |
-          # Only deploy auth-service (enabled in Terraform)
-          echo 'matrix=["auth-service"]' >> "$GITHUB_OUTPUT"
-          echo "Deploying services: auth-service"
+          # Deploy auth-service and notification-service (enabled in Terraform)
+          echo 'matrix=["auth-service", "notification-service"]' >> "$GITHUB_OUTPUT"
+          echo "Deploying services: auth-service, notification-service"
           
           # Note: other services are disabled in Terraform
-          echo "⚠️ Disabled services (not in Terraform): notification-service, booking-service, payment-service, event-service"
+          echo "⚠️ Disabled services (not in Terraform): booking-service, payment-service, event-service"
 
   build-and-test:
     needs: prepare
@@ -352,7 +352,7 @@ jobs:
                     },
                     {
                       "title": "Services",
-                      "value": "auth-service",
+                      "value": "auth-service, notification-service",
                       "short": true
                     },
                     {
