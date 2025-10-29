@@ -90,12 +90,20 @@ jobs:
           ls -la services/ || echo "services/ directory not found"
           ls -la services/${{ matrix.service }} || echo "services/${{ matrix.service }} not found"
 
+      - name: Cache Maven Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
       - name: Build and Test Service
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-          export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository"
+          export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
           cd services/${{ matrix.service }}
-          mvn clean package -DskipTests
+          mvn clean package -DskipTests -T 1C --batch-mode
 
       - name: Security Scan (Trivy)
         uses: aquasecurity/trivy-action@master
@@ -185,7 +193,10 @@ jobs:
           
           if [ "$SERVICE_STATUS" = "NOT_FOUND" ] || [ "$SERVICE_STATUS" = "null" ]; then
             echo "❌ Service $SERVICE_NAME not found in cluster $CLUSTER_NAME"
+            echo "📋 Available services:"
             aws ecs list-services --cluster "$CLUSTER_NAME" --region ${{ env.AWS_REGION }} --output table
+            echo "⚠️ Please apply Terraform changes first to create the service"
+            echo "   cd terraform/environments/dev && terraform apply"
             exit 1
           elif [ "$SERVICE_STATUS" = "INACTIVE" ] || [ "$DESIRED_COUNT" = "0" ]; then
             echo "🔄 Service $SERVICE_NAME is INACTIVE or scaled to 0. Scaling up..."
@@ -233,13 +244,51 @@ jobs:
           SERVICE_NAME="${{ matrix.service }}"
           CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
           
-          echo "⏳ Waiting for service to stabilize..."
-          aws ecs wait services-stable \
+          echo "⏳ Waiting for service to stabilize (timeout: 10 minutes)..."
+          
+          # Wait with timeout and better error handling
+          if timeout 600 aws ecs wait services-stable \
             --cluster "$CLUSTER_NAME" \
             --services "$SERVICE_NAME" \
-            --region ${{ env.AWS_REGION }}
-          
-          echo "✅ Service $SERVICE_NAME is stable"
+            --region ${{ env.AWS_REGION }}; then
+            echo "✅ Service $SERVICE_NAME is stable"
+          else
+            echo "❌ Service failed to stabilize within 10 minutes"
+            echo "📊 Current service status:"
+            aws ecs describe-services \
+              --cluster "$CLUSTER_NAME" \
+              --services "$SERVICE_NAME" \
+              --region ${{ env.AWS_REGION }} \
+              --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount,Deployments:deployments[*].{Status:status,TaskDef:taskDefinition,Running:runningCount}}' \
+              --output table
+            
+            echo "📋 Recent events:"
+            aws ecs describe-services \
+              --cluster "$CLUSTER_NAME" \
+              --services "$SERVICE_NAME" \
+              --region ${{ env.AWS_REGION }} \
+              --query 'services[0].events[:5]' \
+              --output table
+            
+            echo "🔍 Task failures (if any):"
+            TASK_ARNS=$(aws ecs list-tasks \
+              --cluster "$CLUSTER_NAME" \
+              --service-name "$SERVICE_NAME" \
+              --region ${{ env.AWS_REGION }} \
+              --query 'taskArns' \
+              --output text)
+            
+            if [ -n "$TASK_ARNS" ]; then
+              aws ecs describe-tasks \
+                --cluster "$CLUSTER_NAME" \
+                --tasks $TASK_ARNS \
+                --region ${{ env.AWS_REGION }} \
+                --query 'tasks[*].{TaskArn:taskArn,LastStatus:lastStatus,HealthStatus:healthStatus,StoppedReason:stoppedReason}' \
+                --output table
+            fi
+            
+            exit 1
+          fi
 
       - name: Store Previous Task Definition
         id: backup
