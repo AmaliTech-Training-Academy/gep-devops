@@ -380,6 +380,38 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "PASSWORD_RESET_QUEUE_URL"
             value = lookup(var.sqs_queue_urls, "password_reset", "")
+          },
+          {
+            name  = "SPRING_MAIL_HOST"
+            value = "smtp.gmail.com"
+          },
+          {
+            name  = "SPRING_MAIL_PORT"
+            value = "465"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH"
+            value = "true"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE"
+            value = "true"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE"
+            value = "false"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST"
+            value = "smtp.gmail.com"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_PROTOCOLS"
+            value = "TLSv1.2"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_DEBUG"
+            value = "false"
           }
         ] : []
       )
@@ -435,24 +467,24 @@ resource "aws_ecs_task_definition" "services" {
         # Google credentials for notification service
         each.key == "notification" && var.google_credentials_secret_arn != null ? [
           {
-            name      = "GOOGLE_USER"
+            name      = "SPRING_MAIL_USERNAME"
             valueFrom = "${var.google_credentials_secret_arn}:user::"
           },
           {
-            name      = "GOOGLE_PASSWORD"
+            name      = "SPRING_MAIL_PASSWORD"
             valueFrom = "${var.google_credentials_secret_arn}:password::"
           }
         ] : []
       )
 
-      # Health check - disabled for notification service (no actuator endpoint)
-      healthCheck = each.key != "notification" ? {
+      # Health check
+      healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/actuator/health || wget --no-verbose --tries=1 --spider http://localhost:${each.value.port}/actuator/health || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
         startPeriod = 90
-      } : null
+      }
 
       logConfiguration = {
         logDriver = "awslogs"
