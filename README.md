@@ -51,7 +51,7 @@ This repository contains the complete Terraform infrastructure code for the Even
 
 ## Centralized DevOps Structure
 
-![Centralized DevOps](centralized-devops-structure.png)
+[View Centralized DevOps Structure](centralized-devops-structure.md)
 
 This repository implements a centralized DevOps approach where:
 - **Single repository** controls all infrastructure deployments
@@ -981,6 +981,6 @@ terraform graph | dot -Tsvg > graph.svg
 
 ---
 
-**Last Updated:** January 2025  
+**Last Updated:** October 2025  
 **Maintained By:** DevOps Team 
 **Version:** 1.0.0
