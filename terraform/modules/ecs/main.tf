@@ -380,6 +380,38 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "PASSWORD_RESET_QUEUE_URL"
             value = lookup(var.sqs_queue_urls, "password_reset", "")
+          },
+          {
+            name  = "SPRING_MAIL_HOST"
+            value = "smtp.gmail.com"
+          },
+          {
+            name  = "SPRING_MAIL_PORT"
+            value = "465"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH"
+            value = "true"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE"
+            value = "true"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE"
+            value = "false"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST"
+            value = "smtp.gmail.com"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_PROTOCOLS"
+            value = "TLSv1.2"
+          },
+          {
+            name  = "SPRING_MAIL_PROPERTIES_MAIL_DEBUG"
+            value = "false"
           }
         ] : []
       )
