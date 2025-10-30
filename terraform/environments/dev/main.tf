@@ -30,7 +30,6 @@ terraform {
 
 provider "aws" {
   region  = var.aws_region
-  profile = "gtp-cletus"
 
   default_tags {
     tags = {
@@ -45,7 +44,6 @@ provider "aws" {
 provider "aws" {
   alias   = "eu_west_1"
   region  = "eu-west-1"
-  profile = "gtp-cletus"
 
   default_tags {
     tags = {
@@ -60,7 +58,6 @@ provider "aws" {
 provider "aws" {
   alias   = "us_east_1"
   region  = "us-east-1"
-  profile = "gtp-cletus"
 
   default_tags {
     tags = {
