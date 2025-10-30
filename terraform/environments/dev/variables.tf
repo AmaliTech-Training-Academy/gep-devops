@@ -149,5 +149,15 @@ variable "tags" {
   }
 }
 
+# ==============================================================================
+# Grafana Configuration
+# ==============================================================================
+
+variable "grafana_admin_password" {
+  description = "Admin password for Grafana dashboard access"
+  type        = string
+  sensitive   = true
+}
+
 
 

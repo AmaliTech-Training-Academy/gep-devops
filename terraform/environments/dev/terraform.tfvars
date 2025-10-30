@@ -38,6 +38,9 @@ alert_email_addresses = [
 jwt_access_expiration  = 3600000  # 1 hour in milliseconds
 jwt_refresh_expiration = 86400000 # 24 hours in milliseconds
 
+# Grafana Configuration
+grafana_admin_password = "DevOps@123"
+
 # Tags
 tags = {
   CostCenter  = "Engineering"
