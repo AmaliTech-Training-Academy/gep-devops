@@ -238,6 +238,24 @@ resource "aws_vpc_security_group_ingress_rule" "rds_from_grafana" {
 }
 
 # ==============================================================================
+# Update ALB Security Group to Allow Traffic to Grafana
+# ==============================================================================
+
+resource "aws_vpc_security_group_egress_rule" "alb_to_grafana" {
+  security_group_id = var.alb_security_group_id
+  description       = "Allow traffic to Grafana on port 3000"
+
+  from_port                    = 3000
+  to_port                      = 3000
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.grafana.id
+
+  tags = {
+    Name = "allow-alb-to-grafana"
+  }
+}
+
+# ==============================================================================
 # User Data Script for Grafana Installation
 # ==============================================================================
 
