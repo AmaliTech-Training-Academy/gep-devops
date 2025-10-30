@@ -467,11 +467,11 @@ resource "aws_ecs_task_definition" "services" {
         # Google credentials for notification service
         each.key == "notification" && var.google_credentials_secret_arn != null ? [
           {
-            name      = "GOOGLE_USER"
+            name      = "SPRING_MAIL_USERNAME"
             valueFrom = "${var.google_credentials_secret_arn}:user::"
           },
           {
-            name      = "GOOGLE_PASSWORD"
+            name      = "SPRING_MAIL_PASSWORD"
             valueFrom = "${var.google_credentials_secret_arn}:password::"
           }
         ] : []
