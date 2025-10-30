@@ -477,14 +477,14 @@ resource "aws_ecs_task_definition" "services" {
         ] : []
       )
 
-      # Health check - disabled for notification service (no actuator endpoint)
-      healthCheck = each.key != "notification" ? {
+      # Health check
+      healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/actuator/health || wget --no-verbose --tries=1 --spider http://localhost:${each.value.port}/actuator/health || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
         startPeriod = 90
-      } : null
+      }
 
       logConfiguration = {
         logDriver = "awslogs"

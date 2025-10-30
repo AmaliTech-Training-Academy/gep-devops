@@ -49,9 +49,8 @@ locals {
       name              = "notification-service"
       port              = 8085
       path_pattern      = "/api/v1/notifications/*"
-      health_check_path = "/"
+      health_check_path = "/actuator/health"
       priority          = 500
-      health_check_matcher = "200-404"  # Accept 404 as healthy (no root endpoint)
     }
   }
 
@@ -181,10 +180,10 @@ resource "aws_lb_target_group" "services" {
     protocol            = "HTTP"
     port                = "traffic-port"
     healthy_threshold   = var.health_check_healthy_threshold
-    unhealthy_threshold = lookup(each.value, "health_check_matcher", null) != null ? 5 : var.health_check_unhealthy_threshold
+    unhealthy_threshold = var.health_check_unhealthy_threshold
     timeout             = var.health_check_timeout
     interval            = var.health_check_interval
-    matcher             = lookup(each.value, "health_check_matcher", "200-299")
+    matcher             = "200-299"
   }
 
   # Deregistration delay (connection draining)
