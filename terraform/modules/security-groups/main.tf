@@ -210,10 +210,10 @@ resource "aws_vpc_security_group_egress_rule" "ecs_https" {
   }
 }
 
-# Allow outbound SMTP for email sending (Gmail)
-resource "aws_vpc_security_group_egress_rule" "ecs_smtp" {
+# Allow outbound SMTP SSL for email sending (Gmail port 465)
+resource "aws_vpc_security_group_egress_rule" "ecs_smtp_ssl" {
   security_group_id = aws_security_group.ecs.id
-  description       = "Allow SMTP for email sending via Gmail"
+  description       = "Allow SMTP SSL for email sending via Gmail (port 465)"
 
   from_port   = 465
   to_port     = 465
@@ -221,7 +221,22 @@ resource "aws_vpc_security_group_egress_rule" "ecs_smtp" {
   cidr_ipv4   = "0.0.0.0/0"
 
   tags = {
-    Name = "allow-smtp-outbound"
+    Name = "allow-smtp-ssl-outbound"
+  }
+}
+
+# Allow outbound SMTP STARTTLS for email sending (Gmail port 587)
+resource "aws_vpc_security_group_egress_rule" "ecs_smtp_starttls" {
+  security_group_id = aws_security_group.ecs.id
+  description       = "Allow SMTP STARTTLS for email sending via Gmail (port 587)"
+
+  from_port   = 587
+  to_port     = 587
+  ip_protocol = "tcp"
+  cidr_ipv4   = "0.0.0.0/0"
+
+  tags = {
+    Name = "allow-smtp-starttls-outbound"
   }
 }
 
