@@ -1,66 +1,91 @@
 # Event Planner - Infrastructure as Code
 
-## Infrastructure Foundation & Database Layer
+## Centralized DevOps Infrastructure & Database Layer
 
-This repository contains the Terraform infrastructure code for the Event Planner Platform, focusing on core infrastructure, networking, security, and data layer components.
+This repository contains the complete Terraform infrastructure code for the Event Planner Platform, implementing a centralized DevOps approach with cost-optimized, production-ready infrastructure.
 
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
-2. [Repository Structure](#repository-structure)
-3. [Prerequisites](#prerequisites)
-4. [Quick Start](#quick-start)
-5. [Module Documentation](#module-documentation)
-6. [Environment Configuration](#environment-configuration)
-7. [Secrets Management](#secrets-management)
-8. [Deployment Workflow](#deployment-workflow)
-9. [Cost Optimization](#cost-optimization)
-10. [Disaster Recovery](#disaster-recovery)
-11. [Troubleshooting](#troubleshooting)
+2. [Centralized DevOps Structure](#centralized-devops-structure)
+3. [Repository Structure](#repository-structure)
+4. [Prerequisites](#prerequisites)
+5. [Quick Start](#quick-start)
+6. [Module Documentation](#module-documentation)
+7. [Environment Configuration](#environment-configuration)
+8. [Secrets Management](#secrets-management)
+9. [Deployment Workflow](#deployment-workflow)
+10. [Cost Optimization](#cost-optimization)
+11. [Disaster Recovery](#disaster-recovery)
+12. [Troubleshooting](#troubleshooting)
 
 ## Architecture Overview
+
+![Architecture Diagram](CURRENT%20ARCHITECTURE_DIAGRAM.png)
 
 ### Infrastructure Components
 
 **Frontend Infrastructure:**
 - S3 bucket for Angular application hosting
-- CloudFront distribution for global content delivery
-- Route53 DNS configuration (sankofagrid.com)
-- ACM SSL/TLS certificates
-- WAF for web application firewall (optional)
+- CloudFront distribution for global content delivery (events.sankofagrid.com)
+- External DNS configuration (sankofagrid.com - not Route53)
+- ACM SSL/TLS certificates for ALB
+- Manual SSL certificate for CloudFront
 
 **Backend Infrastructure:**
-- VPC with public and private subnets across multiple AZs
-- ECS Fargate cluster for microservices
-- Application Load Balancer (ALB) with HTTPS
-- AWS Cloud Map for service discovery
-- RDS PostgreSQL (4 databases with read replicas in prod)
-- DocumentDB for audit logs
-- ElastiCache Redis for caching
+- VPC with public and private subnets (single-AZ for dev cost optimization)
+- ECS Fargate cluster for microservices (2 active, 3 ready to deploy)
+- Application Load Balancer (ALB) with HTTPS (api.sankofagrid.com)
+- AWS Cloud Map for service discovery (eventplanner.local)
+- RDS PostgreSQL with multi-schema approach (cost-optimized)
+- JSONB audit logs in PostgreSQL (replaces DocumentDB)
+- ElastiCache Redis for caching and sessions
 - Secrets Manager for credential management
 
 **Network Architecture:**
-- Production: Multi-AZ deployment (2 AZs)
-- Development: Single-AZ deployment (cost-optimized)
+- Development: Single-AZ deployment (eu-west-1a) for cost optimization
+- Production: Multi-AZ deployment (2 AZs) - ready to deploy
 - Private subnets for application and data tiers
-- Public subnets for ALB and NAT Gateways
-- VPC endpoints for AWS services (S3, ECR, Secrets Manager, etc.)
+- Public subnets for ALB and NAT Gateway
+- VPC endpoints for AWS services (saves ~$15/month on NAT costs)
+
+## Centralized DevOps Structure
+
+![Centralized DevOps](centralized-devops-structure.png)
+
+This repository implements a centralized DevOps approach where:
+- **Single repository** controls all infrastructure deployments
+- **External repositories** (backend/frontend) trigger deployments via repository dispatch
+- **Centralized CI/CD** pipelines handle all environments
+- **Unified monitoring** and security across all services
+
+### Current Service Status
+
+**Active Services (Currently Running):**
+- **Auth Service**: Port 8081, 256 CPU, 512MB memory
+- **Notification Service**: Port 8085, 256 CPU, 512MB memory
+
+**Ready to Deploy (Commented in code):**
+- **Event Service**: Port 8082 (uncomment when ready)
+- **Booking Service**: Port 8083 (uncomment when ready)
+- **Payment Service**: Port 8084 (uncomment when ready)
 
 ### Environments
 
-**Development Environment:**
-- Single AZ deployment
-- Minimal resource allocation (cost-optimized)
-- Single database instances (no read replicas)
-- 1 ECS task per microservice
+**Development Environment (Current):**
+- Single AZ deployment (eu-west-1a)
+- Cost-optimized resource allocation
+- Single PostgreSQL with multi-schema (auth_db, event_db, booking_db, payment_db)
+- JSONB audit logs (replaces DocumentDB)
+- 2 active ECS services, 3 ready to deploy
 - Estimated cost: ~$248/month (24/7) or ~$75-95/month (weekday-only)
 
-**Production Environment:**
+**Production Environment (Ready to Deploy):**
 - Multi-AZ deployment (2 AZs)
 - High availability configuration
 - RDS with Multi-AZ and read replicas
 - Auto-scaling enabled
-- Multiple ECS tasks per microservice
+- All 5 microservices active
 - Estimated cost: ~$2,500-3,000/month
 
 ## Repository Structure
@@ -77,17 +102,20 @@ gep_devops/
 │   │   ├── vpc/                       # VPC, subnets, route tables, NAT gateways
 │   │   ├── security-groups/           # Security group definitions
 │   │   ├── iam/                       # IAM roles and policies
-│   │   ├── rds/                       # RDS PostgreSQL databases
-│   │   ├── documentdb/                # DocumentDB cluster
+│   │   ├── rds/                       # RDS PostgreSQL multi-schema
 │   │   ├── elasticache/               # ElastiCache Redis
 │   │   ├── ecs/                       # ECS cluster and capacity providers
 │   │   ├── alb/                       # Application Load Balancer
 │   │   ├── s3/                        # S3 buckets (frontend hosting, logs)
 │   │   ├── cloudfront/                # CloudFront distribution
-│   │   ├── route53/                   # DNS records
+│   │   ├── route53/                   # DNS records (external domain)
 │   │   ├── acm/                       # SSL/TLS certificates
 │   │   ├── secrets-manager/           # Secrets management
-│   │   └── cloudmap/                  # Service discovery
+│   │   ├── sqs-sns/                   # Message queuing and pub/sub
+│   │   ├── ecr/                       # Container registry
+│   │   ├── cloudwatch/                # Monitoring and logging
+│   │   ├── cloudwatch-dashboards/     # Custom dashboards
+│   │   └── waf/                       # Web Application Firewall
 │   └── environments/
 │       ├── dev/                       # Development environment
 │       │   ├── main.tf
@@ -144,13 +172,13 @@ gep_devops/
   - VPC management
   - EC2 (including ECS, ALB)
   - RDS
-  - DocumentDB
   - ElastiCache
   - S3
   - CloudFront
-  - Route53
   - ACM
   - Secrets Manager
+  - ECR
+  - SQS/SNS
   - IAM (for role creation)
   - CloudWatch
   - Systems Manager
@@ -158,8 +186,10 @@ gep_devops/
 ### Domain Requirements
 
 - Domain name registered (sankofagrid.com)
-- Access to domain DNS management
-- Ability to create DNS records or delegate nameservers to Route53
+- Access to external DNS management (not Route53)
+- Ability to create DNS records:
+  - events.sankofagrid.com → CloudFront
+  - api.sankofagrid.com → ALB
 
 ## Quick Start
 
@@ -271,32 +301,34 @@ Creates IAM roles and policies for ECS tasks, following least privilege principl
 
 ### RDS Module
 
-Deploys PostgreSQL databases with automatic backups, encryption, and optional Multi-AZ/read replicas.
+Deploys single PostgreSQL instance with multi-schema approach for cost optimization.
 
 **Features:**
-- Multi-AZ deployment (production)
-- Read replicas (production)
-- Automated backups with 7-day retention
+- Multi-schema design (auth_db, event_db, booking_db, payment_db)
+- JSONB audit logs (replaces DocumentDB)
+- Automated backups with 3-day retention (dev)
 - KMS encryption at rest
 - SSL/TLS encryption in transit
-- Enhanced monitoring (production)
-- Performance Insights (production)
+- Cost-optimized: Single instance vs multiple databases
+- Ready for Multi-AZ and read replicas (production)
 
-**Databases Created:**
-- Auth Database (user authentication)
-- Event Database (event management)
-- Booking Database (booking management)
-- Payment Database (payment transactions)
+**Current Schema:**
+- **auth_db**: User authentication and management
+- **event_db**: Event management (ready for event service)
+- **booking_db**: Booking management (ready for booking service)
+- **payment_db**: Payment transactions (ready for payment service)
+- **audit_logs**: JSONB audit trail for all services
 
-### DocumentDB Module
+### Audit Logging
 
-Deploys MongoDB-compatible DocumentDB cluster for audit logs.
+Audit logs are stored in PostgreSQL using JSONB for cost optimization.
 
 **Features:**
-- Multi-instance cluster (production)
-- Automated backups
-- KMS encryption
-- TLS connections enforced
+- JSONB storage in main PostgreSQL instance
+- Better performance than separate DocumentDB
+- Cost savings: ~$60/month vs DocumentDB
+- Full-text search capabilities
+- Integrated with main database backups
 
 ### ElastiCache Module
 
@@ -345,22 +377,41 @@ Deploys CloudFront distribution for global content delivery.
 - WAF integration (optional)
 - Cache behaviors optimized for Angular SPA
 
+### SQS/SNS Module
+
+Manages message queuing and pub/sub for microservices communication.
+
+**Active Queues:**
+- user-registration (auth service)
+- user-login (auth service)
+- password-reset (auth service)
+- notifications (notification service)
+- event-created-notification (notification service)
+
+**Features:**
+- Event-driven architecture with message filtering
+- Dead letter queues for failed messages
+- Long polling (20s) for cost optimization
+- KMS encryption
+- SNS topics with SQS subscriptions
+
 ### Route53 Module
 
-Manages DNS records for domain routing.
+Configures external DNS records (not managed by Route53).
 
-**Records Created:**
-- A record for www.sankofagrid.com (frontend) → CloudFront
-- A record for api.sankofagrid.com (backend) → ALB
-- Health checks for failover (production)
+**External DNS Records:**
+- events.sankofagrid.com → CloudFront
+- api.sankofagrid.com → ALB
+- Manual SSL certificate management for CloudFront
 
 ### ACM Module
 
-Manages SSL/TLS certificates for HTTPS.
+Manages SSL/TLS certificates for ALB.
 
 **Certificates:**
-- *.sankofagrid.com (wildcard certificate)
-- Automatic DNS validation via Route53
+- api.sankofagrid.com (ALB certificate via ACM)
+- events.sankofagrid.com (CloudFront manual certificate)
+- Automatic DNS validation for ALB certificate
 
 ### Secrets Manager Module
 
@@ -380,6 +431,15 @@ Configures AWS Cloud Map for service discovery.
 - Private DNS namespace (eventplanner.local)
 - Automatic service registration/deregistration
 - Health checks integrated with ECS
+
+**Active Service Discovery:**
+- auth-service.eventplanner.local:8081
+- notification-service.eventplanner.local:8085
+
+**Ready for Deployment:**
+- event-service.eventplanner.local:8082
+- booking-service.eventplanner.local:8083
+- payment-service.eventplanner.local:8084
 
 ## Environment Configuration
 
