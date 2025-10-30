@@ -6,11 +6,12 @@
 gep_devops/
 ├── .github/
 │   └── workflows/
-│       ├── backend-ci-cd.yml          # Triggered by backend repo
-│       ├── frontend-ci-cd.yml         # Triggered by frontend repo
-│       ├── security-monitoring.yml    # Security scans
-│       ├── performance-monitoring.yml # Performance tests
-│       └── health-monitoring.yml      # Health checks
+│       ├── backend-ci-cd.yml            # Triggered by backend repo
+│       ├── frontend-ci-cd.yml           # Triggered by frontend repo
+│       ├── infrastructure-ci-cd.yml     # Terraform deployments
+│       ├── master-pipeline.yml          # Orchestrates all pipelines
+│       ├── security-monitoring.yml      # Security scans
+│       └── terraform-deploy-oidc.yml    # OIDC-based deployments
 ├── terraform/
 │   ├── bootstrap/                     # S3 backend setup (run once)
 │   │   ├── main.tf
@@ -44,28 +45,44 @@ gep_devops/
 │           ├── terraform.tfvars
 │           ├── backend.tf
 │           └── outputs.tf
-├── ecs/
-│   ├── task-definitions/
-│   ├── service-definitions/
-│   └── cluster-configs/
-├── monitoring/
-│   ├── cloudwatch/
-│   ├── x-ray/
-│   └── sns/
-├── scripts/
-│   ├── terraform/
-│   │   ├── init-backend.sh
-│   │   ├── deploy-env.sh
-│   │   ├── plan-env.sh
-│   │   ├── destroy-env.sh
-│   │   └── validate-all.sh
-│   ├── ecs/
-│   ├── monitoring/
-│   └── utilities/
 ├── configs/
 │   ├── backend-configs/
+│   │   ├── dev/
+│   │   │   ├── application.yml
+│   │   │   └── database.yml
+│   │   ├── prod/
+│   │   │   ├── application.yml
+│   │   │   └── database.yml
+│   │   └── staging/
+│   │       ├── application.yml
+│   │       └── database.yml
 │   ├── frontend-configs/
+│   │   ├── dev/
+│   │   │   ├── environment.ts
+│   │   │   └── nginx.conf
+│   │   ├── prod/
+│   │   │   ├── environment.ts
+│   │   │   └── nginx.conf
+│   │   └── staging/
+│   │       ├── environment.ts
+│   │       └── nginx.conf
 │   └── shared-configs/
+│       ├── docker/
+│       │   ├── backend.Dockerfile
+│       │   └── frontend.Dockerfile
+│       ├── nginx/
+│       │   └── nginx.conf
+│       └── security/
+│           └── security-headers.conf
+├── docs/
+│   ├── README.md
+│   ├── 01-project-overview.md
+│   ├── 02-terraform-infrastructure.md
+│   ├── 03-cicd-pipeline-implementation.md
+│   ├── 04-deployment-workflows.md
+│   ├── 05-monitoring-security-operations.md
+│   ├── 06-cost-optimization-best-practices.md
+│   └── 07-troubleshooting-runbooks.md
 └── README.md
 ```
 
@@ -76,11 +93,20 @@ gep_devops/
 gep-backend/
 ├── .github/
 │   └── workflows/
-│       └── trigger-devops.yml         # Only triggers central DevOps
-├── user-service/
-├── event-service/
-├── notification-service/
-├── gateway-service/
+│       └── trigger-deployment.yml     # Intelligent change detection
+├── services/
+│   ├── auth-service/
+│   ├── event-service/
+│   ├── notification-service/
+│   ├── booking-service/
+│   ├── payment-service/
+│   ├── api-gateway/
+│   ├── config-server/
+│   └── discovery-server/
+├── shared/
+│   ├── common-lib/
+│   ├── security-lib/
+│   └── messaging-lib/
 └── README.md
 ```
 
@@ -89,7 +115,7 @@ gep-backend/
 event-planner-frontend/
 ├── .github/
 │   └── workflows/
-│       └── trigger-devops.yml         # Only triggers central DevOps
+│       └── trigger-devops.yml         # Simple deployment trigger
 ├── src/
 ├── cypress/
 └── README.md
@@ -193,8 +219,8 @@ Container Registry:
   - ECR_REGISTRY_URL
 
 External Repos:
-  - BACKEND_REPO_TOKEN
-  - FRONTEND_REPO_TOKEN
+  - DEVOPS_REPO_TOKEN
+  - DEVOPS_REPO_OWNER
 
 Notifications:
   - SLACK_WEBHOOK

@@ -22,3 +22,4 @@
 **/terraform.rc
 /ext
 scripts/terraform.tfvars
+final-confluence-upload.sh
