@@ -105,8 +105,8 @@ resource "aws_secretsmanager_secret" "google_credentials" {
 resource "aws_secretsmanager_secret_version" "google_credentials" {
   secret_id = aws_secretsmanager_secret.google_credentials.id
   secret_string = jsonencode({
-    user     = "noreply@sankofagrid.com"
-    password = "REPLACE_WITH_ACTUAL_PASSWORD"
+    GOOGLE_USER     = "noreply.event.planner.amalitech@gmail.com"
+    GOOGLE_PASSWORD = "vsvaczkvogxczmhl"
   })
 
   lifecycle {

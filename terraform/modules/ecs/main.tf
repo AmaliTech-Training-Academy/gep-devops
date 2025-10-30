@@ -468,11 +468,19 @@ resource "aws_ecs_task_definition" "services" {
         each.key == "notification" && var.google_credentials_secret_arn != null ? [
           {
             name      = "SPRING_MAIL_USERNAME"
-            valueFrom = "${var.google_credentials_secret_arn}:user::"
+            valueFrom = "${var.google_credentials_secret_arn}:GOOGLE_USER::"
           },
           {
             name      = "SPRING_MAIL_PASSWORD"
-            valueFrom = "${var.google_credentials_secret_arn}:password::"
+            valueFrom = "${var.google_credentials_secret_arn}:GOOGLE_PASSWORD::"
+          },
+          {
+            name      = "GOOGLE_USER"
+            valueFrom = "${var.google_credentials_secret_arn}:GOOGLE_USER::"
+          },
+          {
+            name      = "GOOGLE_PASSWORD"
+            valueFrom = "${var.google_credentials_secret_arn}:GOOGLE_PASSWORD::"
           }
         ] : []
       )
