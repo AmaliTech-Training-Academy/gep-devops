@@ -61,8 +61,9 @@ terraform {
     # Uses AWS-managed keys (SSE-S3)
     encrypt = true
 
-    # Note: Sensitive credentials (AWS access keys) are configured via:
-    # - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-    # - AWS CLI profiles (aws configure --profile cletus_mangu)
+    # Note: AWS credentials are configured via:
+    # - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) for local development
+    # - GitHub Actions secrets for CI/CD pipeline
+    # - ECS services use AWS Secrets Manager for runtime credentials
   }
 }

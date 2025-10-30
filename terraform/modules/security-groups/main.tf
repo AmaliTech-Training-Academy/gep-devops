@@ -210,6 +210,21 @@ resource "aws_vpc_security_group_egress_rule" "ecs_https" {
   }
 }
 
+# Allow outbound SMTP for email sending (Gmail)
+resource "aws_vpc_security_group_egress_rule" "ecs_smtp" {
+  security_group_id = aws_security_group.ecs.id
+  description       = "Allow SMTP for email sending via Gmail"
+
+  from_port   = 465
+  to_port     = 465
+  ip_protocol = "tcp"
+  cidr_ipv4   = "0.0.0.0/0"
+
+  tags = {
+    Name = "allow-smtp-outbound"
+  }
+}
+
 # ==============================================================================
 # RDS Security Group
 # ==============================================================================
