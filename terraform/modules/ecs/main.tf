@@ -362,12 +362,24 @@ resource "aws_ecs_task_definition" "services" {
             value = lookup(var.sqs_queue_names, "user_registration", "")
           },
           {
+            name  = "USER_REGISTRATION_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "user_registration", "")
+          },
+          {
             name  = "USER_LOGIN_QUEUE_NAME"
             value = lookup(var.sqs_queue_names, "user_login", "")
           },
           {
+            name  = "USER_LOGIN_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "user_login", "")
+          },
+          {
             name  = "PASSWORD_RESET_QUEUE_NAME"
             value = lookup(var.sqs_queue_names, "password_reset", "")
+          },
+          {
+            name  = "PASSWORD_RESET_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "password_reset", "")
           }
         ] : []
       )
@@ -433,13 +445,14 @@ resource "aws_ecs_task_definition" "services" {
         ] : []
       )
 
-      healthCheck = {
+      # Health check - disabled for notification service (no actuator endpoint)
+      healthCheck = each.key != "notification" ? {
         command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/actuator/health || wget --no-verbose --tries=1 --spider http://localhost:${each.value.port}/actuator/health || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
         startPeriod = 90
-      }
+      } : null
 
       logConfiguration = {
         logDriver = "awslogs"
