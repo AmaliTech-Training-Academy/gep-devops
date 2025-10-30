@@ -6,7 +6,7 @@
 # path-based routing (/monitoring/*).
 #
 # Components:
-# - EC2 instance (t3.small) in private subnet
+# - EC2 instance (t3.micro) in private subnet
 # - IAM role with CloudWatch/RDS read permissions
 # - Security group for Grafana access
 # - ALB target group and listener rule
