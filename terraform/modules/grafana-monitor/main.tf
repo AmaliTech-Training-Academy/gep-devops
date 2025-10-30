@@ -249,26 +249,15 @@ locals {
     yum update -y
     
     # Install and start SSM Agent
-    yum install -y amazon-ssm-agent
-    systemctl enable amazon-ssm-agent
-    systemctl start amazon-ssm-agent
-    
-    # Add Grafana repository
-    cat > /etc/yum.repos.d/grafana.repo <<'REPO'
-    [grafana]
-    name=grafana
-    baseurl=https://rpm.grafana.com
-    repo_gpgcheck=1
-    enabled=1
-    gpgcheck=1
-    gpgkey=https://rpm.grafana.com/gpg.key
-    sslverify=1
-    sslcacert=/etc/pki/tls/certs/ca-bundle.crt
-    REPO
-    
+    sudo yum install -y amazon-ssm-agent
+    sudo systemctl enable amazon-ssm-agent
+    sudo systemctl start amazon-ssm-agent
+
     # Install Grafana
-    yum install grafana -y
-    
+    sudo yum install -y https://dl.grafana.com/grafana/release/12.2.1/grafana_12.2.1_18655849634_linux_amd64.rpm
+  
+
+
     # Configure Grafana
     cat > /etc/grafana/grafana.ini <<'CONFIG'
     [server]
@@ -304,8 +293,9 @@ locals {
     CONFIG
     
     # Start and enable Grafana
-    systemctl start grafana-server
-    systemctl enable grafana-server
+    sudo systemctl daemon-reload
+    sudo systemctl enable grafana-server.service
+    sudo systemctl start grafana-server.service
     
     # Wait for Grafana to start
     sleep 10
