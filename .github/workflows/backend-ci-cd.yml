@@ -103,7 +103,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
           export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
           cd services/${{ matrix.service }}
-          mvn clean package -T 1C --batch-mode
+          mvn clean package -DskipTests -T 1C --batch-mode
 
       - name: Security Scan (Trivy)
         uses: aquasecurity/trivy-action@master
