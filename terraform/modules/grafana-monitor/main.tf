@@ -188,10 +188,10 @@ resource "aws_vpc_security_group_ingress_rule" "grafana_from_alb" {
   }
 }
 
-# Allow HTTPS outbound for CloudWatch API
+# Allow HTTPS outbound for CloudWatch API and SSM
 resource "aws_vpc_security_group_egress_rule" "grafana_https" {
   security_group_id = aws_security_group.grafana.id
-  description       = "Allow HTTPS for CloudWatch API"
+  description       = "Allow HTTPS for CloudWatch API and SSM"
 
   from_port   = 443
   to_port     = 443
@@ -247,6 +247,11 @@ locals {
     
     # Update system
     yum update -y
+    
+    # Install and start SSM Agent
+    yum install -y amazon-ssm-agent
+    systemctl enable amazon-ssm-agent
+    systemctl start amazon-ssm-agent
     
     # Add Grafana repository
     cat > /etc/yum.repos.d/grafana.repo <<'REPO'
