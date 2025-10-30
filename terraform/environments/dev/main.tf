@@ -29,7 +29,7 @@ terraform {
 # ==============================================================================
 
 provider "aws" {
-  region = var.aws_region
+  region  = var.aws_region
 
   default_tags {
     tags = {
@@ -42,8 +42,8 @@ provider "aws" {
 }
 
 provider "aws" {
-  alias  = "eu_west_1"
-  region = "eu-west-1"
+  alias   = "eu_west_1"
+  region  = "eu-west-1"
 
   default_tags {
     tags = {
@@ -56,8 +56,8 @@ provider "aws" {
 }
 
 provider "aws" {
-  alias  = "us_east_1"
-  region = "us-east-1"
+  alias   = "us_east_1"
+  region  = "us-east-1"
 
   default_tags {
     tags = {
@@ -213,9 +213,6 @@ module "secrets_manager" {
   project_name            = var.project_name
   environment             = var.environment
   recovery_window_in_days = 7
-
-  aws_access_key_id     = var.aws_access_key_id
-  aws_secret_access_key = var.aws_secret_access_key
 
   tags = local.common_tags
 }

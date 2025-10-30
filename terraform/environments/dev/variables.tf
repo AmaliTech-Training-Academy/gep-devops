@@ -139,18 +139,8 @@ variable "jwt_refresh_expiration" {
 # ==============================================================================
 # AWS Credentials for Services
 # ==============================================================================
-
-variable "aws_access_key_id" {
-  description = "AWS Access Key ID for ECS services (stored in Secrets Manager)"
-  type        = string
-  sensitive   = true
-}
-
-variable "aws_secret_access_key" {
-  description = "AWS Secret Access Key for ECS services (stored in Secrets Manager)"
-  type        = string
-  sensitive   = true
-}
+# Note: AWS credentials for Terraform are configured via AWS CLI profile (gtp-cletus)
+# ECS services get credentials from AWS Secrets Manager at runtime
 
 # ==============================================================================
 # Resource Tagging
