@@ -27,7 +27,6 @@ env:
   AWS_REGION: eu-west-1
   # Terraform-managed naming convention
   ECS_CLUSTER: "event-planner-${{ github.event.client_payload.environment || inputs.environment }}-cluster"
-  SERVICES_TO_DEPLOY: "${{ github.event.client_payload.services && toJson(github.event.client_payload.services) || inputs.services }}"
 
 jobs:
   prepare:
@@ -49,15 +48,43 @@ jobs:
           echo "Looking for service directories..."
           find . -maxdepth 2 -type d -name "*service*" || echo "No service directories found"
 
-      - name: Discover Available Services
+      - name: Determine Services to Deploy
         id: services
         run: |
-          # Deploy auth-service and notification-service (enabled in Terraform)
-          echo 'matrix=["auth-service", "notification-service"]' >> "$GITHUB_OUTPUT"
-          echo "Deploying services: auth-service, notification-service"
+          # Use services from repository dispatch payload, fallback to enabled services
+          if [ -n "${{ github.event.client_payload.services }}" ]; then
+            SERVICES='${{ toJson(github.event.client_payload.services) }}'
+            echo "📦 Services from repository dispatch: $SERVICES"
+          elif [ -n "${{ inputs.services }}" ]; then
+            SERVICES='${{ inputs.services }}'
+            echo "📦 Services from manual input: $SERVICES"
+          else
+            # Default enabled services (Terraform-managed)
+            SERVICES='["auth-service", "notification-service"]'
+            echo "📦 Using default enabled services: $SERVICES"
+          fi
           
-          # Note: other services are disabled in Terraform
-          echo "⚠️ Disabled services (not in Terraform): booking-service, payment-service, event-service"
+          # Filter only services that are enabled in Terraform
+          ENABLED_SERVICES=("auth-service" "notification-service")
+          FILTERED_SERVICES=()
+          
+          for service in $(echo $SERVICES | jq -r '.[]'); do
+            if [[ " ${ENABLED_SERVICES[*]} " =~ " $service " ]]; then
+              FILTERED_SERVICES+=("\"$service\"")
+              echo "✅ $service is enabled for deployment"
+            else
+              echo "⚠️ $service is not enabled in Terraform (skipping)"
+            fi
+          done
+          
+          if [ ${#FILTERED_SERVICES[@]} -eq 0 ]; then
+            echo "⚠️ No enabled services to deploy, using defaults"
+            FILTERED_SERVICES=("\"auth-service\"" "\"notification-service\"")
+          fi
+          
+          FINAL_SERVICES="[$(IFS=,; echo "${FILTERED_SERVICES[*]}")]"
+          echo "matrix=$FINAL_SERVICES" >> "$GITHUB_OUTPUT"
+          echo "🚀 Final services to deploy: $FINAL_SERVICES"
 
   build-and-test:
     needs: prepare
@@ -234,6 +261,16 @@ jobs:
           aws ecs update-service \
             --cluster "$CLUSTER_NAME" \
             --service "$SERVICE_NAME" \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "⏳ Waiting for deployment to complete..."
+          aws ecs wait services-stable \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ Successfully deployed $SERVICE_NAME"vice "$SERVICE_NAME" \
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
           

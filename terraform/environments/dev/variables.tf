@@ -79,7 +79,7 @@ variable "vpc_cidr" {
 variable "availability_zones" {
   description = "List of availability zones for resource deployment. Dev uses 1 AZ for cost savings, Prod uses 2+ for high availability"
   type        = list(string)
-  default     = ["eu-west-1a"] # Single AZ for dev environment (cost-optimized)
+  default     = ["eu-west-1a", "eu-west-1b"] # Two AZs to match existing infrastructure
 
   validation {
     condition     = length(var.availability_zones) > 0
@@ -134,6 +134,22 @@ variable "jwt_refresh_expiration" {
   description = "JWT refresh token expiration time in milliseconds (default: 86400000 = 24 hours)"
   type        = number
   default     = 86400000
+}
+
+# ==============================================================================
+# AWS Credentials for Services
+# ==============================================================================
+
+variable "aws_access_key_id" {
+  description = "AWS Access Key ID for ECS services (stored in Secrets Manager)"
+  type        = string
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  description = "AWS Secret Access Key for ECS services (stored in Secrets Manager)"
+  type        = string
+  sensitive   = true
 }
 
 # ==============================================================================

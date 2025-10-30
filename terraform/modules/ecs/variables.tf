@@ -102,6 +102,18 @@ variable "jwt_secret_arn" {
   default     = null
 }
 
+variable "aws_credentials_secret_arn" {
+  description = "ARN of AWS credentials secret in Secrets Manager"
+  type        = string
+  default     = null
+}
+
+variable "google_credentials_secret_arn" {
+  description = "ARN of Google credentials secret in Secrets Manager for notification service"
+  type        = string
+  default     = null
+}
+
 variable "jwt_access_expiration" {
   description = "JWT access token expiration time in milliseconds"
   type        = number

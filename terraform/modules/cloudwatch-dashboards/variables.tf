@@ -37,6 +37,18 @@ variable "elasticache_cluster_id" {
   type        = string
 }
 
+variable "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID"
+  type        = string
+  default     = ""
+}
+
+variable "s3_bucket_name" {
+  description = "S3 bucket name for frontend assets"
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Additional tags for resources"
   type        = map(string)

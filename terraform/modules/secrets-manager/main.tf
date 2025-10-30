@@ -54,3 +54,62 @@ resource "aws_secretsmanager_secret_version" "jwt_secret" {
     JWT_SECRET = random_password.jwt_secret.result
   })
 }
+
+# ==============================================================================
+# AWS Credentials Secret (for services to access AWS resources)
+# ==============================================================================
+
+resource "aws_secretsmanager_secret" "aws_credentials" {
+  name                    = "${var.project_name}/${var.environment}/aws-credentials"
+  description             = "AWS credentials for ECS services to access AWS resources"
+  recovery_window_in_days = var.recovery_window_in_days
+
+  tags = merge(
+    var.tags,
+    {
+      Name = "${var.project_name}-${var.environment}-aws-credentials"
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "aws_credentials" {
+  secret_id = aws_secretsmanager_secret.aws_credentials.id
+  secret_string = jsonencode({
+    access_key = var.aws_access_key_id
+    secret_key = var.aws_secret_access_key
+  })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
+
+# ==============================================================================
+# Google Email Credentials Secret (for notification service)
+# ==============================================================================
+
+resource "aws_secretsmanager_secret" "google_credentials" {
+  name                    = "${var.project_name}/${var.environment}/google-credentials"
+  description             = "Google email credentials for notification service"
+  recovery_window_in_days = var.recovery_window_in_days
+
+  tags = merge(
+    var.tags,
+    {
+      Name    = "${var.project_name}-${var.environment}-google-credentials"
+      Service = "notification-service"
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "google_credentials" {
+  secret_id = aws_secretsmanager_secret.google_credentials.id
+  secret_string = jsonencode({
+    user     = "noreply@sankofagrid.com"
+    password = "REPLACE_WITH_ACTUAL_PASSWORD"
+  })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}

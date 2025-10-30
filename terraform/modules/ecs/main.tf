@@ -38,9 +38,9 @@ locals {
       port          = 8081
       cpu           = var.environment == "dev" ? 256 : 512
       memory        = var.environment == "dev" ? 512 : 1024
-      desired_count = 1
-      min_capacity  = 1
-      max_capacity  = 1
+      desired_count = var.environment == "dev" ? 1 : 2
+      min_capacity  = var.environment == "dev" ? 1 : 2
+      max_capacity  = var.environment == "dev" ? 1 : 4
     }
     # TEMPORARILY DISABLED: Event service not yet ready
     # Uncomment when developers are ready to deploy
@@ -75,17 +75,15 @@ locals {
     #   min_capacity  = var.environment == "dev" ? 1 : 2
     #   max_capacity  = var.environment == "dev" ? 2 : 4
     # }
-    # TEMPORARILY DISABLED: Notification service not yet ready
-    # Uncomment when developers are ready to deploy
-    # notification = {
-    #   name          = "notification-service"
-    #   port          = 8085
-    #   cpu           = var.environment == "dev" ? 256 : 512
-    #   memory        = var.environment == "dev" ? 512 : 1024
-    #   desired_count = var.environment == "dev" ? 1 : 2
-    #   min_capacity  = var.environment == "dev" ? 1 : 1
-    #   max_capacity  = var.environment == "dev" ? 2 : 3
-    # }
+    notification = {
+      name          = "notification-service"
+      port          = 8085
+      cpu           = var.environment == "dev" ? 256 : 512
+      memory        = var.environment == "dev" ? 512 : 1024
+      desired_count = var.environment == "dev" ? 1 : 2
+      min_capacity  = var.environment == "dev" ? 1 : 2
+      max_capacity  = var.environment == "dev" ? 1 : 4
+    }
   }
 
   common_tags = merge(
@@ -249,6 +247,10 @@ resource "aws_ecs_task_definition" "services" {
           value = var.service_discovery_namespace
         },
         {
+          name  = "SPRING_CLOUD_AWS_REGION_STATIC"
+          value = var.aws_region
+        },
+        {
           name  = "AUTH_SERVICE_URL"
           value = "http://auth-service.${var.service_discovery_namespace}:8081"
         },
@@ -258,21 +260,10 @@ resource "aws_ecs_task_definition" "services" {
         }
         ],
         [
-          # TEMPORARILY DISABLED: Service URLs for services not yet deployed
-          # Uncomment when booking, payment, and notification services are ready
-          # {
-          #   name  = "BOOKING_SERVICE_URL"
-          #   value = "http://booking-service.${var.service_discovery_namespace}:8083"
-          # },
-          # {
-          #   name  = "PAYMENT_SERVICE_URL"
-          #   value = "http://payment-service.${var.service_discovery_namespace}:8084"
-          # },
-          # {
-          #   name  = "NOTIFICATION_SERVICE_URL"
-          #   value = "http://notification-service.${var.service_discovery_namespace}:8085"
-          # }
-          # JWT configuration for auth service
+          {
+            name  = "NOTIFICATION_SERVICE_URL"
+            value = "http://notification-service.${var.service_discovery_namespace}:8085"
+          }
         ],
         each.key == "auth" ? [
           {
@@ -291,20 +282,24 @@ resource "aws_ecs_task_definition" "services" {
             value = "https://sqs.${var.aws_region}.amazonaws.com"
           },
           {
-            name  = "USER_REGISTRATION_QUEUE_NAME"
-            value = lookup(var.sqs_queue_names, "user_registration", "")
-          },
-          {
             name  = "USER_LOGIN_QUEUE_NAME"
             value = lookup(var.sqs_queue_names, "user_login", "")
+          },
+          {
+            name  = "USER_LOGIN_QUEUE"
+            value = lookup(var.sqs_queue_urls, "user_login", "")
+          },
+          {
+            name  = "USER_REGISTRATION_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "user_registration", "")
           },
           {
             name  = "USER_REGISTRATION_QUEUE"
             value = lookup(var.sqs_queue_urls, "user_registration", "")
           },
           {
-            name  = "USER_LOGIN_QUEUE"
-            value = lookup(var.sqs_queue_urls, "user_login", "")
+            name  = "PASSWORD_RESET_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "password_reset", "")
           },
           {
             name  = "PASSWORD_RESET_QUEUE"
@@ -355,13 +350,40 @@ resource "aws_ecs_task_definition" "services" {
             value = "https://sqs.${var.aws_region}.amazonaws.com"
           },
           {
-            name  = "EMAIL_QUEUE_NAME"
-            value = lookup(var.sqs_queue_names, "email-notifications", "")
+            name  = "NOTIFICATIONS_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "notifications", "")
+          },
+          {
+            name  = "NOTIFICATIONS_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "notifications", "")
+          },
+          {
+            name  = "USER_REGISTRATION_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "user_registration", "")
+          },
+          {
+            name  = "USER_LOGIN_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "user_login", "")
+          },
+          {
+            name  = "PASSWORD_RESET_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "password_reset", "")
           }
         ] : []
       )
 
       secrets = concat(
+        # AWS Credentials from Secrets Manager
+        var.aws_credentials_secret_arn != null ? [
+          {
+            name      = "SPRING_CLOUD_AWS_CREDENTIALS_ACCESS_KEY"
+            valueFrom = "${var.aws_credentials_secret_arn}:access_key::"
+          },
+          {
+            name      = "SPRING_CLOUD_AWS_CREDENTIALS_SECRET_KEY"
+            valueFrom = "${var.aws_credentials_secret_arn}:secret_key::"
+          }
+        ] : [],
         # Service-specific database credentials - use each.key (auth, event) not each.value.name (auth-service)
         each.key == "auth" && lookup(var.db_secret_arns, each.key, null) != null ? [
           {
@@ -397,8 +419,27 @@ resource "aws_ecs_task_definition" "services" {
             name      = "JWT_SECRET"
             valueFrom = "${var.jwt_secret_arn}:JWT_SECRET::"
           }
+        ] : [],
+        # Google credentials for notification service
+        each.key == "notification" && var.google_credentials_secret_arn != null ? [
+          {
+            name      = "GOOGLE_USER"
+            valueFrom = "${var.google_credentials_secret_arn}:user::"
+          },
+          {
+            name      = "GOOGLE_PASSWORD"
+            valueFrom = "${var.google_credentials_secret_arn}:password::"
+          }
         ] : []
       )
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/actuator/health || wget --no-verbose --tries=1 --spider http://localhost:${each.value.port}/actuator/health || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 90
+      }
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -407,14 +448,6 @@ resource "aws_ecs_task_definition" "services" {
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "ecs"
         }
-      }
-
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/actuator/health || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 120
       }
     }
   ])
@@ -508,7 +541,7 @@ resource "aws_ecs_service" "services" {
   propagate_tags          = "SERVICE"
 
   # Health check grace period (allow time for Spring Boot startup)
-  health_check_grace_period_seconds = 180
+  health_check_grace_period_seconds = 300
 
   tags = merge(
     local.common_tags,

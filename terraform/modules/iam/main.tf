@@ -46,7 +46,10 @@ resource "aws_iam_role" "ecs_task_execution" {
   tags = merge(
     var.tags,
     {
-      Name = "${var.project_name}-${var.environment}-ecs-execution-role"
+      Name      = "${var.project_name}-${var.environment}-ecs-execution-role"
+      Service   = "ecs"
+      Component = "task-execution"
+      Purpose   = "container-runtime"
     }
   )
 }
@@ -57,7 +60,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Policy for Secrets Manager access (DB secrets + JWT secret)
+# Policy for Secrets Manager access (DB secrets + JWT secret + AWS credentials)
 resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
   name_prefix = "secrets-access-"
   role        = aws_iam_role.ecs_task_execution.id
@@ -72,7 +75,11 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
         ]
         Resource = concat(
           var.db_secrets_arns,
-          var.jwt_secret_arn != null ? [var.jwt_secret_arn] : []
+          var.jwt_secret_arn != null ? [var.jwt_secret_arn] : [],
+          [
+            "arn:aws:secretsmanager:*:*:secret:event-planner/*/aws-credentials-*",
+            "arn:aws:secretsmanager:*:*:secret:event-planner/*/google-credentials-*"
+          ]
         )
       }
     ]
@@ -103,7 +110,10 @@ resource "aws_iam_role" "auth_service_task" {
   tags = merge(
     var.tags,
     {
-      Name = "${var.project_name}-${var.environment}-auth-service-task-role"
+      Name      = "${var.project_name}-${var.environment}-auth-service-task-role"
+      Service   = "auth-service"
+      Component = "task-role"
+      Purpose   = "service-permissions"
     }
   )
 }
@@ -168,7 +178,10 @@ resource "aws_iam_role" "event_service_task" {
   tags = merge(
     var.tags,
     {
-      Name = "${var.project_name}-${var.environment}-event-service-task-role"
+      Name      = "${var.project_name}-${var.environment}-event-service-task-role"
+      Service   = "event-service"
+      Component = "task-role"
+      Purpose   = "service-permissions"
     }
   )
 }
@@ -233,7 +246,10 @@ resource "aws_iam_role" "booking_service_task" {
   tags = merge(
     var.tags,
     {
-      Name = "${var.project_name}-${var.environment}-booking-service-task-role"
+      Name      = "${var.project_name}-${var.environment}-booking-service-task-role"
+      Service   = "booking-service"
+      Component = "task-role"
+      Purpose   = "service-permissions"
     }
   )
 }
@@ -287,7 +303,10 @@ resource "aws_iam_role" "payment_service_task" {
   tags = merge(
     var.tags,
     {
-      Name = "${var.project_name}-${var.environment}-payment-service-task-role"
+      Name      = "${var.project_name}-${var.environment}-payment-service-task-role"
+      Service   = "payment-service"
+      Component = "task-role"
+      Purpose   = "service-permissions"
     }
   )
 }
@@ -341,7 +360,10 @@ resource "aws_iam_role" "notification_service_task" {
   tags = merge(
     var.tags,
     {
-      Name = "${var.project_name}-${var.environment}-notification-service-task-role"
+      Name      = "${var.project_name}-${var.environment}-notification-service-task-role"
+      Service   = "notification-service"
+      Component = "task-role"
+      Purpose   = "service-permissions"
     }
   )
 }
@@ -354,24 +376,41 @@ resource "aws_iam_role_policy" "notification_service_task" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "EmailAndSMSPermissions"
         Effect = "Allow"
         Action = [
           "ses:SendEmail",
           "ses:SendRawEmail",
-          "sns:Publish"
+          "ses:SendTemplatedEmail",
+          "ses:GetSendQuota",
+          "sns:Publish",
+          "sns:Subscribe",
+          "sns:Unsubscribe"
         ]
         Resource = "*"
       },
       {
+        Sid    = "SQSPermissions"
         Effect = "Allow"
         Action = [
           "sqs:SendMessage",
           "sqs:ReceiveMessage",
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes",
-          "sqs:GetQueueUrl"
+          "sqs:GetQueueUrl",
+          "sqs:ChangeMessageVisibility"
         ]
         Resource = "arn:aws:sqs:*:*:event-planner-*"
+      },
+      {
+        Sid    = "CloudWatchLogsPermissions"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "arn:aws:logs:*:*:log-group:/ecs/*"
       }
     ]
   })

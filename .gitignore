@@ -21,4 +21,4 @@
 **/.terraformrc
 **/terraform.rc
 /ext
-scripts/
+scripts/terraform.tfvars

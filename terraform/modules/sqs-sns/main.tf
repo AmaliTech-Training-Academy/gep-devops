@@ -42,21 +42,21 @@ locals {
       topic              = "event"
       filter_policy      = { event_type = ["user.registered"] }
       visibility_timeout = 30
-      message_retention  = 345600
+      message_retention  = 259200
     }
     user_login = {
       name               = "${var.project_name}-${var.environment}-user-login-queue"
       topic              = "event"
       filter_policy      = { event_type = ["user.login"] }
       visibility_timeout = 30
-      message_retention  = 345600
+      message_retention  = 259200
     }
     password_reset = {
       name               = "${var.project_name}-${var.environment}-password-reset-queue"
       topic              = "event"
       filter_policy      = { event_type = ["password.reset"] }
       visibility_timeout = 30
-      message_retention  = 345600
+      message_retention  = 259200
     }
 
     # Event service queues
@@ -65,16 +65,16 @@ locals {
       topic              = "event"
       filter_policy      = { event_type = ["event.created"] }
       visibility_timeout = 30
-      message_retention  = 345600
+      message_retention  = 259200
     }
 
-    # Notification service queues
-    email_notifications = {
-      name               = "${var.project_name}-${var.environment}-email-notifications-queue"
+    # Notification service queue (handles email, OTP, SMS)
+    notifications = {
+      name               = "${var.project_name}-${var.environment}-notifications-queue"
       topic              = "event"
-      filter_policy      = { event_type = ["notification.email"] }
+      filter_policy      = { event_type = ["notification.email", "notification.otp", "notification.sms", "otp.generate", "otp.verify"] }
       visibility_timeout = 30
-      message_retention  = 345600
+      message_retention  = 259200
     }
 
     # COMMENTED OUT: Booking and Payment queues (not needed yet)
@@ -117,8 +117,11 @@ resource "aws_sns_topic" "topics" {
   tags = merge(
     local.common_tags,
     {
-      Name = each.value
-      Type = "event-topic"
+      Name        = each.value
+      Type        = "event-topic"
+      Service     = "messaging"
+      Component   = "sns"
+      Purpose     = "event-publishing"
     }
   )
 }
@@ -132,14 +135,18 @@ resource "aws_sqs_queue" "dlq" {
   for_each = local.queues
 
   name                      = "${each.value.name}-dlq"
-  message_retention_seconds = 1209600 # 14 days
+  message_retention_seconds = 259200 # 3 days
   kms_master_key_id         = var.kms_key_arn
 
   tags = merge(
     local.common_tags,
     {
-      Name = "${each.value.name}-dlq"
-      Type = "dead-letter-queue"
+      Name        = "${each.value.name}-dlq"
+      Type        = "dead-letter-queue"
+      Service     = "messaging"
+      Component   = "sqs"
+      Purpose     = "failed-message-handling"
+      Retention   = "3-days"
     }
   )
 }
@@ -168,9 +175,13 @@ resource "aws_sqs_queue" "queues" {
   tags = merge(
     local.common_tags,
     {
-      Name  = each.value.name
-      Type  = "message-queue"
-      Topic = each.value.topic
+      Name        = each.value.name
+      Type        = "message-queue"
+      Topic       = each.value.topic
+      Service     = "messaging"
+      Component   = "sqs"
+      Purpose     = "event-processing"
+      Retention   = "3-days"
     }
   )
 }

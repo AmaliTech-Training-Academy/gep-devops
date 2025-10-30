@@ -11,3 +11,23 @@ output "jwt_secret_name" {
   description = "Name of the JWT secret in Secrets Manager"
   value       = aws_secretsmanager_secret.jwt_secret.name
 }
+
+output "aws_credentials_secret_arn" {
+  description = "ARN of the AWS credentials secret in Secrets Manager"
+  value       = aws_secretsmanager_secret.aws_credentials.arn
+}
+
+output "aws_credentials_secret_name" {
+  description = "Name of the AWS credentials secret in Secrets Manager"
+  value       = aws_secretsmanager_secret.aws_credentials.name
+}
+
+output "google_credentials_secret_arn" {
+  description = "ARN of the Google credentials secret in Secrets Manager"
+  value       = aws_secretsmanager_secret.google_credentials.arn
+}
+
+output "google_credentials_secret_name" {
+  description = "Name of the Google credentials secret in Secrets Manager"
+  value       = aws_secretsmanager_secret.google_credentials.name
+}
