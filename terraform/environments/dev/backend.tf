@@ -38,6 +38,12 @@
 
 terraform {
   backend "s3" {
+    # S3 bucket name for state storage (created by bootstrap module)
+    # Format: {project}-terraform-state-{region}-{account-id}
+    bucket = "event-planner-terraform-state-eu-west-1-904570587823"
+    # DynamoDB table for state locking (prevents concurrent modifications)
+    # Format: {project}-terraform-locks
+    dynamodb_table = "event-planner-terraform-locks"
     
     
 
