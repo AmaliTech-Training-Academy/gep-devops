@@ -28,6 +28,7 @@ terraform {
 # Data Sources
 # ==============================================================================
 
+# Get the latest free-tier eligible Amazon Linux 2023 AMI
 data "aws_ami" "amazon_linux_2023" {
   most_recent = true
   owners      = ["amazon"]
@@ -351,7 +352,7 @@ resource "aws_lb_target_group" "grafana" {
 
   health_check {
     enabled             = true
-    path                = "/-/health"
+    path                = "/api/health"
     protocol            = "HTTP"
     port                = "traffic-port"
     healthy_threshold   = var.health_check_healthy_threshold
