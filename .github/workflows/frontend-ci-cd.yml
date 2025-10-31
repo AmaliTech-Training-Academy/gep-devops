@@ -201,6 +201,8 @@ jobs:
         else
           npm run build
         fi
+      env:
+        NG_APP_PROD_API: ${{ secrets.NG_APP_PROD_API }}
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
@@ -267,6 +269,7 @@ jobs:
         echo "- **Security Scan Status:** ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
 
     - name: Slack Notification
+      if: always()
       uses: 8398a7/action-slack@v3
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
