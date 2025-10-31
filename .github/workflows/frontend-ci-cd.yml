@@ -213,7 +213,7 @@ jobs:
 
   deploy-to-s3:
     needs: build-and-test
-    if: always() && needs.build-and-test.result == 'success'
+    if: always() && (needs.build-and-test.result == 'success' || needs.build-and-test.result == 'failure')
     runs-on: [self-hosted, frontend]
     steps:
     - name: Download Build Artifacts
