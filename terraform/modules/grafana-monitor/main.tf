@@ -124,7 +124,22 @@ resource "aws_iam_role_policy" "grafana_cloudwatch" {
         Action = [
           "ec2:DescribeTags",
           "ec2:DescribeInstances",
-          "ec2:DescribeRegions"
+          "ec2:DescribeRegions",
+          "ec2:DescribeVolumes"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:ListClusters",
+          "ecs:ListServices",
+          "ecs:ListTasks",
+          "ecs:DescribeClusters",
+          "ecs:DescribeServices",
+          "ecs:DescribeTasks",
+          "ecs:DescribeContainerInstances",
+          "ecs:DescribeTaskDefinition"
         ]
         Resource = "*"
       },
@@ -320,6 +335,9 @@ locals {
     sleep 10
     
     echo "Grafana installation completed"
+
+    # Install postgres15 client for RDS PostgreSQL access
+    sudo yum install postgresql15 -y
   EOF
 }
 

@@ -59,7 +59,7 @@ variable "enable_cors" {
 variable "cors_allowed_origins" {
   description = "Allowed origins for CORS"
   type        = list(string)
-  default     = ["*"]
+  default     = ["https://events.sankofagrid.com", "https://www.sankofagrid.com", "http://localhost:4200"]
 }
 
 variable "enable_access_logging" {

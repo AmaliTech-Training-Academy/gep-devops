@@ -118,22 +118,7 @@ output "rds_secret_arns" {
   sensitive   = true
 }
 
-# ==============================================================================
-# DocumentDB Outputs - TEMPORARILY DISABLED
-# ==============================================================================
-# Uncomment when DocumentDB module is re-enabled
 
-# output "documentdb_endpoint" {
-#   description = "DocumentDB cluster endpoint"
-#   value       = module.documentdb.cluster_endpoint
-#   sensitive   = true
-# }
-
-# output "documentdb_secret_arn" {
-#   description = "DocumentDB secret ARN"
-#   value       = module.documentdb.secret_arn
-#   sensitive   = true
-# }
 
 # ==============================================================================
 # ElastiCache Outputs
@@ -317,7 +302,7 @@ output "next_steps" {
      Services Temporarily Disabled (Cost Savings: ~$108/month):
     - ECS: event, booking, payment, notification services
     - RDS: event, booking, payment databases
-    - DocumentDB cluster
+
     
     See COST_OPTIMIZATION_CHANGES.md for re-enable instructions
     

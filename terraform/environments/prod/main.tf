@@ -165,7 +165,7 @@ module "iam" {
   environment         = var.environment
   frontend_bucket_arn = module.s3.assets_bucket_arn
 
-  # Use wildcard for flexibility - actual secrets created by RDS/DocumentDB modules
+  # Use wildcard for flexibility - actual secrets created by RDS modules
   db_secrets_arns = [
     "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/*"
   ]
@@ -412,55 +412,7 @@ module "rds" {
   tags = local.common_tags
 }
 
-# ==============================================================================
-# DocumentDB Module
-# ==============================================================================
 
-module "documentdb" {
-  source = "../../modules/documentdb"
-
-  project_name      = var.project_name
-  environment       = var.environment
-  subnet_ids        = module.vpc.private_data_subnet_ids
-  security_group_id = module.security_groups.documentdb_security_group_id
-
-  engine_version = "5.0.0"
-  docdb_family   = "docdb5.0"
-  port           = 27017
-  instance_class = "db.t3.medium"
-  replica_count  = 0 # Dev: No replicas
-
-  master_username = "docdbadmin"
-
-  backup_retention_days = 7
-  backup_window         = "03:00-04:00"
-  maintenance_window    = "sun:04:00-sun:05:00"
-  skip_final_snapshot   = true
-
-  kms_key_arn = null
-
-  tls_enabled                 = true
-  deletion_protection         = false
-  secret_recovery_window_days = 7
-
-  audit_logs_enabled    = true
-  ttl_monitor_enabled   = true
-  profiler_enabled      = true
-  profiler_threshold_ms = "100"
-
-  enabled_cloudwatch_logs_exports = ["audit", "profiler"]
-  enable_performance_insights     = false
-
-  cpu_alarm_threshold           = 80
-  connections_alarm_threshold   = 100
-  storage_alarm_threshold_bytes = 10737418240
-  alarm_actions                 = [module.cloudwatch.sns_topic_arn]
-
-  apply_immediately          = true
-  auto_minor_version_upgrade = true
-
-  tags = local.common_tags
-}
 
 # ==============================================================================
 # ElastiCache Module
@@ -598,7 +550,6 @@ module "ecs" {
 
   db_secret_arns = module.rds.secret_arns
   redis_endpoint = module.elasticache.primary_endpoint_address
-  docdb_endpoint = module.documentdb.cluster_endpoint
 
   target_group_arns = module.alb.target_group_arns
   alb_listener_arn  = module.alb.https_listener_arn
