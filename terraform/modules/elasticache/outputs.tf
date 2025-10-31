@@ -19,7 +19,7 @@ output "configuration_endpoint_address" {
 
 output "primary_endpoint_address" {
   description = "The address of the endpoint for the primary node in the replication group"
-  value       = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].primary_endpoint_address, "")
+  value       = var.cluster_mode_enabled ? null : try(aws_elasticache_replication_group.single_node[0].cache_nodes[0].address, "")
 }
 
 output "reader_endpoint_address" {
