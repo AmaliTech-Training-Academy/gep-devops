@@ -61,10 +61,19 @@ jobs:
         head: HEAD
         extra_args: --only-verified
 
+    - name: Linting
+      working-directory: frontend
+      run: |
+        if npm run | grep -q "lint"; then
+          npm run lint
+        else
+          npx ng lint || npx eslint src/ --ext .ts,.html
+        fi
+
     - name: SAST Scan
       uses: semgrep/semgrep-action@v1
       with:
-        config: p/security-audit p/javascript p/typescript p/react
+        config: p/security-audit p/javascript p/typescript p/angular
         generateSarif: "1"
       env:
         SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
