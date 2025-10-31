@@ -228,7 +228,7 @@ module "iam" {
   environment         = var.environment
   frontend_bucket_arn = module.s3.assets_bucket_arn
 
-  # Use wildcard for flexibility - actual secrets created by RDS/DocumentDB modules
+  # Use wildcard for flexibility - actual secrets created by RDS modules
   db_secrets_arns = [
     "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/*"
   ]

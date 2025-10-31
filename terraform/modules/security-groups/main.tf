@@ -10,7 +10,6 @@
 # - ALB Security Group: HTTPS/HTTP from internet
 # - ECS Security Group: Application ports from ALB + inter-service communication
 # - RDS Security Group: PostgreSQL from ECS only
-# - DocumentDB Security Group: MongoDB from ECS only
 # - ElastiCache Security Group: Redis from ECS only
 # ==============================================================================
 
@@ -279,41 +278,7 @@ resource "aws_vpc_security_group_ingress_rule" "rds_from_ecs" {
 
 # No outbound rules (databases don't initiate connections)
 
-# ==============================================================================
-# DocumentDB Security Group - COMMENTED OUT (using PostgreSQL JSONB instead)
-# ==============================================================================
-# Uncomment if DocumentDB is needed in the future
 
-# resource "aws_security_group" "documentdb" {
-#   name_prefix = "${var.project_name}-${var.environment}-documentdb-"
-#   description = "Security group for DocumentDB cluster"
-#   vpc_id      = var.vpc_id
-#
-#   tags = merge(
-#     local.common_tags,
-#     {
-#       Name = "${var.project_name}-${var.environment}-documentdb-sg"
-#     }
-#   )
-#
-#   lifecycle {
-#     create_before_destroy = true
-#   }
-# }
-#
-# resource "aws_vpc_security_group_ingress_rule" "documentdb_from_ecs" {
-#   security_group_id = aws_security_group.documentdb.id
-#   description       = "Allow MongoDB from ECS tasks"
-#
-#   from_port                    = 27017
-#   to_port                      = 27017
-#   ip_protocol                  = "tcp"
-#   referenced_security_group_id = aws_security_group.ecs.id
-#
-#   tags = {
-#     Name = "allow-mongodb-from-ecs"
-#   }
-# }
 
 # ==============================================================================
 # ElastiCache Security Group
