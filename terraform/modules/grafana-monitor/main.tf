@@ -124,7 +124,22 @@ resource "aws_iam_role_policy" "grafana_cloudwatch" {
         Action = [
           "ec2:DescribeTags",
           "ec2:DescribeInstances",
-          "ec2:DescribeRegions"
+          "ec2:DescribeRegions",
+          "ec2:DescribeVolumes"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:ListClusters",
+          "ecs:ListServices",
+          "ecs:ListTasks",
+          "ecs:DescribeClusters",
+          "ecs:DescribeServices",
+          "ecs:DescribeTasks",
+          "ecs:DescribeContainerInstances",
+          "ecs:DescribeTaskDefinition"
         ]
         Resource = "*"
       },
