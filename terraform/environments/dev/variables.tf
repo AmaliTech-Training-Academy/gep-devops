@@ -141,6 +141,7 @@ variable "jwt_refresh_expiration" {
 # ==============================================================================
 # Note: AWS credentials for Terraform are configured via AWS CLI profile (gtp-cletus)
 # ECS services get credentials from AWS Secrets Manager at runtime
+# AWS credentials are already stored in: event-planner/dev/aws-credentials
 
 # ==============================================================================
 # Resource Tagging
