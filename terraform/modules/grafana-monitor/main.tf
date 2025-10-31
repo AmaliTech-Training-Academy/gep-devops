@@ -320,6 +320,9 @@ locals {
     sleep 10
     
     echo "Grafana installation completed"
+
+    # Install postgres15 client for RDS PostgreSQL access
+    sudo yum install postgresql15 -y
   EOF
 }
 
