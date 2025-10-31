@@ -24,16 +24,5 @@ variable "tags" {
   default     = {}
 }
 
-variable "aws_access_key_id" {
-  description = "AWS Access Key ID for services"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "aws_secret_access_key" {
-  description = "AWS Secret Access Key for services"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
+# AWS credentials are managed externally in the existing secret
+# event-planner/dev/aws-credentials

@@ -72,11 +72,13 @@ resource "aws_secretsmanager_secret" "aws_credentials" {
   )
 }
 
+# AWS credentials secret version - managed externally
+# The secret already exists with proper credentials
 resource "aws_secretsmanager_secret_version" "aws_credentials" {
   secret_id = aws_secretsmanager_secret.aws_credentials.id
   secret_string = jsonencode({
-    access_key = var.aws_access_key_id
-    secret_key = var.aws_secret_access_key
+    access_key = "PLACEHOLDER_ACCESS_KEY"
+    secret_key = "PLACEHOLDER_SECRET_KEY"
   })
 
   lifecycle {

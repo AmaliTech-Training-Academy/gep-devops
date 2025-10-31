@@ -350,36 +350,20 @@ resource "aws_ecs_task_definition" "services" {
             value = "https://sqs.${var.aws_region}.amazonaws.com"
           },
           {
-            name  = "NOTIFICATIONS_QUEUE_NAME"
-            value = lookup(var.sqs_queue_names, "notifications", "")
-          },
-          {
-            name  = "NOTIFICATIONS_QUEUE_URL"
-            value = lookup(var.sqs_queue_urls, "notifications", "")
+            name  = "AWS_REGION"
+            value = var.aws_region
           },
           {
             name  = "USER_REGISTRATION_QUEUE_NAME"
             value = lookup(var.sqs_queue_names, "user_registration", "")
           },
           {
-            name  = "USER_REGISTRATION_QUEUE_URL"
-            value = lookup(var.sqs_queue_urls, "user_registration", "")
-          },
-          {
             name  = "USER_LOGIN_QUEUE_NAME"
             value = lookup(var.sqs_queue_names, "user_login", "")
           },
           {
-            name  = "USER_LOGIN_QUEUE_URL"
-            value = lookup(var.sqs_queue_urls, "user_login", "")
-          },
-          {
             name  = "PASSWORD_RESET_QUEUE_NAME"
             value = lookup(var.sqs_queue_names, "password_reset", "")
-          },
-          {
-            name  = "PASSWORD_RESET_QUEUE_URL"
-            value = lookup(var.sqs_queue_urls, "password_reset", "")
           },
           {
             name  = "SPRING_MAIL_HOST"
@@ -417,14 +401,14 @@ resource "aws_ecs_task_definition" "services" {
       )
 
       secrets = concat(
-        # AWS Credentials from Secrets Manager
+        # AWS Credentials from Secrets Manager - for all services
         var.aws_credentials_secret_arn != null ? [
           {
-            name      = "SPRING_CLOUD_AWS_CREDENTIALS_ACCESS_KEY"
+            name      = "AWS_ACCESS_KEY"
             valueFrom = "${var.aws_credentials_secret_arn}:access_key::"
           },
           {
-            name      = "SPRING_CLOUD_AWS_CREDENTIALS_SECRET_KEY"
+            name      = "AWS_SECRET_KEY"
             valueFrom = "${var.aws_credentials_secret_arn}:secret_key::"
           }
         ] : [],
