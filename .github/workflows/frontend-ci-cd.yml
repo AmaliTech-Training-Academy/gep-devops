@@ -172,6 +172,7 @@ jobs:
 
   build-and-test:
     needs: security-scan
+    if: always() && (needs.security-scan.result == 'success' || needs.security-scan.result == 'failure')
     runs-on: [self-hosted, frontend]
     steps:
     - name: Checkout Frontend Code
@@ -201,6 +202,8 @@ jobs:
         else
           npm run build
         fi
+      env:
+        NG_APP_PROD_API: ${{ secrets.NG_APP_PROD_API }}
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
@@ -210,6 +213,7 @@ jobs:
 
   deploy-to-s3:
     needs: build-and-test
+    if: always() && (needs.build-and-test.result == 'success' || needs.build-and-test.result == 'failure')
     runs-on: [self-hosted, frontend]
     steps:
     - name: Download Build Artifacts
@@ -267,6 +271,7 @@ jobs:
         echo "- **Security Scan Status:** ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
 
     - name: Slack Notification
+      if: always()
       uses: 8398a7/action-slack@v3
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
