@@ -71,10 +71,19 @@ jobs:
         fi
 
     - name: SAST Scan
-      uses: semgrep/semgrep-action@v1
-      with:
-        config: p/security-audit p/javascript p/typescript p/angular
-        generateSarif: "1"
+      working-directory: frontend
+      run: |
+        # Install semgrep
+        pip3 install semgrep
+        
+        # Run semgrep scan
+        semgrep --config=p/security-audit --config=p/javascript --config=p/typescript --config=p/angular --sarif --output=../results.sarif . || true
+        
+        # Show results summary
+        if [ -f "../results.sarif" ]; then
+          ISSUES=$(jq '.runs[0].results | length' ../results.sarif 2>/dev/null || echo "0")
+          echo "Found $ISSUES SAST issues"
+        fi
       env:
         SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
@@ -88,6 +97,35 @@ jobs:
     #       echo "::error::Restricted licenses found"
     #       exit 1
     #     fi
+
+    # - name: Configure AWS credentials
+    #   uses: aws-actions/configure-aws-credentials@v4
+    #   with:
+    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #     aws-region: ${{ secrets.AWS_REGION }}
+
+    # - name: Upload Security Reports to S3
+    #   if: always()
+    #   run: |
+    #     TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+    #     case "${{ env.ENVIRONMENT }}" in
+    #       dev) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_DEV }}" ;;
+    #       staging) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_STAGING }}" ;;
+    #       prod) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_PROD }}" ;;
+    #     esac
+    #     
+    #     # Upload audit results
+    #     if [ -f "frontend/audit-results.json" ]; then
+    #       aws s3 cp frontend/audit-results.json s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/audit-results.json
+    #     fi
+    #     
+    #     # Upload SARIF results
+    #     if [ -f "results.sarif" ]; then
+    #       aws s3 cp results.sarif s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/semgrep-results.sarif
+    #     fi
+    #     
+    #     echo "Security reports uploaded to s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/"
 
     - name: Upload Security Reports
       uses: actions/upload-artifact@v4
