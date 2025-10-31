@@ -60,7 +60,11 @@ resource "aws_cloudfront_origin_request_policy" "main" {
       items = [
         "Origin",
         "Access-Control-Request-Method",
-        "Access-Control-Request-Headers"
+        "Access-Control-Request-Headers",
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "X-Requested-With"
       ]
     }
   }
