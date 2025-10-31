@@ -62,25 +62,37 @@ jobs:
         SECRETS_FOUND=0
         
         # AWS keys
-        if grep -r "AKIA[0-9A-Z]\{16\}" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock" || true; then
-          echo "::warning::Potential AWS access key found"
+        echo "Checking for AWS access keys..."
+        if grep -rn "AKIA[0-9A-Z]\{16\}" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock"; then
+          echo "::error::AWS access key found in above locations"
           SECRETS_FOUND=1
         fi
         
         # JWT tokens
-        if grep -r "eyJ[A-Za-z0-9-_=]\+\.[A-Za-z0-9-_=]\+\.\?[A-Za-z0-9-_.+/=]*" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock" || true; then
-          echo "::warning::Potential JWT token found"
+        echo "Checking for JWT tokens..."
+        if grep -rn "eyJ[A-Za-z0-9-_=]\+\.[A-Za-z0-9-_=]\+\.\?[A-Za-z0-9-_.+/=]*" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock"; then
+          echo "::error::JWT token found in above locations"
           SECRETS_FOUND=1
         fi
         
         # Generic API keys
-        if grep -ri "api[_-]\?key.*['\"][0-9a-zA-Z]\{16,\}['\"]" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock" || true; then
-          echo "::warning::Potential API key found"
+        echo "Checking for API keys..."
+        if grep -rin "api[_-]\?key.*['\"][0-9a-zA-Z]\{16,\}['\"]" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock"; then
+          echo "::error::API key found in above locations"
+          SECRETS_FOUND=1
+        fi
+        
+        # Private keys
+        echo "Checking for private keys..."
+        if grep -rn "BEGIN.*PRIVATE.*KEY" . --exclude-dir=node_modules; then
+          echo "::error::Private key found in above locations"
           SECRETS_FOUND=1
         fi
         
         if [ $SECRETS_FOUND -eq 0 ]; then
-          echo "No obvious secrets detected"
+          echo "✅ No secrets detected"
+        else
+          echo "❌ Found $SECRETS_FOUND type(s) of secrets"
         fi
 
     - name: Linting
