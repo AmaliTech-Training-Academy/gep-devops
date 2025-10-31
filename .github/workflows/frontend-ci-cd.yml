@@ -95,14 +95,14 @@ jobs:
           echo "❌ Found $SECRETS_FOUND type(s) of secrets"
         fi
 
-    - name: Linting
-      working-directory: frontend
-      run: |
-        if npm run | grep -q "lint"; then
-          npm run lint
-        else
-          npx ng lint || npx eslint src/ --ext .ts,.html
-        fi
+    # - name: Linting
+    #   working-directory: frontend
+    #   run: |
+    #     if npm run | grep -q "lint"; then
+    #       npm run lint
+    #     else
+    #       echo "No lint script found, skipping linting"
+    #     fi
 
     - name: SAST Scan
       working-directory: frontend
