@@ -19,7 +19,7 @@ Users → ALB (existing) → /monitoring/* → EC2 Grafana → CloudWatch API
 ### 1.1 Launch EC2 Instance
 **Instance Configuration:**
 - AMI: Amazon Linux 2023
-- Instance Type: `t3.small` (2 vCPU, 2GB RAM)
+- Instance Type: `t3.micro` (2 vCPU, 1GB RAM)
 - Subnet: Private Application Subnet (`10.0.10.0/24`)
 - Storage: 20GB gp3 EBS
 - Name: `eventplanner-grafana-dev`

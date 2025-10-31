@@ -9,10 +9,10 @@ Grafana monitoring infrastructure has been provisioned in the `grafana-monitor` 
 ### Infrastructure Components
 
 1. **EC2 Instance**
-   - Type: t3.small (2 vCPU, 2GB RAM)
+   - Type: t3.micro (2 vCPU, 1GB RAM)
    - Location: Private application subnet
    - OS: Amazon Linux 2023
-   - Storage: 20GB gp3 EBS (encrypted)
+   - Storage: 30GB gp3 EBS (encrypted)
    - Auto-installed: Grafana via user data script
 
 2. **IAM Role & Permissions**
