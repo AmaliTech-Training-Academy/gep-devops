@@ -142,13 +142,13 @@ variable "logging_prefix" {
 variable "cors_allowed_origins" {
   description = "CORS allowed origins"
   type        = list(string)
-  default     = ["*"]
+  default     = ["https://events.sankofagrid.com", "https://www.sankofagrid.com", "http://localhost:4200"]
 }
 
 variable "content_security_policy" {
   description = "Content Security Policy header value"
   type        = string
-  default     = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;"
+  default     = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com; connect-src 'self' https: https://api.sankofagrid.com;"
 }
 
 variable "enable_url_rewrite" {

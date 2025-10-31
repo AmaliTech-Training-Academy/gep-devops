@@ -60,7 +60,10 @@ resource "aws_cloudfront_origin_request_policy" "main" {
       items = [
         "Origin",
         "Access-Control-Request-Method",
-        "Access-Control-Request-Headers"
+        "Access-Control-Request-Headers",
+        "Content-Type",
+        "Accept",
+        "X-Requested-With"
       ]
     }
   }
@@ -218,7 +221,7 @@ resource "aws_cloudfront_distribution" "main" {
       compress               = true
 
       cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled.id
-      origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.all_viewer.id
+      origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.all_viewer_except_host_header.id
       response_headers_policy_id = aws_cloudfront_response_headers_policy.security_headers.id
     }
   }
@@ -316,5 +319,9 @@ data "aws_cloudfront_cache_policy" "caching_disabled" {
 
 data "aws_cloudfront_origin_request_policy" "all_viewer" {
   name = "Managed-AllViewer"
+}
+
+data "aws_cloudfront_origin_request_policy" "all_viewer_except_host_header" {
+  name = "Managed-AllViewerExceptHostHeader"
 }
 

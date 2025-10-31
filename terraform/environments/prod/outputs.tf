@@ -47,7 +47,6 @@ output "security_groups" {
     alb         = module.security_groups.alb_security_group_id
     ecs         = module.security_groups.ecs_security_group_id
     rds         = module.security_groups.rds_security_group_id
-    documentdb  = module.security_groups.documentdb_security_group_id
     elasticache = module.security_groups.elasticache_security_group_id
   }
 }
@@ -119,21 +118,7 @@ output "rds_secret_arns" {
   sensitive   = true
 }
 
-# ==============================================================================
-# DocumentDB Outputs
-# ==============================================================================
 
-output "documentdb_endpoint" {
-  description = "DocumentDB cluster endpoint"
-  value       = module.documentdb.cluster_endpoint
-  sensitive   = true
-}
-
-output "documentdb_secret_arn" {
-  description = "DocumentDB secret ARN"
-  value       = module.documentdb.secret_arn
-  sensitive   = true
-}
 
 # ==============================================================================
 # ElastiCache Outputs
@@ -253,7 +238,7 @@ output "next_steps" {
     - VPC with networking
     - ECS Fargate cluster with 5 microservices
     - RDS PostgreSQL databases (4)
-    - DocumentDB for audit logs
+
     - ElastiCache Redis
     - Application Load Balancer
     - S3 + CloudFront

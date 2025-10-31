@@ -6,7 +6,7 @@
 # This module creates a complete VPC infrastructure with:
 # - Public subnets (for ALB, NAT Gateways)
 # - Private application subnets (for ECS tasks)
-# - Private data subnets (for RDS, DocumentDB, ElastiCache)
+# - Private data subnets (for RDS, ElastiCache)
 # - Internet Gateway for public internet access
 # - NAT Gateways for private subnet internet access
 # - VPC Endpoints for AWS services (reduces NAT Gateway costs)

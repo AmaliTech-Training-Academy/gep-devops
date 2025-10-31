@@ -191,7 +191,7 @@ module "s3" {
   transition_to_glacier_days = 180
 
   enable_cors          = true
-  cors_allowed_origins = ["*"] # Phase 1 - open CORS
+  cors_allowed_origins = ["https://events.sankofagrid.com", "https://www.sankofagrid.com", "http://localhost:4200"]
 
   enable_access_logging = true
   logs_expiration_days  = 3
@@ -228,7 +228,7 @@ module "iam" {
   environment         = var.environment
   frontend_bucket_arn = module.s3.assets_bucket_arn
 
-  # Use wildcard for flexibility - actual secrets created by RDS/DocumentDB modules
+  # Use wildcard for flexibility - actual secrets created by RDS modules
   db_secrets_arns = [
     "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/*"
   ]
@@ -250,7 +250,7 @@ module "cloudfront" {
   s3_bucket_id                   = module.s3.assets_bucket_id
   s3_bucket_regional_domain_name = module.s3.assets_bucket_regional_domain_name
 
-  alb_domain_name = "" # Will populate when ALB is ready
+  alb_domain_name = "api.sankofagrid.com" # Backend API domain
 
   domain_aliases      = ["events.sankofagrid.com"]
   acm_certificate_arn = "arn:aws:acm:us-east-1:904570587823:certificate/fa496bd5-865f-4b1e-a189-f30245b0373b"
@@ -279,9 +279,9 @@ module "cloudfront" {
   logging_bucket = module.s3.logs_bucket_id != null ? "${module.s3.logs_bucket_id}.s3.amazonaws.com" : ""
   logging_prefix = "cloudfront/"
 
-  cors_allowed_origins = ["*"]
+  cors_allowed_origins = ["https://events.sankofagrid.com", "https://www.sankofagrid.com", "http://localhost:4200"]
 
-  content_security_policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com; connect-src 'self' https:;"
+  content_security_policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com; connect-src 'self' https: https://api.sankofagrid.com;"
 
   enable_url_rewrite = true
 
