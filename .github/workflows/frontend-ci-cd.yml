@@ -95,42 +95,25 @@ jobs:
           echo "❌ Found $SECRETS_FOUND type(s) of secrets"
         fi
 
-    # - name: Linting
-    #   working-directory: frontend
-    #   run: |
-    #     if npm run | grep -q "lint"; then
-    #       npm run lint
-    #     else
-    #       echo "No lint script found, skipping linting"
-    #     fi
+    - name: Linting
+      working-directory: frontend
+      run: |
+        if npm run | grep -q "lint"; then
+          npm run lint
+        else
+          echo "No lint script found, skipping linting"
+        fi
 
-    # - name: SAST Scan
-    #   working-directory: frontend
-    #   run: |
-    #     # Install semgrep
-    #     pip3 install semgrep
-    #     
-    #     # Run semgrep scan
-    #     semgrep --config=p/security-audit --config=p/javascript --config=p/typescript --config=p/angular --sarif --output=../results.sarif . || true
-    #     
-    #     # Show results summary
-    #     if [ -f "../results.sarif" ]; then
-    #       ISSUES=$(jq '.runs[0].results | length' ../results.sarif 2>/dev/null || echo "0")
-    #       echo "Found $ISSUES SAST issues"
-    #     fi
-    #   env:
-    #     SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-
-    # - name: License Check
-    #   working-directory: frontend
-    #   run: |
-    #     npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD' --json > license-report.json || true
-    #     if npx license-checker --failOn 'GPL;AGPL;LGPL' --summary; then
-    #       echo "License check passed"
-    #     else
-    #       echo "::error::Restricted licenses found"
-    #       exit 1
-    #     fi
+    - name: License Check
+      working-directory: frontend
+      run: |
+        npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD' --json > license-report.json || true
+        if npx license-checker --failOn 'GPL;AGPL;LGPL' --summary; then
+          echo "License check passed"
+        else
+          echo "::error::Restricted licenses found"
+          exit 1
+        fi
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -149,32 +132,51 @@ jobs:
           prod) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_PROD }}" ;;
         esac
         
+        echo "📊 Uploading security reports to S3..."
+        echo "Bucket: $REPORTS_BUCKET"
+        echo "Path: frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/"
+        
         # Upload audit results
         if [ -f "frontend/audit-results.json" ]; then
           aws s3 cp frontend/audit-results.json s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/audit-results.json
           echo "✅ Uploaded audit results to S3"
+        else
+          echo "⚠️ No audit results file found"
+        fi
+        
+        # Upload license report
+        if [ -f "frontend/license-report.json" ]; then
+          aws s3 cp frontend/license-report.json s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/license-report.json
+          echo "✅ Uploaded license report to S3"
+        else
+          echo "⚠️ No license report file found"
         fi
         
         # Upload SARIF results (if exists)
         if [ -f "results.sarif" ]; then
           aws s3 cp results.sarif s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/semgrep-results.sarif
           echo "✅ Uploaded SARIF results to S3"
+        else
+          echo "ℹ️ No SARIF results file found (not enabled)"
         fi
         
         # Create summary report
-        echo "{\"timestamp\":\"$TIMESTAMP\",\"environment\":\"${{ env.ENVIRONMENT }}\",\"repository\":\"frontend\",\"commit\":\"${{ env.COMMIT_SHA }}\",\"actor\":\"${{ github.actor }}\"}" > scan-summary.json
+        echo "{\"timestamp\":\"$TIMESTAMP\",\"environment\":\"${{ env.ENVIRONMENT }}\",\"repository\":\"frontend\",\"commit\":\"${{ env.COMMIT_SHA }}\",\"actor\":\"${{ github.actor }}\",\"workflow_run\":\"${{ github.run_id }}\"}" > scan-summary.json
         aws s3 cp scan-summary.json s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/scan-summary.json
+        echo "✅ Uploaded scan summary to S3"
         
         echo "📊 Security reports uploaded to s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/"
 
-    - name: Upload Security Reports
+    - name: Upload Security Reports (Artifacts)
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports-${{ env.ENVIRONMENT }}
         path: |
           frontend/audit-results.json
+          frontend/license-report.json
           results.sarif
+          scan-summary.json
 
   build-and-test:
     needs: security-scan
