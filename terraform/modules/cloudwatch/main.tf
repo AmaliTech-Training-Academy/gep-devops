@@ -64,88 +64,192 @@ resource "aws_cloudwatch_dashboard" "main" {
 
   dashboard_body = jsonencode({
     widgets = [
-      # ECS Cluster Metrics
+      # ECS Services Overview
       {
-        type = "metric"
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
         properties = {
           metrics = [
-            ["AWS/ECS", "CPUUtilization", { stat = "Average", period = 300 }],
-            [".", "MemoryUtilization", { stat = "Average", period = 300 }]
+            ["AWS/ECS", "RunningTaskCount", "ServiceName", "auth-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Auth Service" }],
+            [".", ".", ".", "event-service", ".", ".", { stat = "Average", label = "Event Service" }],
+            [".", ".", ".", "notification-service", ".", ".", { stat = "Average", label = "Notification Service" }]
           ]
           view    = "timeSeries"
           stacked = false
           region  = var.aws_region
-          title   = "ECS Cluster Utilization"
+          title   = "ECS Services - Running Tasks"
           period  = 300
+          yAxis = {
+            left = {
+              min = 0
+            }
+          }
+        }
+      },
+      # ECS CPU Utilization by Service
+      {
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          metrics = [
+            ["AWS/ECS", "CPUUtilization", "ServiceName", "auth-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Auth Service" }],
+            [".", ".", ".", "event-service", ".", ".", { stat = "Average", label = "Event Service" }],
+            [".", ".", ".", "notification-service", ".", ".", { stat = "Average", label = "Notification Service" }]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = var.aws_region
+          title   = "ECS Services - CPU Utilization (%)"
+          period  = 300
+          yAxis = {
+            left = {
+              min = 0
+              max = 100
+            }
+          }
+        }
+      },
+      # ECS Memory Utilization by Service
+      {
+        type   = "metric"
+        x      = 0
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          metrics = [
+            ["AWS/ECS", "MemoryUtilization", "ServiceName", "auth-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Auth Service" }],
+            [".", ".", ".", "event-service", ".", ".", { stat = "Average", label = "Event Service" }],
+            [".", ".", ".", "notification-service", ".", ".", { stat = "Average", label = "Notification Service" }]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = var.aws_region
+          title   = "ECS Services - Memory Utilization (%)"
+          period  = 300
+          yAxis = {
+            left = {
+              min = 0
+              max = 100
+            }
+          }
         }
       },
       # ALB Metrics
       {
-        type = "metric"
+        type   = "metric"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
         properties = {
           metrics = [
-            ["AWS/ApplicationELB", "TargetResponseTime", { stat = "Average", period = 300 }],
-            [".", "RequestCount", { stat = "Sum", period = 300 }],
-            [".", "HTTPCode_Target_4XX_Count", { stat = "Sum", period = 300 }],
-            [".", "HTTPCode_Target_5XX_Count", { stat = "Sum", period = 300 }]
+            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, { stat = "Average", label = "Response Time" }],
+            [".", "RequestCount", ".", ".", { stat = "Sum", label = "Request Count" }],
+            [".", "HTTPCode_Target_4XX_Count", ".", ".", { stat = "Sum", label = "4XX Errors" }],
+            [".", "HTTPCode_Target_5XX_Count", ".", ".", { stat = "Sum", label = "5XX Errors" }]
           ]
           view    = "timeSeries"
           stacked = false
           region  = var.aws_region
-          title   = "Application Load Balancer"
+          title   = "Application Load Balancer Metrics"
           period  = 300
         }
       },
       # RDS Metrics
       {
-        type = "metric"
+        type   = "metric"
+        x      = 0
+        y      = 12
+        width  = 12
+        height = 6
         properties = {
           metrics = [
-            ["AWS/RDS", "CPUUtilization", { stat = "Average", period = 300 }],
-            [".", "DatabaseConnections", { stat = "Average", period = 300 }],
-            [".", "FreeableMemory", { stat = "Average", period = 300 }],
-            [".", "ReadLatency", { stat = "Average", period = 300 }],
-            [".", "WriteLatency", { stat = "Average", period = 300 }]
+            ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", var.rds_instance_id, { stat = "Average", label = "CPU %" }],
+            [".", "DatabaseConnections", ".", ".", { stat = "Average", label = "Connections" }],
+            [".", "FreeableMemory", ".", ".", { stat = "Average", label = "Free Memory" }],
+            [".", "ReadLatency", ".", ".", { stat = "Average", label = "Read Latency" }],
+            [".", "WriteLatency", ".", ".", { stat = "Average", label = "Write Latency" }]
           ]
           view    = "timeSeries"
           stacked = false
           region  = var.aws_region
-          title   = "RDS Database"
+          title   = "RDS PostgreSQL Database"
           period  = 300
         }
       },
       # ElastiCache Metrics
       {
-        type = "metric"
+        type   = "metric"
+        x      = 12
+        y      = 12
+        width  = 12
+        height = 6
         properties = {
           metrics = [
-            ["AWS/ElastiCache", "CPUUtilization", { stat = "Average", period = 300 }],
-            [".", "DatabaseMemoryUsagePercentage", { stat = "Average", period = 300 }],
-            [".", "CurrConnections", { stat = "Average", period = 300 }],
-            [".", "Evictions", { stat = "Sum", period = 300 }]
+            ["AWS/ElastiCache", "CPUUtilization", "CacheClusterId", var.elasticache_cluster_id, { stat = "Average", label = "CPU %" }],
+            [".", "DatabaseMemoryUsagePercentage", ".", ".", { stat = "Average", label = "Memory %" }],
+            [".", "CurrConnections", ".", ".", { stat = "Average", label = "Connections" }],
+            [".", "Evictions", ".", ".", { stat = "Sum", label = "Evictions" }]
           ]
           view    = "timeSeries"
           stacked = false
           region  = var.aws_region
-          title   = "ElastiCache Redis"
+          title   = "ElastiCache Redis Cluster"
           period  = 300
         }
       },
       # CloudFront Metrics
       {
-        type = "metric"
+        type   = "metric"
+        x      = 0
+        y      = 18
+        width  = 12
+        height = 6
         properties = {
           metrics = [
-            ["AWS/CloudFront", "Requests", { stat = "Sum", period = 300 }],
-            [".", "BytesDownloaded", { stat = "Sum", period = 300 }],
-            [".", "4xxErrorRate", { stat = "Average", period = 300 }],
-            [".", "5xxErrorRate", { stat = "Average", period = 300 }]
+            ["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Requests" }],
+            [".", "BytesDownloaded", ".", ".", ".", ".", { stat = "Sum", label = "Bytes Downloaded" }],
+            [".", "4xxErrorRate", ".", ".", ".", ".", { stat = "Average", label = "4XX Error Rate" }],
+            [".", "5xxErrorRate", ".", ".", ".", ".", { stat = "Average", label = "5XX Error Rate" }]
           ]
           view    = "timeSeries"
           stacked = false
-          region  = "eu-west-1"
-          title   = "CloudFront CDN"
+          region  = "us-east-1"
+          title   = "CloudFront CDN Distribution"
           period  = 300
+        }
+      },
+      # SQS Queue Metrics
+      {
+        type   = "metric"
+        x      = 12
+        y      = 18
+        width  = 12
+        height = 6
+        properties = {
+          metrics = [
+            ["AWS/SQS", "ApproximateNumberOfMessages", "QueueName", "${var.project_name}-${var.environment}-user-registration", { stat = "Average", label = "User Registration" }],
+            [".", ".", ".", "${var.project_name}-${var.environment}-user-login", { stat = "Average", label = "User Login" }],
+            [".", ".", ".", "${var.project_name}-${var.environment}-password-reset", { stat = "Average", label = "Password Reset" }],
+            [".", ".", ".", "${var.project_name}-${var.environment}-event-created-notification", { stat = "Average", label = "Event Notifications" }]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = var.aws_region
+          title   = "SQS Queue Messages"
+          period  = 300
+          yAxis = {
+            left = {
+              min = 0
+            }
+          }
         }
       }
     ]
@@ -194,6 +298,74 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
+    ClusterName = var.ecs_cluster_name
+  }
+
+  tags = var.common_tags
+}
+
+# Event Service Specific Alarms
+resource "aws_cloudwatch_metric_alarm" "event_service_cpu_high" {
+  count = var.create_ecs_alarms ? 1 : 0
+
+  alarm_name          = "${var.project_name}-${var.environment}-event-service-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = var.ecs_cpu_threshold
+  alarm_description   = "Event service CPU utilization is too high"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    ServiceName = "event-service"
+    ClusterName = var.ecs_cluster_name
+  }
+
+  tags = var.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "event_service_memory_high" {
+  count = var.create_ecs_alarms ? 1 : 0
+
+  alarm_name          = "${var.project_name}-${var.environment}-event-service-memory-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "MemoryUtilization"
+  namespace           = "AWS/ECS"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = var.ecs_memory_threshold
+  alarm_description   = "Event service memory utilization is too high"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    ServiceName = "event-service"
+    ClusterName = var.ecs_cluster_name
+  }
+
+  tags = var.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "event_service_task_count_low" {
+  count = var.create_ecs_alarms ? 1 : 0
+
+  alarm_name          = "${var.project_name}-${var.environment}-event-service-task-count-low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "RunningTaskCount"
+  namespace           = "AWS/ECS"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "1"
+  alarm_description   = "Event service has no running tasks"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  treat_missing_data  = "breaching"
+
+  dimensions = {
+    ServiceName = "event-service"
     ClusterName = var.ecs_cluster_name
   }
 

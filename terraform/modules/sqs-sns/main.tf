@@ -60,6 +60,20 @@ locals {
     }
 
     # Event service queues
+    event_created = {
+      name               = "${var.project_name}-${var.environment}-event-created-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["event.created"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
+    event_updated = {
+      name               = "${var.project_name}-${var.environment}-event-updated-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["event.updated"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
     event_created_notification = {
       name               = "${var.project_name}-${var.environment}-event-created-notification-queue"
       topic              = "event"

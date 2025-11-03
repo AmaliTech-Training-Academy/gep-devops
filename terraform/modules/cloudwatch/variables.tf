@@ -56,6 +56,12 @@ variable "elasticache_cluster_id" {
   default     = ""
 }
 
+variable "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID"
+  type        = string
+  default     = ""
+}
+
 # Alarm Thresholds
 variable "ecs_cpu_threshold" {
   description = "ECS CPU utilization threshold (%)"

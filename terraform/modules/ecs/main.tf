@@ -42,17 +42,15 @@ locals {
       min_capacity  = var.environment == "dev" ? 1 : 2
       max_capacity  = var.environment == "dev" ? 1 : 4
     }
-    # TEMPORARILY DISABLED: Event service not yet ready
-    # Uncomment when developers are ready to deploy
-    # event = {
-    #   name          = "event-service"
-    #   port          = 8082
-    #   cpu           = var.environment == "dev" ? 256 : 512
-    #   memory        = var.environment == "dev" ? 512 : 1024
-    #   desired_count = var.environment == "dev" ? 1 : 2
-    #   min_capacity  = var.environment == "dev" ? 1 : 2
-    #   max_capacity  = var.environment == "dev" ? 2 : 4
-    # }
+    event = {
+      name          = "event-service"
+      port          = 8082
+      cpu           = var.environment == "dev" ? 256 : 512
+      memory        = var.environment == "dev" ? 512 : 1024
+      desired_count = 1
+      min_capacity  = 1
+      max_capacity  = 1
+    }
     # TEMPORARILY DISABLED: Booking service not yet ready
     # Uncomment when developers are ready to deploy
     # booking = {
@@ -312,12 +310,32 @@ resource "aws_ecs_task_definition" "services" {
             value = "https://sqs.${var.aws_region}.amazonaws.com"
           },
           {
-            name  = "EVENT_CREATED_QUEUE_NAME"
-            value = lookup(var.sqs_queue_names, "event-created", "")
+            name  = "EVENT_CREATED_NOTIFICATION_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "event_created_notification", "")
           },
           {
-            name  = "EVENT_UPDATED_QUEUE_NAME"
-            value = lookup(var.sqs_queue_names, "event-updated", "")
+            name  = "EVENT_CREATED_NOTIFICATION_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "event_created_notification", "")
+          },
+          {
+            name  = "SPRING_DATASOURCE_SCHEMA"
+            value = "event_schema"
+          },
+          {
+            name  = "DATABASE_SCHEMA"
+            value = "event_schema"
+          },
+          {
+            name  = "SPRING_JPA_HIBERNATE_DDL_AUTO"
+            value = "update"
+          },
+          {
+            name  = "SPRING_JPA_SHOW_SQL"
+            value = "false"
+          },
+          {
+            name  = "SPRING_JPA_DATABASE_PLATFORM"
+            value = "org.hibernate.dialect.PostgreSQLDialect"
           }
         ] : [],
         each.key == "booking" ? [
@@ -366,6 +384,14 @@ resource "aws_ecs_task_definition" "services" {
             value = lookup(var.sqs_queue_names, "password_reset", "")
           },
           {
+            name  = "EVENT_INVITATION_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "event_created_notification", "")
+          },
+          {
+            name  = "EVENT_INVITATION_QUEUE"
+            value = lookup(var.sqs_queue_urls, "event_created_notification", "")
+          },
+          {
             name  = "SPRING_MAIL_HOST"
             value = "smtp.gmail.com"
           },
@@ -396,6 +422,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "SPRING_MAIL_PROPERTIES_MAIL_DEBUG"
             value = "false"
+          },
+          {
+            name  = "VIRTUAL_TICKET_VERIFICATION_URL"
+            value = "https://events.sankofagrid.com/verify-ticket"
           }
         ] : []
       )
@@ -427,22 +457,34 @@ resource "aws_ecs_task_definition" "services" {
             valueFrom = "${var.db_secret_arns[each.key]}:password::"
           }
         ] : [],
-        each.key == "event" && lookup(var.db_secret_arns, each.key, null) != null ? [
+        each.key == "event" && lookup(var.db_secret_arns, "auth", null) != null ? [
+          {
+            name      = "SPRING_DATASOURCE_URL"
+            valueFrom = "${var.db_secret_arns["auth"]}:url::"
+          },
+          {
+            name      = "SPRING_DATASOURCE_USERNAME"
+            valueFrom = "${var.db_secret_arns["auth"]}:username::"
+          },
+          {
+            name      = "SPRING_DATASOURCE_PASSWORD"
+            valueFrom = "${var.db_secret_arns["auth"]}:password::"
+          },
           {
             name      = "EVENT_SERVICE_DB_URL"
-            valueFrom = "${var.db_secret_arns[each.key]}:url::"
+            valueFrom = "${var.db_secret_arns["auth"]}:url::"
           },
           {
             name      = "EVENT_SERVICE_DB_USER"
-            valueFrom = "${var.db_secret_arns[each.key]}:username::"
+            valueFrom = "${var.db_secret_arns["auth"]}:username::"
           },
           {
             name      = "EVENT_SERVICE_DB_PASSWORD"
-            valueFrom = "${var.db_secret_arns[each.key]}:password::"
+            valueFrom = "${var.db_secret_arns["auth"]}:password::"
           }
         ] : [],
-        # JWT secret for auth service
-        each.key == "auth" && var.jwt_secret_arn != null ? [
+        # JWT secret for auth and event services
+        (each.key == "auth" || each.key == "event") && var.jwt_secret_arn != null ? [
           {
             name      = "JWT_SECRET"
             valueFrom = "${var.jwt_secret_arn}:JWT_SECRET::"
@@ -466,7 +508,8 @@ resource "aws_ecs_task_definition" "services" {
             name      = "GOOGLE_PASSWORD"
             valueFrom = "${var.google_credentials_secret_arn}:GOOGLE_PASSWORD::"
           }
-        ] : []
+        ] : [],
+
       )
 
       # Health check

@@ -27,6 +27,12 @@ variable "auth_target_group_arn_suffix" {
   type        = string
 }
 
+variable "event_target_group_arn_suffix" {
+  description = "Event service target group ARN suffix"
+  type        = string
+  default     = ""
+}
+
 variable "auth_db_instance_id" {
   description = "Auth database instance identifier"
   type        = string

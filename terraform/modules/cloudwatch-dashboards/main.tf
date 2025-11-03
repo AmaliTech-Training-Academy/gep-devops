@@ -874,3 +874,184 @@ resource "aws_cloudwatch_dashboard" "frontend" {
     ]
   })
 }
+# ==============================================================================
+# Event Service Dashboard
+# ==============================================================================
+
+resource "aws_cloudwatch_dashboard" "event_service" {
+  count = var.event_target_group_arn_suffix != "" ? 1 : 0
+  dashboard_name = "${var.project_name}-${var.environment}-event-service"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type = "text"
+        properties = {
+          markdown = "# 🎯 Event Service Dashboard\n## Event management and lifecycle monitoring\n**Environment:** ${upper(var.environment)} | **Region:** ${var.aws_region}"
+        }
+        x = 0
+        y = 0
+        width = 24
+        height = 2
+      },
+      {
+        type = "metric"
+        properties = {
+          title = "📊 Service Health"
+          metrics = [["AWS/ECS", "RunningTaskCount", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Running Tasks" }]]
+          view = "singleValue"
+          region = var.aws_region
+          period = 300
+          sparkline = true
+        }
+        x = 0
+        y = 2
+        width = 4
+        height = 4
+      },
+      {
+        type = "metric"
+        properties = {
+          title = "💻 CPU Usage"
+          metrics = [["AWS/ECS", "CPUUtilization", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average" }]]
+          view = "singleValue"
+          region = var.aws_region
+          period = 300
+          sparkline = true
+        }
+        x = 4
+        y = 2
+        width = 4
+        height = 4
+      },
+      {
+        type = "metric"
+        properties = {
+          title = "🧠 Memory Usage"
+          metrics = [["AWS/ECS", "MemoryUtilization", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average" }]]
+          view = "singleValue"
+          region = var.aws_region
+          period = 300
+          sparkline = true
+        }
+        x = 8
+        y = 2
+        width = 4
+        height = 4
+      },
+      {
+        type = "metric"
+        properties = {
+          title = "📈 Request Rate"
+          metrics = [["AWS/ApplicationELB", "RequestCount", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "Requests/min", color = "#1f77b4" }]]
+          view = "timeSeries"
+          stacked = false
+          region = var.aws_region
+          period = 60
+          yAxis = { left = { label = "Requests" } }
+        }
+        x = 12
+        y = 2
+        width = 12
+        height = 4
+      },
+      {
+        type = "metric"
+        properties = {
+          title = "🚦 HTTP Status Distribution"
+          metrics = [
+            ["AWS/ApplicationELB", "HTTPCode_Target_2XX_Count", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "2XX Success", color = "#2ca02c" }],
+            [".", "HTTPCode_Target_4XX_Count", ".", ".", { stat = "Sum", label = "4XX Client Error", color = "#ff7f0e" }],
+            [".", "HTTPCode_Target_5XX_Count", ".", ".", { stat = "Sum", label = "5XX Server Error", color = "#d62728" }]
+          ]
+          view = "pie"
+          region = var.aws_region
+          period = 300
+        }
+        x = 0
+        y = 6
+        width = 8
+        height = 6
+      },
+      {
+        type = "metric"
+        properties = {
+          title = "⏱️ Response Time Analysis"
+          metrics = [
+            ["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Average", label = "Average", color = "#1f77b4" }],
+            ["...", { stat = "p50", label = "P50", color = "#2ca02c" }],
+            ["...", { stat = "p90", label = "P90", color = "#ff7f0e" }],
+            ["...", { stat = "p99", label = "P99", color = "#d62728" }]
+          ]
+          view = "timeSeries"
+          stacked = false
+          region = var.aws_region
+          period = 300
+          yAxis = { left = { label = "Seconds" } }
+          annotations = { horizontal = [{ value = 2, label = "SLA Threshold (2s)", fill = "above", color = "#d62728" }] }
+        }
+        x = 8
+        y = 6
+        width = 16
+        height = 6
+      },
+      {
+        type = "text"
+        properties = { markdown = "## 📬 Event Message Queues" }
+        x = 0
+        y = 12
+        width = 24
+        height = 1
+      },
+      {
+        type = "metric"
+        properties = {
+          title = "📨 Queue Messages"
+          metrics = [
+            ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${var.project_name}-${var.environment}-event-created-queue", { stat = "Average", label = "Event Created" }],
+            [".", ".", ".", "${var.project_name}-${var.environment}-event-updated-queue", { stat = "Average", label = "Event Updated" }]
+          ]
+          view = "singleValue"
+          region = var.aws_region
+          period = 300
+        }
+        x = 0
+        y = 13
+        width = 8
+        height = 4
+      },
+      {
+        type = "metric"
+        properties = {
+          title = "📊 Message Throughput"
+          metrics = [
+            ["AWS/SQS", "NumberOfMessagesSent", "QueueName", "${var.project_name}-${var.environment}-event-created-queue", { stat = "Sum", label = "Created - Sent", color = "#1f77b4" }],
+            [".", "NumberOfMessagesReceived", ".", ".", { stat = "Sum", label = "Created - Received", color = "#2ca02c" }],
+            [".", "NumberOfMessagesSent", ".", "${var.project_name}-${var.environment}-event-updated-queue", { stat = "Sum", label = "Updated - Sent", color = "#ff7f0e" }],
+            [".", "NumberOfMessagesReceived", ".", ".", { stat = "Sum", label = "Updated - Received", color = "#9467bd" }]
+          ]
+          view = "timeSeries"
+          stacked = false
+          region = var.aws_region
+          period = 300
+        }
+        x = 8
+        y = 13
+        width = 16
+        height = 4
+      },
+      {
+        type = "log"
+        properties = {
+          title = "📋 Recent Event Service Logs"
+          region = var.aws_region
+          query = "SOURCE '/ecs/${var.project_name}/${var.environment}/event-service'\n| fields @timestamp, @message\n| filter @message like /ERROR/ or @message like /event/ or @message like /Event/\n| sort @timestamp desc\n| limit 25"
+        }
+        x = 0
+        y = 17
+        width = 24
+        height = 6
+      }
+    ]
+  })
+}

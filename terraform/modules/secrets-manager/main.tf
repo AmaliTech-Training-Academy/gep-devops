@@ -104,11 +104,13 @@ resource "aws_secretsmanager_secret" "google_credentials" {
   )
 }
 
+# Google credentials secret version - managed externally
+# The secret must be manually populated with actual credentials
 resource "aws_secretsmanager_secret_version" "google_credentials" {
   secret_id = aws_secretsmanager_secret.google_credentials.id
   secret_string = jsonencode({
-    GOOGLE_USER     = "noreply.event.planner.amalitech@gmail.com"
-    GOOGLE_PASSWORD = "vsvaczkvogxczmhl"
+    GOOGLE_USER     = "PLACEHOLDER_GOOGLE_USER"
+    GOOGLE_PASSWORD = "PLACEHOLDER_GOOGLE_PASSWORD"
   })
 
   lifecycle {

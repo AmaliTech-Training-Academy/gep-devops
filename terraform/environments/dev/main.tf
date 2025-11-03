@@ -398,11 +398,12 @@ module "cloudwatch" {
   alert_email_addresses = var.alert_email_addresses
 
   # Resource identifiers - populated as resources are created
-  ecs_cluster_name       = module.ecs.cluster_name
-  alb_arn                = module.alb.alb_arn
-  alb_arn_suffix         = module.alb.alb_arn_suffix
-  rds_instance_id        = module.rds.primary_instance_ids["auth"]
-  elasticache_cluster_id = module.elasticache.replication_group_id
+  ecs_cluster_name          = module.ecs.cluster_name
+  alb_arn                   = module.alb.alb_arn
+  alb_arn_suffix            = module.alb.alb_arn_suffix
+  rds_instance_id           = module.rds.primary_instance_ids["auth"]
+  elasticache_cluster_id    = module.elasticache.replication_group_id
+  cloudfront_distribution_id = module.cloudfront.distribution_id
 
   # Control alarm creation with boolean flags
   create_ecs_alarms         = true
@@ -441,6 +442,7 @@ module "cloudwatch_dashboards" {
 
   ecs_cluster_name             = module.ecs.cluster_name
   auth_target_group_arn_suffix = module.alb.target_group_arn_suffixes["auth"]
+  event_target_group_arn_suffix = lookup(module.alb.target_group_arn_suffixes, "event", "")
   auth_db_instance_id          = module.rds.primary_instance_ids["auth"]
   elasticache_cluster_id       = module.elasticache.replication_group_id
   cloudfront_distribution_id   = module.cloudfront.distribution_id

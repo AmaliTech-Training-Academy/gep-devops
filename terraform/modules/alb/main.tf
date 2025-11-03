@@ -45,6 +45,13 @@ locals {
       health_check_path = "/actuator/health"
       priority          = 100
     }
+    event = {
+      name              = "event-service"
+      port              = 8082
+      path_pattern      = "/api/v1/events/*"
+      health_check_path = "/actuator/health"
+      priority          = 200
+    }
     notification = {
       name              = "notification-service"
       port              = 8085
@@ -78,14 +85,6 @@ locals {
     }
   }
 
-  # TEMPORARILY DISABLED: Other services not yet ready
-  # event = {
-  #   name              = "event-service"
-  #   port              = 8082
-  #   path_pattern      = "/api/v1/events/*"
-  #   health_check_path = "/actuator/health"
-  #   priority          = 200
-  # }
   # booking = {
   #   name              = "booking-service"
   #   port              = 8083
