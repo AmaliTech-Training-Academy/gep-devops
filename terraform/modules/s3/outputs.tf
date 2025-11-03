@@ -48,3 +48,13 @@ output "backend_files_bucket_arn" {
   description = "Backend files bucket ARN"
   value       = aws_s3_bucket.backend_files.arn
 }
+
+output "security_reports_bucket_id" {
+  description = "Security reports bucket ID"
+  value       = aws_s3_bucket.security_reports.id
+}
+
+output "security_reports_bucket_arn" {
+  description = "Security reports bucket ARN"
+  value       = aws_s3_bucket.security_reports.arn
+}

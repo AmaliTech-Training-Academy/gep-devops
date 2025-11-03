@@ -132,34 +132,40 @@ jobs:
     #       exit 1
     #     fi
 
-    # - name: Configure AWS credentials
-    #   uses: aws-actions/configure-aws-credentials@v4
-    #   with:
-    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    #     aws-region: ${{ secrets.AWS_REGION }}
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-    # - name: Upload Security Reports to S3
-    #   if: always()
-    #   run: |
-    #     TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-    #     case "${{ env.ENVIRONMENT }}" in
-    #       dev) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_DEV }}" ;;
-    #       staging) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_STAGING }}" ;;
-    #       prod) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_PROD }}" ;;
-    #     esac
-    #     
-    #     # Upload audit results
-    #     if [ -f "frontend/audit-results.json" ]; then
-    #       aws s3 cp frontend/audit-results.json s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/audit-results.json
-    #     fi
-    #     
-    #     # Upload SARIF results
-    #     if [ -f "results.sarif" ]; then
-    #       aws s3 cp results.sarif s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/semgrep-results.sarif
-    #     fi
-    #     
-    #     echo "Security reports uploaded to s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/"
+    - name: Upload Security Reports to S3
+      if: always()
+      run: |
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        case "${{ env.ENVIRONMENT }}" in
+          dev) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_DEV }}" ;;
+          staging) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_STAGING }}" ;;
+          prod) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_PROD }}" ;;
+        esac
+        
+        # Upload audit results
+        if [ -f "frontend/audit-results.json" ]; then
+          aws s3 cp frontend/audit-results.json s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/audit-results.json
+          echo "✅ Uploaded audit results to S3"
+        fi
+        
+        # Upload SARIF results (if exists)
+        if [ -f "results.sarif" ]; then
+          aws s3 cp results.sarif s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/semgrep-results.sarif
+          echo "✅ Uploaded SARIF results to S3"
+        fi
+        
+        # Create summary report
+        echo "{\"timestamp\":\"$TIMESTAMP\",\"environment\":\"${{ env.ENVIRONMENT }}\",\"repository\":\"frontend\",\"commit\":\"${{ env.COMMIT_SHA }}\",\"actor\":\"${{ github.actor }}\"}" > scan-summary.json
+        aws s3 cp scan-summary.json s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/scan-summary.json
+        
+        echo "📊 Security reports uploaded to s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/"
 
     - name: Upload Security Reports
       uses: actions/upload-artifact@v4
@@ -271,6 +277,8 @@ jobs:
       run: |
         echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
         echo "- **Security Scan Status:** ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Reports Uploaded to S3:** ✅ Available in security-reports bucket" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment:** ${{ env.ENVIRONMENT }}" >> $GITHUB_STEP_SUMMARY
 
     - name: Slack Notification
       if: always()

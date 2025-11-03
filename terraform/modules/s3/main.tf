@@ -341,6 +341,66 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "backend_files" {
 }
 
 # ==============================================================================
+# Security Reports Bucket
+# ==============================================================================
+
+resource "aws_s3_bucket" "security_reports" {
+  bucket = "${var.project_name}-${var.environment}-security-reports-${var.account_id}"
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name        = "${var.project_name}-${var.environment}-security-reports"
+      Environment = var.environment
+      Purpose     = "Security scan reports storage"
+    }
+  )
+}
+
+resource "aws_s3_bucket_public_access_block" "security_reports" {
+  bucket = aws_s3_bucket.security_reports.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "security_reports" {
+  bucket = aws_s3_bucket.security_reports.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "security_reports" {
+  bucket = aws_s3_bucket.security_reports.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = var.kms_key_arn != null ? "aws:kms" : "AES256"
+      kms_master_key_id = var.kms_key_arn
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "security_reports" {
+  bucket = aws_s3_bucket.security_reports.id
+
+  rule {
+    id     = "expire-old-reports"
+    status = "Enabled"
+
+    expiration {
+      days = 90
+    }
+
+    filter {}
+  }
+}
+
+# ==============================================================================
 # Backups Bucket
 # ==============================================================================
 

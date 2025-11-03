@@ -58,10 +58,11 @@ output "security_groups" {
 output "s3_buckets" {
   description = "S3 bucket information"
   value = {
-    assets_id  = module.s3.assets_bucket_id
-    assets_arn = module.s3.assets_bucket_arn
-    backups_id = module.s3.backups_bucket_id
-    logs_id    = module.s3.logs_bucket_id
+    assets_id          = module.s3.assets_bucket_id
+    assets_arn         = module.s3.assets_bucket_arn
+    backups_id         = module.s3.backups_bucket_id
+    logs_id            = module.s3.logs_bucket_id
+    security_reports_id = module.s3.security_reports_bucket_id
   }
 }
 
