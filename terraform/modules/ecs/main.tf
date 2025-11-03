@@ -474,6 +474,22 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "EVENT_INVITATION_QUEUE_URL"
             value = lookup(var.sqs_queue_urls, "event_invitation", "")
+          },
+          {
+            name  = "TICKET_PURCHASED_EVENT_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "ticket_purchased_event", "")
+          },
+          {
+            name  = "TICKET_PURCHASED_EVENT_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "ticket_purchased_event", "")
+          },
+          {
+            name  = "PAYMENT_PROCESSING_EVENT_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "payment_processing_event", "")
+          },
+          {
+            name  = "PAYMENT_COMPLETED_EVENT_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "payment_completed_event", "")
           }
         ] : []
       )
