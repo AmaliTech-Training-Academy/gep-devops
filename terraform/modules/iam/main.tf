@@ -1,13 +1,37 @@
 # terraform/modules/iam/main.tf
 # ==============================================================================
-# IAM Module - Roles and Policies
+# IAM Module - Digital Identity and Access Management (Employee ID Badges)
 # ==============================================================================
-# This module creates IAM roles and policies for ECS tasks following the
-# principle of least privilege.
+# WHAT THIS MODULE DOES:
+# Creates digital identity badges and permission sets for our applications,
+# controlling exactly what each service can and cannot access in AWS.
+# Think of it like creating employee ID badges with specific access levels
+# for different departments in our company.
 #
-# Roles Created:
-# - ECS Task Execution Role (pull images, write logs, read secrets)
-# - ECS Task Roles per microservice (service-specific permissions)
+# BUSINESS PURPOSE:
+# - Security: Prevents unauthorized access to sensitive data and systems
+# - Compliance: Meets regulatory requirements for access control
+# - Audit Trail: Tracks who accessed what resources and when
+# - Risk Management: Limits damage if a service is compromised
+#
+# PERMISSION STRATEGY:
+# "Least Privilege Principle" - Each service gets only the minimum permissions
+# needed to do its job, nothing more. Like giving each employee only the keys
+# they need for their specific role.
+#
+# ROLES CREATED:
+# 1. Task Execution Role: Master key for AWS to manage containers
+# 2. Auth Service Role: Permissions for user management and email
+# 3. Event Service Role: Permissions for event management and notifications
+# 4. Booking Service Role: Permissions for reservation processing
+# 5. Payment Service Role: Permissions for payment processing
+# 6. Notification Service Role: Permissions for email and SMS sending
+#
+# BUSINESS IMPACT:
+# - Protects customer data from unauthorized access
+# - Enables secure communication between services
+# - Supports compliance with data protection regulations
+# - Reduces security risks and potential data breaches
 # ==============================================================================
 
 terraform {
@@ -22,10 +46,23 @@ terraform {
 }
 
 # ==============================================================================
-# ECS Task Execution Role
+# ECS Task Execution Role - Master Container Management Badge
 # ==============================================================================
-# This role is used by ECS to pull container images, write logs, and retrieve
-# secrets. It's the same for all services.
+# WHAT THIS ROLE DOES:
+# Provides AWS with the permissions needed to manage our application containers.
+# Like giving the building manager a master key to start/stop office equipment,
+# turn on lights, and access utility systems for all departments.
+#
+# PERMISSIONS GRANTED:
+# - Pull application images from our private container registry
+# - Write application logs to CloudWatch for monitoring
+# - Retrieve database passwords and API keys from secure storage
+# - Start and stop application containers as needed
+#
+# SECURITY NOTE:
+# This role is used by AWS infrastructure, not by our applications directly.
+# It's like the building management company having access to building systems
+# but not to individual office files and documents.
 
 resource "aws_iam_role" "ecs_task_execution" {
   name_prefix = "${var.project_name}-${var.environment}-ecs-execution-"
@@ -87,10 +124,22 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
 }
 
 # ==============================================================================
-# ECS Task Roles (Service-Specific)
+# Service-Specific Roles - Department Access Badges
 # ==============================================================================
+# WHAT THESE ROLES DO:
+# Provide each business service with specific permissions needed for their function.
+# Like giving each department head access only to their department's resources
+# and the shared services they need to do their job.
+#
+# PERMISSION PHILOSOPHY:
+# Each service gets exactly what it needs, nothing more:
+# - Auth Service: Can send emails and manage user files
+# - Event Service: Can publish notifications and manage event files
+# - Booking Service: Can process reservations and send confirmations
+# - Payment Service: Can process payments and send receipts
+# - Notification Service: Can send emails, SMS, and manage message queues
 
-# Auth Service Task Role
+# Auth Service Role - User Management Department Badge
 resource "aws_iam_role" "auth_service_task" {
   name_prefix = "${var.project_name}-${var.environment}-auth-task-"
 
@@ -118,6 +167,7 @@ resource "aws_iam_role" "auth_service_task" {
   )
 }
 
+# Auth Service Permissions - What the User Management Department Can Do
 resource "aws_iam_role_policy" "auth_service_task" {
   name_prefix = "auth-service-permissions-"
   role        = aws_iam_role.auth_service_task.id
@@ -128,8 +178,8 @@ resource "aws_iam_role_policy" "auth_service_task" {
       {
         Effect = "Allow"
         Action = [
-          "ses:SendEmail",
-          "ses:SendRawEmail"
+          "ses:SendEmail",      # Send welcome emails to new users
+          "ses:SendRawEmail"    # Send password reset emails
         ]
         Resource = "*"
       },

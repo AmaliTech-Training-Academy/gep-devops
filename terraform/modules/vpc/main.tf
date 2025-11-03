@@ -1,15 +1,28 @@
 # terraform/modules/vpc/main.tf
 # ==============================================================================
-# VPC Module - Network Infrastructure
+# VPC Module - Network Infrastructure (Virtual Private Cloud)
 # ==============================================================================
-# This module creates the VPC infrastructure including:
-# - VPC with CIDR block
-# - Public and private subnets across multiple AZs
-# - Internet Gateway for public subnets
-# - NAT Gateways for private subnet internet access
-# - Route tables and associations
-# - VPC endpoints for AWS services (cost optimization)
-# - VPC Flow Logs for security monitoring
+# WHAT THIS MODULE DOES:
+# This module creates a secure, isolated network in AWS where our applications run.
+# Think of it like creating a private office building with different floors and rooms.
+#
+# COMPONENTS CREATED:
+# 1. VPC (Virtual Private Cloud) - The main building/network container
+# 2. Subnets - Different floors/rooms for different purposes:
+#    - Public subnets: Ground floor with direct street access (internet)
+#    - Private app subnets: Secure floors for our applications
+#    - Private data subnets: Vault floors for our databases
+# 3. Internet Gateway - Main entrance/exit to the internet
+# 4. NAT Gateways - Secure back doors for private rooms to access internet
+# 5. Route Tables - Directions telling traffic where to go
+# 6. VPC Endpoints - Private tunnels to AWS services (saves money)
+# 7. Flow Logs - Security cameras recording all network traffic
+#
+# BUSINESS VALUE:
+# - Security: Applications are isolated from direct internet access
+# - Reliability: Multiple availability zones prevent single points of failure
+# - Cost Optimization: VPC endpoints reduce data transfer costs
+# - Compliance: Network monitoring and access controls
 # ==============================================================================
 
 terraform {
@@ -24,14 +37,24 @@ terraform {
 }
 
 # ==============================================================================
-# Local Variables
+# Local Variables - Calculated Values
 # ==============================================================================
+# WHAT THIS SECTION DOES:
+# Automatically calculates IP address ranges for different subnet types.
+# Like dividing a large office building into specific floor numbers.
+#
+# IP ADDRESS ALLOCATION STRATEGY:
+# - Main VPC: 10.0.0.0/16 (65,536 total IP addresses)
+# - Public subnets: 10.0.1.0/24, 10.0.2.0/24 (256 IPs each)
+# - Private app subnets: 10.0.10.0/24, 10.0.11.0/24 (256 IPs each)
+# - Private data subnets: 10.0.20.0/24, 10.0.21.0/24 (256 IPs each)
+#
+# WHY THIS MATTERS:
+# - Organized IP ranges make troubleshooting easier
+# - Prevents IP conflicts between different services
+# - Allows for future expansion without redesign
 
 locals {
-  # Calculate subnet CIDR blocks
-  # Public subnets: 10.0.1.0/24, 10.0.2.0/24
-  # Private app subnets: 10.0.10.0/24, 10.0.11.0/24
-  # Private data subnets: 10.0.20.0/24, 10.0.21.0/24
 
   public_subnet_cidrs       = [for i, az in var.availability_zones : cidrsubnet(var.vpc_cidr, 8, i + 1)]
   private_app_subnet_cidrs  = [for i, az in var.availability_zones : cidrsubnet(var.vpc_cidr, 8, i + 10)]
@@ -48,14 +71,28 @@ locals {
 }
 
 # ==============================================================================
-# VPC
+# VPC - Virtual Private Cloud (The Main Network Container)
 # ==============================================================================
+# WHAT THIS CREATES:
+# The main network container that holds all our infrastructure.
+# Like constructing the outer walls and foundation of our office building.
+#
+# KEY FEATURES:
+# - Isolated network space in AWS cloud
+# - Custom IP address range (10.0.0.0/16)
+# - DNS resolution enabled for service communication
+# - Foundation for all other network components
+#
+# BUSINESS IMPACT:
+# - Complete network isolation from other AWS customers
+# - Full control over network security and routing
+# - Enables secure communication between services
 
-# Create VPC
+# Create the main VPC (Virtual Private Cloud)
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
-  enable_dns_hostnames = true # Required for ECS and RDS
-  enable_dns_support   = true # Required for DNS resolution
+  enable_dns_hostnames = true # Allows services to have friendly names (e.g., database.internal)
+  enable_dns_support   = true # Enables name resolution within the network
 
   tags = merge(
     local.common_tags,
@@ -66,10 +103,22 @@ resource "aws_vpc" "main" {
 }
 
 # ==============================================================================
-# Internet Gateway
+# Internet Gateway - Main Entrance to the Internet
 # ==============================================================================
+# WHAT THIS CREATES:
+# The main entrance/exit point for internet traffic to our network.
+# Like the main lobby entrance of our office building.
+#
+# PURPOSE:
+# - Allows public subnets to communicate with the internet
+# - Enables users to access our web applications
+# - Required for load balancers to receive external traffic
+#
+# SECURITY NOTE:
+# Only public subnets use this gateway directly.
+# Private subnets use NAT Gateways for secure internet access.
 
-# Create Internet Gateway for public subnets
+# Create Internet Gateway for public internet access
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
@@ -82,17 +131,34 @@ resource "aws_internet_gateway" "main" {
 }
 
 # ==============================================================================
-# Public Subnets
+# Public Subnets - Ground Floor with Street Access
 # ==============================================================================
+# WHAT THESE CREATE:
+# Network segments with direct internet access.
+# Like ground floor offices with street-facing windows and doors.
+#
+# WHAT GOES HERE:
+# - Application Load Balancer (receives user requests)
+# - NAT Gateways (secure internet access for private subnets)
+# - Bastion hosts (secure admin access points)
+#
+# SECURITY CONSIDERATIONS:
+# - Direct internet access (both inbound and outbound)
+# - Protected by security groups (firewall rules)
+# - Only infrastructure components, not application servers
+#
+# HIGH AVAILABILITY:
+# - Created in multiple availability zones
+# - If one zone fails, others continue operating
 
-# Create public subnets (for ALB, NAT Gateways)
+# Create public subnets (for load balancers and NAT gateways)
 resource "aws_subnet" "public" {
   count = length(var.availability_zones)
 
   vpc_id                  = aws_vpc.main.id
   cidr_block              = local.public_subnet_cidrs[count.index]
   availability_zone       = var.availability_zones[count.index]
-  map_public_ip_on_launch = true # Auto-assign public IPs
+  map_public_ip_on_launch = true # Automatically assign public IP addresses
 
   tags = merge(
     local.common_tags,
@@ -104,10 +170,29 @@ resource "aws_subnet" "public" {
 }
 
 # ==============================================================================
-# Private Application Subnets
+# Private Application Subnets - Secure Office Floors
 # ==============================================================================
+# WHAT THESE CREATE:
+# Secure network segments for running our applications.
+# Like secure office floors accessible only through controlled entrances.
+#
+# WHAT GOES HERE:
+# - ECS containers (our microservices: auth, event, notification)
+# - Application servers and business logic
+# - Services that need internet access but shouldn't be directly accessible
+#
+# SECURITY FEATURES:
+# - No direct internet access (inbound blocked)
+# - Outbound internet access through NAT Gateway
+# - Protected by multiple layers of security groups
+# - Can communicate with other private subnets
+#
+# BUSINESS BENEFITS:
+# - Applications are protected from direct internet attacks
+# - Can still download updates and access external APIs
+# - Isolated from database layer for additional security
 
-# Create private subnets for ECS tasks
+# Create private application subnets for our microservices
 resource "aws_subnet" "private_app" {
   count = length(var.availability_zones)
 
@@ -125,10 +210,30 @@ resource "aws_subnet" "private_app" {
 }
 
 # ==============================================================================
-# Private Data Subnets
+# Private Data Subnets - Maximum Security Vault Floors
 # ==============================================================================
+# WHAT THESE CREATE:
+# Ultra-secure network segments for our databases and sensitive data.
+# Like bank vault floors with no external access whatsoever.
+#
+# WHAT GOES HERE:
+# - RDS PostgreSQL databases (user data, events, bookings)
+# - ElastiCache Redis (session storage, caching)
+# - Any service storing sensitive customer information
+#
+# MAXIMUM SECURITY FEATURES:
+# - No internet access at all (inbound or outbound)
+# - Only accessible from application subnets
+# - Separate from application layer for defense in depth
+# - Encrypted storage and network traffic
+#
+# COMPLIANCE BENEFITS:
+# - Meets strict data protection requirements
+# - Isolates sensitive data from application logic
+# - Provides audit trail for data access
+# - Supports regulatory compliance (GDPR, PCI-DSS)
 
-# Create private subnets for databases
+# Create private data subnets for databases and sensitive storage
 resource "aws_subnet" "private_data" {
   count = length(var.availability_zones)
 

@@ -91,6 +91,42 @@ locals {
       message_retention  = 259200
     }
 
+    # Event invitation queue
+    event_invitation = {
+      name               = "${var.project_name}-${var.environment}-event-invitation-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["event.invitation"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
+
+    # Ticket purchased event queue
+    ticket_purchased_event = {
+      name               = "${var.project_name}-${var.environment}-ticket-purchased-event-queue"
+      topic              = "booking"
+      filter_policy      = { event_type = ["ticket.purchased"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
+
+    # Payment processing event queue
+    payment_processing_event = {
+      name               = "${var.project_name}-${var.environment}-payment-processing-event-queue"
+      topic              = "payment"
+      filter_policy      = { event_type = ["payment.processing"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
+
+    # Payment completed event queue
+    payment_completed_event = {
+      name               = "${var.project_name}-${var.environment}-payment-completed-event-queue"
+      topic              = "payment"
+      filter_policy      = { event_type = ["payment.completed"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
+
     # COMMENTED OUT: Booking and Payment queues (not needed yet)
     # booking_created_notification = {
     #   name               = "${var.project_name}-${var.environment}-booking-created-notification-queue"

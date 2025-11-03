@@ -1,64 +1,102 @@
 # ==============================================================================
 # terraform/modules/vpc/outputs.tf
 # ==============================================================================
+# VPC MODULE OUTPUTS - Information Made Available to Other Modules
+# ==============================================================================
+# WHAT THIS FILE DOES:
+# Provides information about the created network infrastructure to other modules.
+# Like giving other departments the building directory, room numbers, and access codes.
+#
+# WHY OUTPUTS MATTER:
+# - Other modules need VPC IDs to create resources in the right network
+# - Subnet IDs tell services where they can be deployed
+# - Security group modules need VPC ID to create firewall rules
+# - Load balancers need public subnet IDs to receive internet traffic
+#
+# INFORMATION PROVIDED:
+# - Network identifiers (VPC ID, subnet IDs)
+# - Network configuration (CIDR blocks, route tables)
+# - Infrastructure endpoints (NAT gateways, VPC endpoints)
+# - Security and monitoring components
+# ==============================================================================
+
+# ==============================================================================
+# Core VPC Information
+# ==============================================================================
 
 output "vpc_id" {
-  description = "ID of the VPC"
+  description = "Unique identifier of the main VPC network container. Other modules use this to create resources in the correct network."
   value       = aws_vpc.main.id
 }
 
 output "vpc_cidr" {
-  description = "CIDR block of the VPC"
+  description = "IP address range of the VPC (e.g., 10.0.0.0/16). Used by security groups to define network access rules."
   value       = aws_vpc.main.cidr_block
 }
 
 output "vpc_arn" {
-  description = "ARN of the VPC"
+  description = "Amazon Resource Name (ARN) of the VPC. Used for IAM policies and cross-account access."
   value       = aws_vpc.main.arn
 }
 
+# ==============================================================================
+# Internet Access Components
+# ==============================================================================
+
 output "internet_gateway_id" {
-  description = "ID of the Internet Gateway"
+  description = "ID of the Internet Gateway - the main entrance/exit for public internet traffic. Used by route tables to direct traffic."
   value       = aws_internet_gateway.main.id
 }
 
 output "nat_gateway_ids" {
-  description = "IDs of the NAT Gateways"
+  description = "IDs of NAT Gateways - secure back doors that allow private subnets to access internet while blocking inbound traffic."
   value       = var.enable_nat_gateway ? aws_nat_gateway.main[*].id : []
 }
 
 output "nat_gateway_public_ips" {
-  description = "Public IPs of the NAT Gateways"
+  description = "Public IP addresses of NAT Gateways. These IPs appear as the source when private resources access the internet."
   value       = var.enable_nat_gateway ? aws_eip.nat[*].public_ip : []
 }
 
+# ==============================================================================
+# Public Subnet Information (Internet-Accessible Areas)
+# ==============================================================================
+
 output "public_subnet_ids" {
-  description = "IDs of public subnets"
+  description = "IDs of public subnets where internet-facing resources are deployed (load balancers, NAT gateways). These have direct internet access."
   value       = aws_subnet.public[*].id
 }
 
 output "public_subnet_cidrs" {
-  description = "CIDR blocks of public subnets"
+  description = "IP address ranges of public subnets. Used for security group rules and network planning."
   value       = aws_subnet.public[*].cidr_block
 }
 
+# ==============================================================================
+# Private Application Subnet Information (Secure Application Areas)
+# ==============================================================================
+
 output "private_app_subnet_ids" {
-  description = "IDs of private application subnets"
+  description = "IDs of private application subnets where our microservices run (auth, event, notification services). Protected from direct internet access."
   value       = aws_subnet.private_app[*].id
 }
 
 output "private_app_subnet_cidrs" {
-  description = "CIDR blocks of private application subnets"
+  description = "IP address ranges of application subnets. Used by ECS and security groups to deploy and protect our services."
   value       = aws_subnet.private_app[*].cidr_block
 }
 
+# ==============================================================================
+# Private Data Subnet Information (Maximum Security Database Areas)
+# ==============================================================================
+
 output "private_data_subnet_ids" {
-  description = "IDs of private data subnets"
+  description = "IDs of private data subnets where databases and sensitive storage are deployed (RDS, ElastiCache). No internet access for maximum security."
   value       = aws_subnet.private_data[*].id
 }
 
 output "private_data_subnet_cidrs" {
-  description = "CIDR blocks of private data subnets"
+  description = "IP address ranges of data subnets. Used by database services and security groups to ensure data isolation."
   value       = aws_subnet.private_data[*].cidr_block
 }
 

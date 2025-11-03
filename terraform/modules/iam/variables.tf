@@ -1,32 +1,58 @@
 # ==============================================================================
 # terraform/modules/iam/variables.tf
 # ==============================================================================
-# Variable definitions for IAM module
+# IAM Module Variables - Security and Access Control Configuration
+# ==============================================================================
+# WHAT THIS FILE DOES:
+# Defines the security settings and resource permissions needed to create
+# digital identity badges for our applications. Like specifying which
+# departments exist and what resources each department needs access to.
+#
+# SECURITY CONFIGURATION:
+# - Project identification for organizing security policies
+# - Environment settings that affect security levels
+# - Database access permissions for storing business data
+# - File storage permissions for website and user content
+# - Secret access permissions for passwords and API keys
+#
+# BUSINESS IMPACT:
+# - Ensures applications can access required business resources
+# - Prevents unauthorized access to sensitive customer data
+# - Supports compliance with data protection regulations
+# - Enables secure communication between business services
 # ==============================================================================
 
 
+# ==============================================================================
+# Basic Security Configuration
+# ==============================================================================
+
 variable "project_name" {
-  description = "Name of the project (used for IAM role naming)"
+  description = "Name of the project used to organize security policies and roles. Helps identify which permissions belong to our event planning platform."
   type        = string
 }
 
 variable "environment" {
-  description = "Environment name (e.g., dev, staging, prod)"
+  description = "Environment name that affects security levels. 'dev' = relaxed security for testing, 'prod' = strict security for customer data protection."
   type        = string
 }
 
+# ==============================================================================
+# Resource Access Configuration
+# ==============================================================================
+
 variable "db_secrets_arns" {
-  description = "List of ARNs for database secrets (RDS) that ECS tasks need to access"
+  description = "List of secure storage locations for database passwords. Applications need these to connect to databases containing customer and business data."
   type        = list(string)
 }
 
 variable "frontend_bucket_arn" {
-  description = "ARN of the S3 bucket for frontend assets (used by auth and event services)"
+  description = "Location of website files and user-uploaded content. Auth and event services need access to manage user profiles and event images."
   type        = string
 }
 
 variable "jwt_secret_arn" {
-  description = "ARN of JWT secret in Secrets Manager for auth service"
+  description = "Secure storage location for user authentication keys. Auth service needs this to verify user logins and create secure sessions."
   type        = string
   default     = null
 }

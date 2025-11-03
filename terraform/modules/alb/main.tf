@@ -1,22 +1,33 @@
 # ==============================================================================
-# ALB Module - Application Load Balancer with Path-Based Routing
+# ALB Module - Application Load Balancer (Smart Traffic Director)
 # ==============================================================================
-# This module creates an Application Load Balancer that routes traffic directly
-# to backend microservices based on URL paths (no API Gateway microservice).
+# WHAT THIS MODULE DOES:
+# Creates a smart traffic director that receives all user requests from the internet
+# and routes them to the correct business service based on what the user wants to do.
+# Think of it like a smart receptionist who knows exactly which department to send
+# each visitor to based on their needs.
 #
-# Routing Rules:
-# - /api/auth/*         → Auth Service (8081)
-# - /api/events/*       → Event Service (8082)
-# - /api/bookings/*     → Booking Service (8083)
-# - /api/payments/*     → Payment Service (8084)
-# - /api/notifications/* → Notification Service (8085)
+# BUSINESS FUNCTION:
+# - Receives all website traffic from users around the world
+# - Routes login requests to the authentication service
+# - Routes event browsing to the event management service
+# - Routes booking requests to the booking service
+# - Routes payment processing to the payment service
+# - Routes notifications to the notification service
 #
-# Features:
-# - SSL/TLS termination
-# - Health checks with auto-scaling triggers
-# - Connection draining
-# - Access logging to S3
-# - CloudWatch metrics and alarms
+# SMART ROUTING RULES:
+# - /api/v1/auth/* → Authentication Service (user login/registration)
+# - /api/v1/events/* → Event Service (event browsing/creation)
+# - /api/v1/bookings/* → Booking Service (event reservations)
+# - /api/v1/payments/* → Payment Service (payment processing)
+# - /api/v1/notifications/* → Notification Service (emails/SMS)
+#
+# BUSINESS BENEFITS:
+# - High Availability: If one server fails, traffic goes to healthy servers
+# - Performance: Distributes load across multiple servers for faster response
+# - Security: Handles SSL certificates and encrypts all user traffic
+# - Monitoring: Tracks performance and alerts on issues
+# - Scalability: Automatically adds/removes servers based on demand
 # ==============================================================================
 
 terraform {
@@ -31,33 +42,51 @@ terraform {
 }
 
 # ==============================================================================
-# Local Variables
+# Service Configuration - Business Department Directory
 # ==============================================================================
+# WHAT THIS SECTION DEFINES:
+# Configuration for each business service including where to route requests
+# and how to check if each service is healthy and responding to users.
+# Like maintaining a company directory with department locations and phone numbers.
+#
+# SERVICE ROUTING STRATEGY:
+# Each business function gets its own URL path and port number:
+# - Authentication: Handles user accounts and security
+# - Events: Manages event creation, updates, and browsing
+# - Notifications: Sends emails and SMS messages to users
+# - Bookings: Processes event reservations (ready to deploy)
+# - Payments: Handles payment transactions (ready to deploy)
+#
+# HEALTH CHECK STRATEGY:
+# Each service provides a health endpoint (/actuator/health) that reports:
+# - Service status (healthy/unhealthy)
+# - Database connectivity
+# - System resource usage
+# - Dependency availability
 
 locals {
-  # Microservices configuration
-  # Backend uses /api/v1/* pattern (versioned API)
+  # Business services configuration (active services)
   services = {
     auth = {
-      name              = "auth-service"
-      port              = 8081
-      path_pattern      = "/api/v1/auth/*"
-      health_check_path = "/actuator/health"
-      priority          = 100
+      name              = "auth-service"                    # User authentication and account management
+      port              = 8081                             # Network port where service listens
+      path_pattern      = "/api/v1/auth/*"                 # URL pattern for routing user login/registration requests
+      health_check_path = "/actuator/health"               # Endpoint to check if service is healthy
+      priority          = 100                              # Routing priority (lower = higher priority)
     }
     event = {
-      name              = "event-service"
-      port              = 8082
-      path_pattern      = "/api/v1/events/*"
-      health_check_path = "/actuator/health"
-      priority          = 200
+      name              = "event-service"                   # Event creation and management
+      port              = 8082                             # Network port for event operations
+      path_pattern      = "/api/v1/events/*"               # URL pattern for event browsing/creation requests
+      health_check_path = "/actuator/health"               # Health monitoring endpoint
+      priority          = 200                              # Second priority for routing
     }
     notification = {
-      name              = "notification-service"
-      port              = 8085
-      path_pattern      = "/api/v1/notifications/*"
-      health_check_path = "/actuator/health"
-      priority          = 500
+      name              = "notification-service"            # Email and SMS notifications
+      port              = 8085                             # Network port for notification operations
+      path_pattern      = "/api/v1/notifications/*"        # URL pattern for notification requests
+      health_check_path = "/actuator/health"               # Service health check endpoint
+      priority          = 500                              # Lower priority routing
     }
   }
 

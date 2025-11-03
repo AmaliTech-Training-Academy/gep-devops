@@ -1,83 +1,119 @@
 # ==============================================================================
-# ECS Module Variables
+# ECS Module Variables - Container Orchestration Configuration
+# ==============================================================================
+# WHAT THIS FILE DOES:
+# Defines all the settings needed to run our business applications in containers.
+# Think of it like configuring multiple specialized departments in our office building,
+# each with specific requirements for space, resources, and communication.
+#
+# BUSINESS APPLICATIONS MANAGED:
+# - Auth Service: Handles user login and registration
+# - Event Service: Manages event creation and updates
+# - Notification Service: Sends emails and SMS messages
+# - Booking Service: Processes event bookings (ready to deploy)
+# - Payment Service: Handles payment transactions (ready to deploy)
+#
+# CONFIGURATION CATEGORIES:
+# - Infrastructure: Where and how to run applications
+# - Security: Access controls and credentials
+# - Performance: CPU, memory, and scaling settings
+# - Communication: How services talk to each other
+# - Monitoring: Logging and health tracking
+# ==============================================================================
+
+# ==============================================================================
+# Basic Project Configuration
 # ==============================================================================
 
 variable "project_name" {
-  description = "Name of the project"
+  description = "Name of the project (e.g., 'event-planner'). Used as prefix for all container resources to keep them organized."
   type        = string
 }
 
 variable "environment" {
-  description = "Environment name (dev, prod)"
+  description = "Environment name that determines resource sizing and configuration. 'dev' = cost-optimized, 'prod' = high-availability."
   type        = string
 
   validation {
     condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "Environment must be dev, staging, or prod"
+    error_message = "Environment must be dev, staging, or prod to ensure proper resource configuration."
   }
 }
 
 variable "aws_region" {
-  description = "AWS region"
+  description = "AWS region where containers will run. Affects latency to users and compliance requirements. EU users = eu-west-1, US users = us-east-1."
   type        = string
   default     = "eu-west-1"
 
   validation {
     condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]{1}$", var.aws_region))
-    error_message = "AWS region must be in valid format (e.g., us-east-1, eu-west-1)"
+    error_message = "AWS region must be in valid format (e.g., us-east-1, eu-west-1) to ensure proper service deployment."
   }
 }
 
+# ==============================================================================
+# Network Configuration - Where Containers Run
+# ==============================================================================
+
 variable "vpc_id" {
-  description = "VPC ID"
+  description = "ID of the Virtual Private Cloud where containers will be deployed. This is our secure network boundary."
   type        = string
 }
 
 variable "private_subnet_ids" {
-  description = "List of private subnet IDs for ECS tasks"
+  description = "List of private subnet IDs where application containers run. These subnets have no direct internet access for security."
   type        = list(string)
 }
 
 variable "ecs_security_group_id" {
-  description = "Security group ID for ECS tasks"
+  description = "Security group ID that controls network access to containers. Acts like a firewall protecting our applications."
   type        = string
 }
 
 # ==============================================================================
-# IAM Configuration
+# Security and Access Control Configuration
 # ==============================================================================
+# WHAT THESE VARIABLES CONTROL:
+# Permissions that determine what each container can access in AWS.
+# Like employee ID badges that specify which rooms and systems each person can use.
 
 variable "task_execution_role_arn" {
-  description = "ARN of the ECS task execution role"
+  description = "ARN of the role that allows ECS to start containers, pull images, and write logs. Like a master key for container management."
   type        = string
 }
 
 variable "task_role_arns" {
-  description = "Map of service names to task role ARNs"
+  description = "Map of service-specific roles that control what each application can access (databases, queues, etc.). Each service gets only the permissions it needs."
   type        = map(string)
 }
 
 # ==============================================================================
-# Service Discovery Configuration
+# Service Communication Configuration
 # ==============================================================================
+# WHAT THIS CONTROLS:
+# How our business services find and talk to each other.
+# Like an internal phone directory for our applications.
 
 variable "service_discovery_namespace" {
-  description = "Service discovery namespace (e.g., eventplanner.local)"
+  description = "Internal domain name for service communication (e.g., auth-service.eventplanner.local). Allows services to find each other automatically."
   type        = string
   default     = "eventplanner.local"
 }
 
 # ==============================================================================
-# Container Configuration
+# Application Deployment Configuration
 # ==============================================================================
+# WHAT THESE VARIABLES CONTROL:
+# Which version of our applications to run and where to find them.
+# Like specifying which software version to install on each computer.
 
 variable "ecr_repository_urls" {
-  description = "Map of service names to ECR repository URLs"
+  description = "Map of service names to container image locations. Each service (auth, event, notification) has its own packaged application."
   type        = map(string)
 }
 
 variable "image_tag" {
-  description = "Docker image tag to deploy"
+  description = "Version tag of the application to deploy (e.g., 'v1.2.3', 'latest'). Controls which version of our software runs."
   type        = string
   default     = "latest"
 }
@@ -136,6 +172,16 @@ variable "sqs_queue_names" {
   description = "Map of SQS queue names"
   type        = map(string)
   default     = {}
+}
+
+variable "s3_bucket_name" {
+  description = "Name of the S3 bucket for file storage"
+  type        = string
+}
+
+variable "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  type        = string
 }
 
 # ==============================================================================

@@ -255,6 +255,18 @@ resource "aws_ecs_task_definition" "services" {
         {
           name  = "EVENT_SERVICE_URL"
           value = "http://event-service.${var.service_discovery_namespace}:8082"
+        },
+        {
+          name  = "ALB_BASE_URL"
+          value = "http://${var.alb_dns_name}"
+        },
+        {
+          name  = "FRONTEND_BASE_URL"
+          value = "https://events.sankofagrid.com/app"
+        },
+        {
+          name  = "AWS_S3_BUCKET"
+          value = var.s3_bucket_name
         }
         ],
         [
@@ -271,6 +283,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "JWT_REFRESH_EXPIRATION"
             value = tostring(var.jwt_refresh_expiration)
+          },
+          {
+            name  = "VIRTUAL_TICKET_VERIFICATION_URL"
+            value = "http://${var.alb_dns_name}/api/v1/tickets/verifyVirtualTicket/join"
           }
         ] : [],
         # SQS configuration - only for services that need it
@@ -318,12 +334,20 @@ resource "aws_ecs_task_definition" "services" {
             value = lookup(var.sqs_queue_urls, "event_created_notification", "")
           },
           {
-            name  = "SPRING_DATASOURCE_SCHEMA"
+            name  = "EVENT_SERVICE_DB_SCHEMA"
+            value = "event_schema"
+          },
+          {
+            name  = "SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA"
             value = "event_schema"
           },
           {
             name  = "DATABASE_SCHEMA"
             value = "event_schema"
+          },
+          {
+            name  = "SPRING_DATASOURCE_SCHEMA_SEARCH_PATH"
+            value = "event_schema,public"
           },
           {
             name  = "SPRING_JPA_HIBERNATE_DDL_AUTO"
@@ -336,6 +360,26 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "SPRING_JPA_DATABASE_PLATFORM"
             value = "org.hibernate.dialect.PostgreSQLDialect"
+          },
+          {
+            name  = "TICKET_PURCHASED_EVENT_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "ticket_purchased_event", "")
+          },
+          {
+            name  = "PAYMENT_PROCESSING_EVENT_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "payment_processing_event", "")
+          },
+          {
+            name  = "PAYMENT_COMPLETED_EVENT_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "payment_completed_event", "")
+          },
+          {
+            name  = "EVENT_INVITATION_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "event_invitation", "")
+          },
+          {
+            name  = "VIRTUAL_TICKET_VERIFICATION_URL"
+            value = "http://${var.alb_dns_name}/api/v1/tickets/verifyVirtualTicket/join"
           }
         ] : [],
         each.key == "booking" ? [
@@ -425,7 +469,11 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "VIRTUAL_TICKET_VERIFICATION_URL"
-            value = "https://events.sankofagrid.com/verify-ticket"
+            value = "http://${var.alb_dns_name}/api/v1/tickets/verifyVirtualTicket/join"
+          },
+          {
+            name  = "EVENT_INVITATION_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "event_invitation", "")
           }
         ] : []
       )

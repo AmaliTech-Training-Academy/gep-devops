@@ -1,46 +1,87 @@
 # ==============================================================================
-# RDS Module Variables
+# RDS Module Variables - Database Infrastructure Configuration
+# ==============================================================================
+# WHAT THIS FILE DOES:
+# Defines all settings for our database infrastructure where customer and business
+# data is stored securely. Think of it like configuring a high-security bank vault
+# with different safety deposit boxes for different types of valuable information.
+#
+# BUSINESS DATA STORED:
+# - User accounts and authentication information
+# - Event details and scheduling data
+# - Booking records and customer information
+# - Payment transactions and financial data
+# - System audit logs and compliance records
+#
+# CONFIGURATION CATEGORIES:
+# - Database Sizing: How much computing power and storage each database needs
+# - Security Settings: Encryption, access controls, and compliance features
+# - Backup & Recovery: How we protect against data loss
+# - Performance: Speed and reliability optimizations
+# - Monitoring: Health checks and alerting for database issues
+#
+# BUSINESS IMPACT:
+# - Data Loss Prevention: Automated backups and redundancy
+# - Performance: Fast response times for user interactions
+# - Security: Encrypted storage and secure access controls
+# - Compliance: Audit trails and data protection measures
+# ==============================================================================
+
+# ==============================================================================
+# Basic Infrastructure Configuration
 # ==============================================================================
 
 variable "project_name" {
-  description = "Name of the project"
+  description = "Name of the project (e.g., 'event-planner'). Used to organize and identify all database resources."
   type        = string
 }
 
 variable "environment" {
-  description = "Environment name (dev, staging, prod)"
+  description = "Environment name that determines database configuration. 'dev' = cost-optimized single instance, 'prod' = high-availability with backups."
   type        = string
 }
 
 variable "subnet_ids" {
-  description = "List of subnet IDs for DB subnet group"
+  description = "List of private subnet IDs where databases will be deployed. These are secure network areas with no direct internet access."
   type        = list(string)
 }
 
 variable "security_group_id" {
-  description = "Security group ID for RDS instances"
+  description = "Security group ID that controls which applications can access the databases. Acts like a digital firewall protecting our data."
   type        = string
 }
 
 # ==============================================================================
-# Database Instance Configuration
+# Database Sizing Configuration - Computing Power and Storage
 # ==============================================================================
+# WHAT THESE SETTINGS CONTROL:
+# The computing power and storage capacity for each business database.
+# Like choosing the right size safe for different types of valuables.
+#
+# INSTANCE CLASSES EXPLAINED:
+# - db.t3.micro: Small (1 vCPU, 1GB RAM) - suitable for light workloads
+# - db.t3.medium: Medium (2 vCPU, 4GB RAM) - good for moderate traffic
+# - db.t3.large: Large (2 vCPU, 8GB RAM) - handles high traffic volumes
+#
+# STORAGE AUTO-SCALING:
+# Databases automatically grow when they need more space, up to the maximum limit.
+# Prevents running out of storage space during business growth.
 
-# Auth Database
+# Auth Database - Stores user accounts and login information
 variable "auth_db_instance_class" {
-  description = "Instance class for auth database"
+  description = "Computing power for user authentication database. Medium size handles thousands of concurrent users logging in."
   type        = string
   default     = "db.t3.medium"
 }
 
 variable "auth_db_allocated_storage" {
-  description = "Allocated storage for auth database (GB)"
+  description = "Starting storage space for user data (GB). Automatically grows as more users register."
   type        = number
   default     = 100
 }
 
 variable "auth_db_max_allocated_storage" {
-  description = "Maximum allocated storage for auth database (GB)"
+  description = "Maximum storage limit for user database (GB). Prevents runaway storage costs while allowing growth."
   type        = number
   default     = 500
 }
@@ -152,39 +193,66 @@ variable "provisioned_iops" {
 }
 
 # ==============================================================================
-# High Availability Configuration
+# Business Continuity Configuration - Preventing Downtime
 # ==============================================================================
+# WHAT THESE SETTINGS PROVIDE:
+# Protection against database failures that could shut down our business.
+# Like having backup generators and multiple office locations.
+#
+# MULTI-AZ DEPLOYMENT:
+# Creates an identical backup database in a different data center.
+# If the main database fails, the backup takes over automatically in minutes.
+# COST: Doubles database costs but prevents business downtime.
+#
+# READ REPLICAS:
+# Creates additional read-only copies of the database for faster queries.
+# Improves performance when many users are browsing events simultaneously.
+# COST: Additional database instances but improves user experience.
 
 variable "multi_az" {
-  description = "Enable Multi-AZ deployment"
+  description = "Enable automatic failover to backup database in different data center. Recommended for production to prevent business downtime."
   type        = bool
   default     = false
 }
 
 variable "create_read_replicas" {
-  description = "Create read replicas for each database"
+  description = "Create additional read-only database copies for faster performance. Improves response times when many users browse events."
   type        = bool
   default     = false
 }
 
 # ==============================================================================
-# Backup Configuration
+# Data Protection Configuration - Backup and Recovery
 # ==============================================================================
+# WHAT THESE SETTINGS PROVIDE:
+# Automatic protection against data loss from accidents, corruption, or attacks.
+# Like having multiple copies of important business documents in different safes.
+#
+# BACKUP STRATEGY:
+# - Automated daily backups during low-traffic hours
+# - Point-in-time recovery (can restore to any minute within retention period)
+# - Maintenance during weekend hours to minimize business impact
+#
+# BUSINESS VALUE:
+# - Protects against accidental data deletion
+# - Enables recovery from database corruption
+# - Supports compliance requirements for data retention
+# - Provides disaster recovery capabilities
 
 variable "backup_retention_days" {
-  description = "Number of days to retain automated backups"
+  description = "How many days to keep database backups. Longer retention = better recovery options but higher storage costs. 7 days = 1 week of protection."
   type        = number
   default     = 7
 }
 
 variable "backup_window" {
-  description = "Preferred backup window (UTC)"
+  description = "Time when daily backups occur (UTC timezone). 03:00-04:00 = 3-4 AM UTC when user traffic is lowest."
   type        = string
   default     = "03:00-04:00"
 }
 
 variable "maintenance_window" {
-  description = "Preferred maintenance window (UTC)"
+  description = "Time when database updates occur (UTC timezone). Sunday 4-5 AM UTC minimizes impact on business operations."
   type        = string
   default     = "sun:04:00-sun:05:00"
 }
