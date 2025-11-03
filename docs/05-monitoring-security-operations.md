@@ -10,6 +10,11 @@
 ## Monitoring Architecture
 
 The Event Planner Platform implements **comprehensive monitoring** across infrastructure, applications, and business metrics using AWS CloudWatch, custom dashboards, and automated alerting.
+There are also monitoring dashboards built on Grafana accessible to non-engineering teams without AWS console access. 
+
+For Engineers who wants the technical documentation on the grafana dashboards. Refer to [Grafana Monitoring Plan](./GRAFANA-MONITORING-PLAN.md) and [Grafana Deployment Summary](./GRAFANA-DEPLOYMENT-SUMMARY.md)
+
+For Non-engineers, refer to the [Grafana Dashboard User Guide](./GRAFANA-DASHBOARD-USER-GUIDE.md), then [Click Here](https://api.sankofagrid.com/monitoring/) to access the dashboards.
 
 ### Monitoring Stack
 
