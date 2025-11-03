@@ -942,7 +942,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
         type = "metric"
         properties = {
           title = "📈 Request Rate"
-          metrics = var.event_target_group_arn_suffix != "" ? [["AWS/ApplicationELB", "RequestCount", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "Requests/min", color = "#1f77b4" }]] : [["AWS/ECS", "RunningTaskCount", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "No ALB Data" }]]
+          metrics = var.event_target_group_arn_suffix != "" ? [["AWS/ApplicationELB", "RequestCount", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "Requests/min", color = "#1f77b4" }]] : [["AWS/ECS", "RunningTaskCount", "ServiceName", "event-service", { stat = "Average", label = "No ALB Data" }]]
           view = "timeSeries"
           stacked = false
           region = var.aws_region
@@ -963,7 +963,9 @@ resource "aws_cloudwatch_dashboard" "event_service" {
             [".", "HTTPCode_Target_4XX_Count", ".", ".", { stat = "Sum", label = "4XX Client Error", color = "#ff7f0e" }],
             [".", "HTTPCode_Target_5XX_Count", ".", ".", { stat = "Sum", label = "5XX Server Error", color = "#d62728" }]
           ] : [
-            ["AWS/ECS", "CPUUtilization", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "No ALB Data", color = "#999999" }]
+            ["AWS/ECS", "CPUUtilization", "ServiceName", "event-service", { stat = "Average", label = "CPU", color = "#2ca02c" }],
+            [".", "MemoryUtilization", ".", ".", { stat = "Average", label = "Memory", color = "#ff7f0e" }],
+            [".", "RunningTaskCount", ".", ".", { stat = "Average", label = "Tasks", color = "#1f77b4" }]
           ]
           view = "pie"
           region = var.aws_region
@@ -984,7 +986,10 @@ resource "aws_cloudwatch_dashboard" "event_service" {
             ["...", { stat = "p90", label = "P90", color = "#ff7f0e" }],
             ["...", { stat = "p99", label = "P99", color = "#d62728" }]
           ] : [
-            ["AWS/ECS", "MemoryUtilization", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "No ALB Data", color = "#999999" }]
+            ["AWS/ECS", "CPUUtilization", "ServiceName", "event-service", { stat = "Average", label = "CPU", color = "#1f77b4" }],
+            [".", "MemoryUtilization", ".", ".", { stat = "p50", label = "Memory", color = "#2ca02c" }],
+            [".", "RunningTaskCount", ".", ".", { stat = "p90", label = "Tasks", color = "#ff7f0e" }],
+            [".", ".", ".", ".", { stat = "p99", label = "Placeholder", color = "#d62728" }]
           ]
           view = "timeSeries"
           stacked = false
