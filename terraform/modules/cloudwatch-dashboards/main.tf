@@ -879,7 +879,6 @@ resource "aws_cloudwatch_dashboard" "frontend" {
 # ==============================================================================
 
 resource "aws_cloudwatch_dashboard" "event_service" {
-  count = var.event_target_group_arn_suffix != "" ? 1 : 0
   dashboard_name = "${var.project_name}-${var.environment}-event-service"
 
   dashboard_body = jsonencode({
@@ -943,7 +942,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
         type = "metric"
         properties = {
           title = "📈 Request Rate"
-          metrics = [["AWS/ApplicationELB", "RequestCount", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "Requests/min", color = "#1f77b4" }]]
+          metrics = var.event_target_group_arn_suffix != "" ? [["AWS/ApplicationELB", "RequestCount", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "Requests/min", color = "#1f77b4" }]] : []
           view = "timeSeries"
           stacked = false
           region = var.aws_region
@@ -959,11 +958,11 @@ resource "aws_cloudwatch_dashboard" "event_service" {
         type = "metric"
         properties = {
           title = "🚦 HTTP Status Distribution"
-          metrics = [
+          metrics = var.event_target_group_arn_suffix != "" ? [
             ["AWS/ApplicationELB", "HTTPCode_Target_2XX_Count", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "2XX Success", color = "#2ca02c" }],
             [".", "HTTPCode_Target_4XX_Count", ".", ".", { stat = "Sum", label = "4XX Client Error", color = "#ff7f0e" }],
             [".", "HTTPCode_Target_5XX_Count", ".", ".", { stat = "Sum", label = "5XX Server Error", color = "#d62728" }]
-          ]
+          ] : []
           view = "pie"
           region = var.aws_region
           period = 300
@@ -977,12 +976,12 @@ resource "aws_cloudwatch_dashboard" "event_service" {
         type = "metric"
         properties = {
           title = "⏱️ Response Time Analysis"
-          metrics = [
+          metrics = var.event_target_group_arn_suffix != "" ? [
             ["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Average", label = "Average", color = "#1f77b4" }],
             ["...", { stat = "p50", label = "P50", color = "#2ca02c" }],
             ["...", { stat = "p90", label = "P90", color = "#ff7f0e" }],
             ["...", { stat = "p99", label = "P99", color = "#d62728" }]
-          ]
+          ] : []
           view = "timeSeries"
           stacked = false
           region = var.aws_region
