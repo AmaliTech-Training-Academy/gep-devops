@@ -17,7 +17,7 @@ on:
       services:
         description: 'Services to deploy (JSON array)'
         required: false
-        default: '["auth-service", "notification-service"]'
+        default: '["auth-service", "event-service", "notification-service"]'
         type: string
 
 env:
@@ -60,12 +60,12 @@ jobs:
             echo "📦 Services from manual input: $SERVICES"
           else
             # Default enabled services (Terraform-managed)
-            SERVICES='["auth-service", "notification-service"]'
+            SERVICES='["auth-service", "event-service", "notification-service"]'
             echo "📦 Using default enabled services: $SERVICES"
           fi
           
           # Filter only services that are enabled in Terraform
-          ENABLED_SERVICES=("auth-service" "notification-service")
+          ENABLED_SERVICES=("auth-service" "event-service" "notification-service")
           FILTERED_SERVICES=()
           
           for service in $(echo $SERVICES | jq -r '.[]'); do
@@ -79,7 +79,7 @@ jobs:
           
           if [ ${#FILTERED_SERVICES[@]} -eq 0 ]; then
             echo "⚠️ No enabled services to deploy, using defaults"
-            FILTERED_SERVICES=("\"auth-service\"" "\"notification-service\"")
+            FILTERED_SERVICES=("\"auth-service\"" "\"event-service\"" "\"notification-service\"")
           fi
           
           FINAL_SERVICES="[$(IFS=,; echo "${FILTERED_SERVICES[*]}")]"
@@ -441,7 +441,7 @@ jobs:
                     },
                     {
                       "title": "Services",
-                      "value": "auth-service, notification-service",
+                      "value": "auth-service, event-service, notification-service",
                       "short": true
                     },
                     {
