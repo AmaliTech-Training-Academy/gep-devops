@@ -502,11 +502,11 @@ resource "aws_ecs_task_definition" "services" {
         # AWS Credentials from Secrets Manager - for all services
         var.aws_credentials_secret_arn != null ? [
           {
-            name      = "AWS_ACCESS_KEY"
+            name      = "AWS_ACCESS_KEY_ID"
             valueFrom = "${var.aws_credentials_secret_arn}:access_key::"
           },
           {
-            name      = "AWS_SECRET_KEY"
+            name      = "AWS_SECRET_ACCESS_KEY"
             valueFrom = "${var.aws_credentials_secret_arn}:secret_key::"
           }
         ] : [],
