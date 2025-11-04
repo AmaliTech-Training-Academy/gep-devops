@@ -424,6 +424,14 @@ resource "aws_ecs_task_definition" "services" {
             value = var.aws_region
           },
           {
+            name  = "AWS_SDK_LOAD_CONFIG"
+            value = "false"
+          },
+          {
+            name  = "AWS_EC2_METADATA_DISABLED"
+            value = "true"
+          },
+          {
             name  = "USER_REGISTRATION_QUEUE_NAME"
             value = lookup(var.sqs_queue_names, "user_registration", "")
           },
