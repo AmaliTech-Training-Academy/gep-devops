@@ -508,6 +508,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name      = "AWS_SECRET_ACCESS_KEY"
             valueFrom = "${var.aws_credentials_secret_arn}:secret_key::"
+          },
+          {
+            name      = "AWS_SECRET_KEY"
+            valueFrom = "${var.aws_credentials_secret_arn}:secret_key::"
           }
         ] : [],
         # Service-specific database credentials - use each.key (auth, event) not each.value.name (auth-service)
