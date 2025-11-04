@@ -448,7 +448,9 @@ resource "aws_iam_role_policy" "notification_service_task" {
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes",
           "sqs:GetQueueUrl",
-          "sqs:ChangeMessageVisibility"
+          "sqs:ChangeMessageVisibility",
+          "sqs:CreateQueue",
+          "sqs:ListQueues"
         ]
         Resource = "arn:aws:sqs:*:*:event-planner-*"
       },
