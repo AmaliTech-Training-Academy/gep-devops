@@ -384,6 +384,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "AWS_ENDPOINT"
             value = "https://s3.eu-west-1.amazonaws.com"
+          },
+          {
+            name  = "CORS_RESOURCE_ENDPOINT"
+            value = "https://events.sankofagrid.com"
           }
         ] : [],
         each.key == "booking" ? [
