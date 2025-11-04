@@ -92,18 +92,18 @@ locals {
 
   # Swagger documentation routes (separate from API routes)
   swagger_routes = {
-    auth_swagger_ui = {
-      service_key  = "auth"
+    event_swagger_ui = {
+      service_key  = "event"
       path_pattern = "/swagger-ui/*"
       priority     = 90
     }
-    auth_swagger_html = {
-      service_key  = "auth"
+    event_swagger_html = {
+      service_key  = "event"
       path_pattern = "/swagger-ui.html"
       priority     = 91
     }
-    auth_api_docs = {
-      service_key  = "auth"
+    event_api_docs = {
+      service_key  = "event"
       path_pattern = "/v3/api-docs*"
       priority     = 92
     }
