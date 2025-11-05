@@ -425,19 +425,19 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "AWS_SDK_LOAD_CONFIG"
-            value = "false"
-          },
-          {
-            name  = "AWS_EC2_METADATA_DISABLED"
             value = "true"
           },
           {
-            name  = "SPRING_CLOUD_AWS_CREDENTIALS_USE_DEFAULT_AWS_CREDENTIALS_CHAIN"
+            name  = "AWS_EC2_METADATA_DISABLED"
             value = "false"
           },
           {
+            name  = "SPRING_CLOUD_AWS_CREDENTIALS_USE_DEFAULT_AWS_CREDENTIALS_CHAIN"
+            value = "true"
+          },
+          {
             name  = "SPRING_CLOUD_AWS_CREDENTIALS_PROVIDER"
-            value = "environment"
+            value = "default"
           },
           {
             name  = "USER_REGISTRATION_QUEUE_NAME"
@@ -519,7 +519,7 @@ resource "aws_ecs_task_definition" "services" {
       )
 
       secrets = concat(
-        # AWS Credentials from Secrets Manager - for all services
+        # AWS Credentials from Secrets Manager - for all services as fallback
         var.aws_credentials_secret_arn != null ? [
           {
             name      = "AWS_ACCESS_KEY_ID"
