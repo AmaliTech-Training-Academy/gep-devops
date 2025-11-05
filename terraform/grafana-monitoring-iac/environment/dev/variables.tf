@@ -45,3 +45,41 @@ variable "grafana_admin_password" {
   type        = string
   sensitive   = true
 }
+
+variable "vpc_id" {
+  description = "VPC ID"
+  type = string
+}
+
+variable "private_subnet_id" {
+  description = "Private Subnet Id"
+  type = string
+}
+variable "alb_security_group_id" {
+  description = "ALB Security Group Id"
+  type = string
+}
+
+variable "rds_security_group_id" {
+  description = "RDS Security Group Id"
+  type = string
+}
+
+variable "alb_listener_arn" {
+  description = "ALB Listener ARN"
+  type = string
+}
+
+variable "alb_arn_suffix" {
+  description = "ALB ARN Suffix"
+  type = string
+}
+
+variable "sns_topic_arn" {
+  description = "Cloudwatch SNS topic"
+  type = string
+}
+
+variable "ami_id" {
+  description = "AMI for grafana EC2 instance"
+}

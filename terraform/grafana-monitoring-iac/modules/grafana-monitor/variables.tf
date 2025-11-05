@@ -106,3 +106,8 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "ami_id" {
+  description = "AMI ID for the Grafana EC2 instance"
+  type        = string
+}
