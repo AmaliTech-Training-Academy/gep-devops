@@ -730,11 +730,78 @@ public class CustomMetrics {
 - [ ] S3 Intelligent Tiering
 - [ ] CloudFront optimization
 
+### Phase 2.5: Blue-Green Infrastructure (Completed ⭐)
+- [x] Frontend blue-green S3 buckets
+- [x] Backend green ECS services
+- [x] Dual target groups for ALB
+- [x] CloudFront distribution for green testing
+- [x] Automated traffic switching
+- [x] Rollback capabilities
+
 ### Phase 3: AI-Driven Optimization (Future)
 - [ ] AWS Compute Optimizer integration
 - [ ] Predictive scaling based on usage patterns
 - [ ] Automated right-sizing recommendations
 - [ ] Cost anomaly detection and alerting
+
+---
+
+---
+
+## Blue-Green vs Traditional Deployment Cost Comparison
+
+### Traditional Rolling Deployment
+
+**Costs**:
+- Infrastructure: $0 additional
+- Deployment time: 10-15 minutes
+- Downtime: 30-60 seconds
+- Rollback time: 10-15 minutes
+- Risk: Medium (affects all users immediately)
+
+**Annual Cost**: $0
+
+### Blue-Green Deployment
+
+**Costs**:
+- Infrastructure: $22/month
+- Deployment time: 35-60 minutes
+- Downtime: 0 seconds
+- Rollback time: 30 seconds
+- Risk: Low (canary testing, instant rollback)
+
+**Annual Cost**: $264
+
+### Cost Justification
+
+**Scenario 1: E-commerce Platform**
+- Revenue: $10,000/day
+- Downtime cost: $416/hour
+- Deployments: 20/month
+- Traditional downtime: 20 × 1 min = 20 minutes/month
+- **Monthly downtime cost**: $138
+- **Blue-green savings**: $116/month
+- **ROI**: 427%
+
+**Scenario 2: SaaS Application (Event Planner)**
+- Revenue: $1,000/day
+- Downtime cost: $42/hour
+- Deployments: 10/month
+- Traditional downtime: 10 × 1 min = 10 minutes/month
+- **Monthly downtime cost**: $7
+- **Blue-green cost**: $22/month
+- **Net cost**: -$15/month
+
+**Verdict for Event Planner**: 
+- Blue-green costs $15/month more than traditional
+- **BUT** provides:
+  - Zero downtime (better user experience)
+  - Instant rollback (reduced risk)
+  - Canary testing (catch issues early)
+  - Enterprise-grade deployment (professional image)
+  - Team confidence (deploy more frequently)
+
+**Recommendation**: Implement blue-green for production despite small additional cost, as the risk reduction and professional deployment process justify the investment.
 
 ---
 
@@ -748,16 +815,43 @@ This covers cost optimization and best practices. Continue with:
 
 ## Cost Optimization Summary
 
-| Optimization | Development Savings | Production Benefits |
+| Optimization | Development Savings | Production Impact |
 |-------------|-------------------|-------------------|
 | Single-AZ Deployment | $32/month | N/A (HA required) |
 | Multi-Schema Database | $60-80/month | Separate for isolation |
 | Selective Services | $20-30/service | All services active |
 | VPC Endpoint Migration | $92-112/month | $92-112/month |
 | Weekend Shutdown | $50-70/weekend | N/A |
-| **Total Savings** | **$254-319/month** | **Focus on performance** |
+| **Blue-Green Infrastructure** | **+$6/month** | **+$16-20/month** |
+| **Total Savings** | **$248-313/month** | **Focus on reliability** |
 
-**Result**: Development environment costs reduced from $248/month to $75-95/month (weekday-only operation)
+**Result**: 
+- Development: $75-95/month (weekday-only)
+- Production: $2,516-3,020/month (with blue-green)
+
+### Blue-Green Cost Breakdown
+
+**Frontend Blue-Green**:
+- Green S3 bucket: $2/month
+- Backup S3 bucket: $3/month
+- Green CloudFront distribution: $1/month
+- **Subtotal**: $6/month (permanent)
+
+**Backend Blue-Green**:
+- Green ECS services (scaled to 0): $0/month
+- During deployment (~1 hour): $1/hour
+- Average (10 deployments/month): $10/month
+- Green target groups: $0 (included in ALB)
+- **Subtotal**: $10/month (average)
+
+**Total Blue-Green Cost**: $16-20/month
+
+**Value Delivered**:
+- Zero-downtime deployments
+- Instant rollback capability
+- Canary testing with 10% traffic
+- Production stability maintained
+- Reduced deployment risk
 
 ---
 
@@ -926,3 +1020,171 @@ aws ecs execute-command --cluster event-planner-dev-cluster \
 ```
 
 **Estimated Time**: 15-20 minutes for VPC endpoint creation and DNS propagation
+
+---
+
+## Blue-Green Deployment Cost Analysis
+
+### Infrastructure Costs
+
+**Permanent Infrastructure** (Always Running):
+
+| Resource | Development | Production | Notes |
+|----------|------------|------------|-------|
+| Blue S3 Bucket | Included | Included | Existing resource |
+| Green S3 Bucket | $2/month | $2/month | New resource |
+| Backup S3 Bucket | $3/month | $3/month | New resource |
+| Green CloudFront | $1/month | $1/month | Testing distribution |
+| Blue ECS Services | Included | Included | Existing services |
+| Green ECS Services | $0 | $0 | Scaled to 0 |
+| Blue Target Groups | Included | Included | Existing resources |
+| Green Target Groups | $0 | $0 | No hourly charge |
+| **Total Permanent** | **$6/month** | **$6/month** | |
+
+**Deployment-Time Costs** (Per Deployment):
+
+| Resource | Cost per Hour | Deployments/Month | Monthly Cost |
+|----------|--------------|-------------------|-------------|
+| Green ECS Tasks (2 services × 2 tasks) | $1.00 | 10 | $10 |
+| Data Transfer (S3 sync) | $0.50 | 10 | $5 |
+| CloudFront Invalidations | $0.10 | 10 | $1 |
+| **Total Deployment** | **$1.60/deployment** | **10** | **$16** |
+
+**Total Blue-Green Cost**: $22/month (dev), $22/month (prod)
+
+### Cost Optimization Strategies for Blue-Green
+
+#### 1. Minimize Green Service Runtime
+
+```yaml
+# Scale down green immediately after promotion
+- name: Scale Down Green Service
+  run: |
+    aws ecs update-service \
+      --cluster ${{ env.ECS_CLUSTER }} \
+      --service ${{ matrix.service }}-green \
+      --desired-count 0
+```
+
+**Savings**: Prevents accidental green service running ($50-100/month)
+
+#### 2. Optimize S3 Storage
+
+```hcl
+# Lifecycle policy for backup bucket
+lifecycle_rule {
+  id = "backup_cleanup"
+  enabled = true
+  
+  transition {
+    days = 7
+    storage_class = "STANDARD_IA"
+  }
+  
+  expiration {
+    days = 30  # Keep only 30 days of backups
+  }
+}
+```
+
+**Savings**: $2-3/month on old backups
+
+#### 3. Reduce Deployment Frequency
+
+**Strategy**: Batch changes for production deployments
+
+- Development: Deploy on every commit (acceptable cost)
+- Staging: Deploy daily (consolidated testing)
+- Production: Deploy weekly or bi-weekly (planned releases)
+
+**Savings**: $10-15/month by reducing from 10 to 5 prod deployments
+
+#### 4. Use Spot Instances for Green (Future)
+
+```hcl
+# Green services can use Fargate Spot
+capacity_provider_strategy {
+  capacity_provider = "FARGATE_SPOT"
+  weight = 100
+  base = 0
+}
+```
+
+**Savings**: Up to 70% on green service costs during deployment
+
+### Cost vs Value Analysis
+
+**Investment**: $22/month for blue-green infrastructure
+
+**Value Delivered**:
+1. **Zero Downtime**: Prevents revenue loss during deployments
+2. **Instant Rollback**: Reduces MTTR from 15 minutes to 30 seconds
+3. **Risk Reduction**: Canary testing catches issues before full rollout
+4. **Confidence**: Team can deploy more frequently
+5. **Compliance**: Meets enterprise deployment standards
+
+**ROI Calculation**:
+- Cost of 1 hour downtime: $500-1000 (estimated)
+- Blue-green prevents: 2-3 incidents/year
+- Annual savings: $1,000-3,000
+- Annual cost: $264
+- **ROI**: 280-1,036%
+
+### Monitoring Blue-Green Costs
+
+**Key Metrics**:
+
+```bash
+# Track green service runtime
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/ECS \
+  --metric-name CPUUtilization \
+  --dimensions Name=ServiceName,Value=auth-service-green \
+  --start-time $(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%S) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+  --period 3600 \
+  --statistics Average
+
+# Track S3 storage costs
+aws s3api list-objects-v2 \
+  --bucket event-planner-prod-frontend-green \
+  --query 'sum(Contents[].Size)' \
+  --output text
+```
+
+**Cost Alerts**:
+
+```hcl
+# Alert if green services running > 2 hours
+resource "aws_cloudwatch_metric_alarm" "green_service_runtime" {
+  alarm_name = "green-service-running-too-long"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods = "1"
+  metric_name = "RunningTaskCount"
+  namespace = "AWS/ECS"
+  period = "7200"  # 2 hours
+  statistic = "Average"
+  threshold = "0"
+  alarm_description = "Green service running longer than expected"
+  
+  dimensions = {
+    ServiceName = "auth-service-green"
+    ClusterName = "event-planner-prod-cluster"
+  }
+}
+```
+
+### Recommendations
+
+**For Development**:
+- ✅ Implement blue-green for frontend (low cost, high value)
+- ⚠️ Use simplified canary for backend (cost-effective)
+- ✅ Keep green services scaled to 0 when not deploying
+
+**For Production**:
+- ✅ Full blue-green for both frontend and backend
+- ✅ Invest in monitoring and automation
+- ✅ Plan deployments to minimize green service runtime
+- ✅ Use Fargate Spot for green services (future)
+
+**Cost-Benefit Verdict**: Blue-green deployment is cost-effective for production, providing significant value for minimal additional cost.
