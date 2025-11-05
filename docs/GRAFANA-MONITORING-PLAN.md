@@ -218,7 +218,7 @@ Login to Grafana: `https://your-alb-domain.com/monitoring/`
 3. Configure:
    - Name: `AWS CloudWatch`
    - Authentication Provider: `AWS SDK Default`
-   - Default Region: `us-east-1` (or your region)
+   - Default Region: `eu-west-1` (or your region)
    - Namespaces: Select all relevant (ECS, RDS, ElastiCache, ALB, SQS, SNS)
 4. Save & Test
 
