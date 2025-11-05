@@ -432,6 +432,14 @@ resource "aws_ecs_task_definition" "services" {
             value = "true"
           },
           {
+            name  = "SPRING_CLOUD_AWS_CREDENTIALS_USE_DEFAULT_AWS_CREDENTIALS_CHAIN"
+            value = "false"
+          },
+          {
+            name  = "SPRING_CLOUD_AWS_CREDENTIALS_PROVIDER"
+            value = "environment"
+          },
+          {
             name  = "USER_REGISTRATION_QUEUE_NAME"
             value = lookup(var.sqs_queue_names, "user_registration", "")
           },

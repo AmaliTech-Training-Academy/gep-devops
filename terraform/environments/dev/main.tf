@@ -111,16 +111,17 @@ module "vpc" {
   availability_zones = var.availability_zones
   aws_region         = var.aws_region
 
-  # NAT Gateway enabled for external connectivity (SMTP, etc.)
-  # Cost: ~$32/month (NAT Gateway hourly charge) + ~$5-20/month (data transfer)
+  # NAT Gateway enabled for all external connectivity (SMTP, AWS services, etc.)
+  # Cost: ~$32/month (NAT Gateway hourly charge) + ~$10-30/month (data transfer)
   # Required for notification service to send emails via Gmail SMTP
-  # ECS can pull images via ECR VPC Endpoints
-  # Services can access Secrets Manager, CloudWatch, S3 via VPC Endpoints
-  enable_nat_gateway = true  # Required for external SMTP access
+  # ECS will pull images via NAT Gateway (no VPC endpoints)
+  # Services will access Secrets Manager, CloudWatch, S3 via NAT Gateway
+  enable_nat_gateway = true  # Required for external SMTP and AWS service access
   single_nat_gateway = true  # Single NAT for cost optimization
 
-  # CRITICAL: VPC Endpoints MUST remain enabled for ECS to work without NAT Gateway
-  enable_vpc_endpoints = true # Required for ECR, Secrets Manager, CloudWatch access
+  # COST OPTIMIZATION: VPC Endpoints disabled - all AWS traffic routes through NAT Gateway
+  # Saves ~$88-176/month in VPC endpoint costs with minimal latency impact
+  enable_vpc_endpoints = false # Route all AWS service traffic through NAT Gateway
 
   enable_flow_logs         = var.enable_flow_logs
   flow_logs_retention_days = 3
