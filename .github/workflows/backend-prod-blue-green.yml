@@ -1,0 +1,532 @@
+name: Backend Production Blue-Green Deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'configs/backend-configs/prod/**'
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to deploy (JSON array)'
+        required: false
+        default: '["auth-service", "event-service", "notification-service"]'
+        type: string
+
+env:
+  AWS_REGION: eu-west-1
+  BACKEND_REPO: AmaliTech-Training-Academy/gep-backend
+  ENVIRONMENT: prod
+  ECS_CLUSTER: event-planner-prod-cluster
+
+jobs:
+  prepare:
+    runs-on: [self-hosted, backend]
+    outputs:
+      services: ${{ steps.services.outputs.matrix }}
+      deployment_id: ${{ steps.deployment.outputs.id }}
+    steps:
+    - name: Generate Deployment ID
+      id: deployment
+      run: |
+        DEPLOYMENT_ID="deploy-$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA:0:7}"
+        echo "id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+
+    - name: Determine Services
+      id: services
+      run: |
+        SERVICES='${{ inputs.services || '["auth-service", "event-service", "notification-service"]' }}'
+        echo "matrix=$SERVICES" >> $GITHUB_OUTPUT
+
+  security-scan:
+    needs: prepare
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    steps:
+    - name: Checkout Backend Code
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ env.BACKEND_REPO }}
+        ref: main
+        token: ${{ secrets.BACKEND_REPO_TOKEN }}
+
+    - name: Security Scan (Trivy)
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: 'services/${{ matrix.service }}'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '1'
+
+  build-and-test:
+    needs: [prepare, security-scan]
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    steps:
+    - name: Checkout Backend Code
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ env.BACKEND_REPO }}
+        ref: main
+        token: ${{ secrets.BACKEND_REPO_TOKEN }}
+
+    - name: Cache Maven Dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+
+    - name: Build and Test
+      run: |
+        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+        cd services/${{ matrix.service }}
+        mvn clean verify -T 1C --batch-mode
+
+    - name: Code Coverage Check
+      run: |
+        cd services/${{ matrix.service }}
+        COVERAGE=$(mvn jacoco:report | grep -oP 'Total.*?(\d+)%' | grep -oP '\d+' || echo "0")
+        if [ "$COVERAGE" -lt 70 ]; then
+          echo "::warning::Code coverage ${COVERAGE}% is below 70%"
+        fi
+
+  build-and-push:
+    needs: [prepare, build-and-test]
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    outputs:
+      image_tag: ${{ steps.image.outputs.tag }}
+    steps:
+    - name: Checkout Backend Code
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ env.BACKEND_REPO }}
+        ref: main
+        token: ${{ secrets.BACKEND_REPO_TOKEN }}
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build and Push Image
+      id: image
+      run: |
+        cd services
+        REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+        REPO_NAME="event-planner-prod-${{ matrix.service }}"
+        IMAGE_TAG="${{ needs.prepare.outputs.deployment_id }}"
+        
+        docker build -f ${{ matrix.service }}/Dockerfile -t "$REGISTRY/$REPO_NAME:$IMAGE_TAG" .
+        docker push "$REGISTRY/$REPO_NAME:$IMAGE_TAG"
+        
+        docker tag "$REGISTRY/$REPO_NAME:$IMAGE_TAG" "$REGISTRY/$REPO_NAME:green"
+        docker push "$REGISTRY/$REPO_NAME:green"
+        
+        echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  deploy-green:
+    needs: [prepare, build-and-push]
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Get Current Task Definition
+      id: current_task
+      run: |
+        TASK_DEF=$(aws ecs describe-services \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services ${{ matrix.service }} \
+          --query 'services[0].taskDefinition' \
+          --output text)
+        echo "arn=$TASK_DEF" >> $GITHUB_OUTPUT
+
+    - name: Create Green Task Definition
+      id: green_task
+      run: |
+        CURRENT_TASK="${{ steps.current_task.outputs.arn }}"
+        REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+        IMAGE_TAG="${{ needs.prepare.outputs.deployment_id }}"
+        
+        # Get current task definition
+        aws ecs describe-task-definition \
+          --task-definition $CURRENT_TASK \
+          --query 'taskDefinition' > task-def.json
+        
+        # Update image to green tag
+        jq --arg image "$REGISTRY/event-planner-prod-${{ matrix.service }}:green" \
+          '.containerDefinitions[0].image = $image | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+          task-def.json > green-task-def.json
+        
+        # Register new task definition
+        GREEN_TASK_ARN=$(aws ecs register-task-definition \
+          --cli-input-json file://green-task-def.json \
+          --query 'taskDefinition.taskDefinitionArn' \
+          --output text)
+        
+        echo "arn=$GREEN_TASK_ARN" >> $GITHUB_OUTPUT
+
+    - name: Deploy Green Service
+      run: |
+        GREEN_SERVICE="${{ matrix.service }}-green"
+        
+        # Check if green service exists
+        SERVICE_EXISTS=$(aws ecs describe-services \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services $GREEN_SERVICE \
+          --query 'services[0].status' \
+          --output text 2>/dev/null || echo "NOT_FOUND")
+        
+        if [ "$SERVICE_EXISTS" = "NOT_FOUND" ] || [ "$SERVICE_EXISTS" = "None" ]; then
+          # Create green service
+          aws ecs create-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service-name $GREEN_SERVICE \
+            --task-definition ${{ steps.green_task.outputs.arn }} \
+            --desired-count 2 \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.PRIVATE_SUBNETS }}],securityGroups=[${{ secrets.ECS_SECURITY_GROUP }}],assignPublicIp=DISABLED}" \
+            --load-balancers "targetGroupArn=${{ secrets.TARGET_GROUP_GREEN }},containerName=${{ matrix.service }},containerPort=8080"
+        else
+          # Update existing green service
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service $GREEN_SERVICE \
+            --task-definition ${{ steps.green_task.outputs.arn }} \
+            --desired-count 2 \
+            --force-new-deployment
+        fi
+
+    - name: Wait for Green Deployment
+      run: |
+        GREEN_SERVICE="${{ matrix.service }}-green"
+        aws ecs wait services-stable \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services $GREEN_SERVICE
+
+  health-check:
+    needs: [prepare, deploy-green]
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Health Check - Green Environment
+      run: |
+        GREEN_ALB_DNS="${{ secrets.ALB_DNS_GREEN }}"
+        SERVICE_PORT=$(echo "${{ matrix.service }}" | sed 's/auth-service/8081/;s/event-service/8082/;s/notification-service/8085/')
+        HEALTH_ENDPOINT="http://$GREEN_ALB_DNS:$SERVICE_PORT/actuator/health"
+        
+        MAX_RETRIES=20
+        RETRY_COUNT=0
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_ENDPOINT || echo "000")
+          if [ "$HTTP_CODE" = "200" ]; then
+            HEALTH_STATUS=$(curl -s $HEALTH_ENDPOINT | jq -r '.status')
+            if [ "$HEALTH_STATUS" = "UP" ]; then
+              echo "✅ ${{ matrix.service }} green environment is healthy"
+              exit 0
+            fi
+          fi
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          echo "⏳ Attempt $RETRY_COUNT/$MAX_RETRIES - Status: $HTTP_CODE"
+          sleep 15
+        done
+        
+        echo "❌ ${{ matrix.service }} green environment health check failed"
+        exit 1
+
+    - name: Integration Test
+      run: |
+        GREEN_ALB_DNS="${{ secrets.ALB_DNS_GREEN }}"
+        SERVICE_PORT=$(echo "${{ matrix.service }}" | sed 's/auth-service/8081/;s/event-service/8082/;s/notification-service/8085/')
+        
+        # Run basic integration tests
+        curl -f "http://$GREEN_ALB_DNS:$SERVICE_PORT/actuator/info" || exit 1
+        curl -f "http://$GREEN_ALB_DNS:$SERVICE_PORT/actuator/metrics" || exit 1
+
+  canary-test:
+    needs: [prepare, health-check]
+    runs-on: [self-hosted, backend]
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Route 10% Traffic to Green
+      run: |
+        # Update ALB listener rules to route 10% to green target group
+        aws elbv2 modify-listener \
+          --listener-arn ${{ secrets.ALB_LISTENER_ARN }} \
+          --default-actions Type=forward,ForwardConfig='{
+            "TargetGroups":[
+              {"TargetGroupArn":"${{ secrets.TARGET_GROUP_BLUE }}","Weight":90},
+              {"TargetGroupArn":"${{ secrets.TARGET_GROUP_GREEN }}","Weight":10}
+            ]
+          }'
+
+    - name: Monitor Canary Metrics
+      run: |
+        echo "⏳ Monitoring canary deployment for 5 minutes..."
+        sleep 300
+        
+        # Check error rates
+        ERROR_RATE=$(aws cloudwatch get-metric-statistics \
+          --namespace AWS/ApplicationELB \
+          --metric-name HTTPCode_Target_5XX_Count \
+          --dimensions Name=TargetGroup,Value=${{ secrets.TARGET_GROUP_GREEN }} \
+          --start-time $(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%S) \
+          --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+          --period 300 \
+          --statistics Sum \
+          --query 'Datapoints[0].Sum' \
+          --output text)
+        
+        if [ "$ERROR_RATE" != "None" ] && [ "$ERROR_RATE" -gt 10 ]; then
+          echo "❌ High error rate detected: $ERROR_RATE"
+          exit 1
+        fi
+        
+        echo "✅ Canary metrics are healthy"
+
+  switch-traffic:
+    needs: [prepare, canary-test]
+    runs-on: [self-hosted, backend]
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Route 50% Traffic to Green
+      run: |
+        aws elbv2 modify-listener \
+          --listener-arn ${{ secrets.ALB_LISTENER_ARN }} \
+          --default-actions Type=forward,ForwardConfig='{
+            "TargetGroups":[
+              {"TargetGroupArn":"${{ secrets.TARGET_GROUP_BLUE }}","Weight":50},
+              {"TargetGroupArn":"${{ secrets.TARGET_GROUP_GREEN }}","Weight":50}
+            ]
+          }'
+        sleep 120
+
+    - name: Route 100% Traffic to Green
+      run: |
+        aws elbv2 modify-listener \
+          --listener-arn ${{ secrets.ALB_LISTENER_ARN }} \
+          --default-actions Type=forward,TargetGroupArn=${{ secrets.TARGET_GROUP_GREEN }}
+
+  post-deployment-validation:
+    needs: [prepare, switch-traffic]
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Production Health Check
+      run: |
+        PROD_ALB_DNS="${{ secrets.ALB_DNS_PROD }}"
+        SERVICE_PORT=$(echo "${{ matrix.service }}" | sed 's/auth-service/8081/;s/event-service/8082/;s/notification-service/8085/')
+        
+        MAX_RETRIES=10
+        RETRY_COUNT=0
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$PROD_ALB_DNS:$SERVICE_PORT/actuator/health")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Production ${{ matrix.service }} is healthy"
+            exit 0
+          fi
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          sleep 10
+        done
+        
+        echo "❌ Production health check failed"
+        exit 1
+
+    - name: Monitor Production Metrics
+      run: |
+        # Monitor for 3 minutes
+        sleep 180
+        
+        # Check CloudWatch alarms
+        ALARM_STATE=$(aws cloudwatch describe-alarms \
+          --alarm-names "event-planner-prod-${{ matrix.service }}-high-error-rate" \
+          --query 'MetricAlarms[0].StateValue' \
+          --output text)
+        
+        if [ "$ALARM_STATE" = "ALARM" ]; then
+          echo "❌ CloudWatch alarm triggered"
+          exit 1
+        fi
+
+  rollback:
+    needs: [prepare, post-deployment-validation]
+    if: failure()
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Rollback Traffic to Blue
+      run: |
+        aws elbv2 modify-listener \
+          --listener-arn ${{ secrets.ALB_LISTENER_ARN }} \
+          --default-actions Type=forward,TargetGroupArn=${{ secrets.TARGET_GROUP_BLUE }}
+
+    - name: Scale Down Green Service
+      run: |
+        GREEN_SERVICE="${{ matrix.service }}-green"
+        aws ecs update-service \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --service $GREEN_SERVICE \
+          --desired-count 0
+
+    - name: Notify Rollback
+      uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "🚨 Backend Production Deployment ROLLED BACK",
+            "attachments": [{
+              "color": "danger",
+              "fields": [
+                {"title": "Service", "value": "${{ matrix.service }}", "short": true},
+                {"title": "Deployment ID", "value": "${{ needs.prepare.outputs.deployment_id }}", "short": true}
+              ]
+            }]
+          }
+
+  promote-green-to-blue:
+    needs: [prepare, post-deployment-validation]
+    if: success()
+    runs-on: [self-hosted, backend]
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Update Blue Service
+      run: |
+        GREEN_TASK=$(aws ecs describe-services \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services ${{ matrix.service }}-green \
+          --query 'services[0].taskDefinition' \
+          --output text)
+        
+        aws ecs update-service \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --service ${{ matrix.service }} \
+          --task-definition $GREEN_TASK \
+          --force-new-deployment
+
+    - name: Wait for Blue Update
+      run: |
+        aws ecs wait services-stable \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services ${{ matrix.service }}
+
+    - name: Scale Down Green Service
+      run: |
+        aws ecs update-service \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --service ${{ matrix.service }}-green \
+          --desired-count 0
+
+    - name: Tag Images
+      run: |
+        REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+        REPO_NAME="event-planner-prod-${{ matrix.service }}"
+        IMAGE_TAG="${{ needs.prepare.outputs.deployment_id }}"
+        
+        # Pull green image
+        docker pull "$REGISTRY/$REPO_NAME:green"
+        
+        # Tag as blue and latest
+        docker tag "$REGISTRY/$REPO_NAME:green" "$REGISTRY/$REPO_NAME:blue"
+        docker tag "$REGISTRY/$REPO_NAME:green" "$REGISTRY/$REPO_NAME:latest"
+        
+        # Push
+        docker push "$REGISTRY/$REPO_NAME:blue"
+        docker push "$REGISTRY/$REPO_NAME:latest"
+
+  notify:
+    needs: [prepare, promote-green-to-blue]
+    if: always()
+    runs-on: [self-hosted, backend]
+    steps:
+    - name: Slack Notification
+      uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "Backend Production Deployment ${{ job.status == 'success' && '✅ SUCCESSFUL' || '❌ FAILED' }}",
+            "attachments": [{
+              "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
+              "fields": [
+                {"title": "Environment", "value": "Production (Blue-Green)", "short": true},
+                {"title": "Deployment ID", "value": "${{ needs.prepare.outputs.deployment_id }}", "short": true},
+                {"title": "Commit", "value": "${{ github.sha }}", "short": true},
+                {"title": "Actor", "value": "${{ github.actor }}", "short": true}
+              ]
+            }]
+          }
