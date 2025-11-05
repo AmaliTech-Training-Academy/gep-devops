@@ -1,0 +1,347 @@
+name: Frontend Production Blue-Green Deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'configs/frontend-configs/prod/**'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-west-1
+  FRONTEND_REPO: AmaliTech-Training-Academy/event-planner-frontend
+  ENVIRONMENT: prod
+
+jobs:
+  security-scan:
+    runs-on: [self-hosted, frontend]
+    steps:
+    - name: Checkout Frontend Code
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ env.FRONTEND_REPO }}
+        ref: main
+        token: ${{ secrets.FRONTEND_REPO_TOKEN }}
+        path: frontend
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install Dependencies
+      working-directory: frontend
+      run: npm ci
+
+    - name: Security Audit
+      working-directory: frontend
+      run: |
+        npm audit --audit-level=high --json > audit-results.json || true
+        CRITICAL=$(jq '.metadata.vulnerabilities.critical' audit-results.json)
+        HIGH=$(jq '.metadata.vulnerabilities.high' audit-results.json)
+        if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 5 ]; then
+          echo "::error::Critical security vulnerabilities found"
+          exit 1
+        fi
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Upload Security Reports
+      run: |
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        aws s3 cp frontend/audit-results.json s3://${{ secrets.SECURITY_REPORTS_BUCKET_PROD }}/frontend/prod/$TIMESTAMP/audit-results.json
+
+  build:
+    needs: security-scan
+    runs-on: [self-hosted, frontend]
+    outputs:
+      build_id: ${{ steps.build_info.outputs.build_id }}
+    steps:
+    - name: Checkout Frontend Code
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ env.FRONTEND_REPO }}
+        ref: main
+        token: ${{ secrets.FRONTEND_REPO_TOKEN }}
+        path: frontend
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Build Application
+      working-directory: frontend
+      run: |
+        npm ci
+        npm run build:prod
+      env:
+        NG_APP_PROD_API: ${{ secrets.NG_APP_PROD_API }}
+
+    - name: Generate Build ID
+      id: build_info
+      run: |
+        BUILD_ID="build-$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA:0:7}"
+        echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.build_info.outputs.build_id }}
+        path: frontend/dist/
+        retention-days: 30
+
+  deploy-green:
+    needs: build
+    runs-on: [self-hosted, frontend]
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ needs.build.outputs.build_id }}
+        path: dist/
+
+    - name: Deploy to Green Environment (S3)
+      run: |
+        GREEN_BUCKET="${{ secrets.S3_BUCKET_PROD }}-green"
+        aws s3 sync dist/ s3://$GREEN_BUCKET --delete
+        echo "GREEN_BUCKET=$GREEN_BUCKET" >> $GITHUB_ENV
+
+    - name: Create CloudFront Invalidation (Green)
+      run: |
+        INVALIDATION_ID=$(aws cloudfront create-invalidation \
+          --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD_GREEN }} \
+          --paths "/*" \
+          --query 'Invalidation.Id' \
+          --output text)
+        
+        aws cloudfront wait invalidation-completed \
+          --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD_GREEN }} \
+          --id $INVALIDATION_ID
+
+  smoke-test:
+    needs: deploy-green
+    runs-on: [self-hosted, frontend]
+    steps:
+    - name: Health Check - Green Environment
+      run: |
+        GREEN_URL="https://green.events.sankofagrid.com"
+        MAX_RETRIES=10
+        RETRY_COUNT=0
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $GREEN_URL)
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Green environment is healthy"
+            exit 0
+          fi
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          echo "⏳ Attempt $RETRY_COUNT/$MAX_RETRIES - Status: $HTTP_CODE"
+          sleep 10
+        done
+        
+        echo "❌ Green environment health check failed"
+        exit 1
+
+    - name: Performance Test
+      run: |
+        GREEN_URL="https://green.events.sankofagrid.com"
+        RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}' $GREEN_URL)
+        THRESHOLD=2.0
+        
+        if (( $(echo "$RESPONSE_TIME > $THRESHOLD" | bc -l) )); then
+          echo "❌ Response time ${RESPONSE_TIME}s exceeds threshold ${THRESHOLD}s"
+          exit 1
+        fi
+        echo "✅ Performance test passed: ${RESPONSE_TIME}s"
+
+  switch-traffic:
+    needs: smoke-test
+    runs-on: [self-hosted, frontend]
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Backup Current Blue Configuration
+      run: |
+        BLUE_BUCKET="${{ secrets.S3_BUCKET_PROD }}"
+        BACKUP_BUCKET="${{ secrets.S3_BUCKET_PROD }}-backup"
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        
+        aws s3 sync s3://$BLUE_BUCKET s3://$BACKUP_BUCKET/$TIMESTAMP/ --delete
+        echo "BACKUP_TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+
+    - name: Switch CloudFront to Green
+      run: |
+        DISTRIBUTION_ID="${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}"
+        GREEN_BUCKET="${{ secrets.S3_BUCKET_PROD }}-green"
+        
+        # Update CloudFront origin to point to green bucket
+        CONFIG=$(aws cloudfront get-distribution-config --id $DISTRIBUTION_ID)
+        ETAG=$(echo $CONFIG | jq -r '.ETag')
+        
+        echo $CONFIG | jq --arg bucket "$GREEN_BUCKET.s3.amazonaws.com" \
+          '.DistributionConfig.Origins.Items[0].DomainName = $bucket' | \
+          jq '.DistributionConfig' > distribution-config.json
+        
+        aws cloudfront update-distribution \
+          --id $DISTRIBUTION_ID \
+          --distribution-config file://distribution-config.json \
+          --if-match $ETAG
+
+    - name: Wait for Distribution Update
+      run: |
+        aws cloudfront wait distribution-deployed \
+          --id ${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}
+
+    - name: Invalidate Production CloudFront
+      run: |
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }} \
+          --paths "/*"
+
+  post-deployment-validation:
+    needs: switch-traffic
+    runs-on: [self-hosted, frontend]
+    steps:
+    - name: Production Health Check
+      run: |
+        PROD_URL="https://events.sankofagrid.com"
+        MAX_RETRIES=5
+        RETRY_COUNT=0
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $PROD_URL)
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Production is healthy"
+            exit 0
+          fi
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          sleep 10
+        done
+        
+        echo "❌ Production health check failed - initiating rollback"
+        exit 1
+
+    - name: Monitor Error Rates
+      run: |
+        # Check CloudWatch metrics for error rates
+        aws cloudwatch get-metric-statistics \
+          --namespace AWS/CloudFront \
+          --metric-name 5xxErrorRate \
+          --dimensions Name=DistributionId,Value=${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }} \
+          --start-time $(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%S) \
+          --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+          --period 300 \
+          --statistics Average \
+          --region us-east-1
+
+  rollback:
+    needs: post-deployment-validation
+    if: failure()
+    runs-on: [self-hosted, frontend]
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Rollback to Blue
+      run: |
+        DISTRIBUTION_ID="${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}"
+        BLUE_BUCKET="${{ secrets.S3_BUCKET_PROD }}"
+        
+        CONFIG=$(aws cloudfront get-distribution-config --id $DISTRIBUTION_ID)
+        ETAG=$(echo $CONFIG | jq -r '.ETag')
+        
+        echo $CONFIG | jq --arg bucket "$BLUE_BUCKET.s3.amazonaws.com" \
+          '.DistributionConfig.Origins.Items[0].DomainName = $bucket' | \
+          jq '.DistributionConfig' > distribution-config.json
+        
+        aws cloudfront update-distribution \
+          --id $DISTRIBUTION_ID \
+          --distribution-config file://distribution-config.json \
+          --if-match $ETAG
+        
+        aws cloudfront wait distribution-deployed --id $DISTRIBUTION_ID
+        aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
+
+    - name: Notify Rollback
+      uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "🚨 Frontend Production Deployment ROLLED BACK",
+            "attachments": [{
+              "color": "danger",
+              "fields": [
+                {"title": "Environment", "value": "Production", "short": true},
+                {"title": "Action", "value": "Automatic Rollback", "short": true},
+                {"title": "Build ID", "value": "${{ needs.build.outputs.build_id }}", "short": false}
+              ]
+            }]
+          }
+
+  promote-green-to-blue:
+    needs: post-deployment-validation
+    if: success()
+    runs-on: [self-hosted, frontend]
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Sync Green to Blue
+      run: |
+        GREEN_BUCKET="${{ secrets.S3_BUCKET_PROD }}-green"
+        BLUE_BUCKET="${{ secrets.S3_BUCKET_PROD }}"
+        aws s3 sync s3://$GREEN_BUCKET s3://$BLUE_BUCKET --delete
+
+  notify:
+    needs: [promote-green-to-blue]
+    if: always()
+    runs-on: [self-hosted, frontend]
+    steps:
+    - name: Slack Notification
+      uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "Frontend Production Deployment ${{ job.status == 'success' && '✅ SUCCESSFUL' || '❌ FAILED' }}",
+            "attachments": [{
+              "color": "${{ job.status == 'success' && 'good' || 'danger' }}",
+              "fields": [
+                {"title": "Environment", "value": "Production (Blue-Green)", "short": true},
+                {"title": "Build ID", "value": "${{ needs.build.outputs.build_id }}", "short": true},
+                {"title": "Commit", "value": "${{ github.sha }}", "short": true},
+                {"title": "Actor", "value": "${{ github.actor }}", "short": true}
+              ]
+            }]
+          }
