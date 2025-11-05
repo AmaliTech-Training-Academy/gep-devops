@@ -227,25 +227,6 @@ output "jwt_secret_arn" {
   sensitive   = true
 }
 
-# ==============================================================================
-# Grafana Monitoring Outputs
-# ==============================================================================
-
-output "grafana_url" {
-  description = "Grafana monitoring dashboard URL"
-  value       = module.grafana_monitor.grafana_url
-}
-
-output "grafana_instance_id" {
-  description = "Grafana EC2 instance ID"
-  value       = module.grafana_monitor.grafana_instance_id
-}
-
-output "grafana_instance_private_ip" {
-  description = "Grafana EC2 instance private IP"
-  value       = module.grafana_monitor.grafana_instance_private_ip
-  sensitive   = true
-}
 
 # ==============================================================================
 # Application URLs
@@ -310,8 +291,7 @@ output "next_steps" {
      Access Points:
     Frontend: https://${module.cloudfront.distribution_domain_name}
     Backend ALB: http://${module.alb.alb_dns_name}
-    Grafana Monitoring: ${module.grafana_monitor.grafana_url}
-    
+        
      Next Steps:
     1. Configure DNS nameservers:
        terraform output route53_nameservers
