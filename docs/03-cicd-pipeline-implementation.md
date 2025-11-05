@@ -15,12 +15,14 @@ The Event Planner Platform uses a **centralized CI/CD approach** with GitHub Act
 
 ```
 .github/workflows/
-├── master-pipeline.yml           # Orchestrates all pipelines
-├── backend-ci-cd.yml            # Java/Spring Boot services
-├── frontend-ci-cd.yml           # Angular application
-├── infrastructure-ci-cd.yml     # Terraform deployments
-├── security-monitoring.yml      # Security scans
-└── terraform-deploy-oidc.yml    # OIDC-based deployments
+├── master-pipeline.yml                # Orchestrates all pipelines
+├── backend-ci-cd.yml                 # Java/Spring Boot services (dev/staging)
+├── frontend-ci-cd.yml                # Angular application (dev/staging)
+├── backend-prod-blue-green.yml       # Backend production deployment ⭐ NEW
+├── frontend-prod-blue-green.yml      # Frontend production deployment ⭐ NEW
+├── infrastructure-ci-cd.yml          # Terraform deployments
+├── security-monitoring.yml           # Security scans
+└── terraform-deploy-oidc.yml         # OIDC-based deployments
 ```
 
 ---
@@ -495,10 +497,114 @@ The frontend repository (`event-planner-frontend`) uses a simpler `trigger-devop
 
 ---
 
+---
+
+## Production Blue-Green Deployment Pipelines ⭐ NEW
+
+### Overview
+
+Enterprise-grade blue-green deployment pipelines for production with zero-downtime, canary testing, and automatic rollback.
+
+### Frontend Blue-Green Pipeline
+
+**File**: `frontend-prod-blue-green.yml`
+
+**Workflow Phases**:
+
+1. **Security Scan** (5 min)
+   - npm audit for vulnerabilities
+   - Fails on critical/high vulnerabilities
+   - Uploads reports to S3
+
+2. **Build** (5 min)
+   - Production-optimized Angular build
+   - Generates unique build ID
+   - Artifacts retained 30 days
+
+3. **Deploy Green** (5 min)
+   - Deploy to green S3 bucket
+   - Invalidate green CloudFront
+   - Wait for cache clear
+
+4. **Smoke Tests** (2 min)
+   - Health check (10 retries)
+   - Performance test (< 2s threshold)
+
+5. **Traffic Switch** (3 min)
+   - Backup current blue
+   - Update CloudFront origin to green
+   - Invalidate production cache
+
+6. **Validation** (2 min)
+   - Production health checks
+   - Monitor CloudWatch 5xx errors
+
+7. **Promote/Rollback**
+   - Success: Sync green to blue
+   - Failure: Automatic rollback to blue
+
+**Total Duration**: ~15-30 minutes
+
+### Backend Blue-Green Pipeline
+
+**File**: `backend-prod-blue-green.yml`
+
+**Workflow Phases**:
+
+1. **Security & Build** (15 min)
+   - Trivy security scan (CRITICAL/HIGH fails)
+   - Maven build with tests
+   - Code coverage check (70% threshold)
+   - Docker build and ECR push
+
+2. **Deploy Green** (10 min)
+   - Create/update green ECS services
+   - Deploy 2 tasks per service
+   - Wait for service stability
+
+3. **Health Checks** (5 min)
+   - Spring Boot actuator endpoints
+   - 20 retries, 15s interval
+   - Integration tests
+
+4. **Canary Test** (5 min)
+   - Route 10% traffic to green
+   - Monitor error rates
+   - Check CloudWatch metrics
+
+5. **Progressive Traffic Shift** (5 min)
+   - 50% traffic (2 min monitoring)
+   - 100% traffic to green
+
+6. **Validation** (5 min)
+   - Production health checks
+   - CloudWatch alarm monitoring
+   - 3-minute observation period
+
+7. **Promote/Rollback**
+   - Success: Update blue with green task def
+   - Failure: Immediate traffic rollback
+
+**Total Duration**: ~35-60 minutes
+
+### Key Features
+
+✅ **Zero-Downtime Deployment**  
+✅ **Canary Testing** (10% traffic validation)  
+✅ **Progressive Traffic Shifting** (10% → 50% → 100%)  
+✅ **Comprehensive Health Checks**  
+✅ **Automatic Rollback** (on any failure)  
+✅ **Security Scanning** (blocks deployment on vulnerabilities)  
+✅ **Code Quality Gates** (70% coverage minimum)  
+✅ **CloudWatch Integration**  
+✅ **Slack Notifications**  
+
+---
+
 ## Next Steps
 
 This covers the CI/CD pipeline implementation. Continue with:
 
-- **Part 4**: Deployment Workflows and Automation
+- **Part 4**: Deployment Workflows and Automation (includes blue-green setup)
 - **Part 5**: Monitoring, Security, and Operations
 - **Part 6**: Cost Optimization and Best Practices
