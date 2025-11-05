@@ -77,7 +77,7 @@ locals {
     event = {
       name              = "event-service"                   # Event creation and management
       port              = 8082                             # Network port for event operations
-      path_pattern      = "/api/v1/events/*"               # URL pattern for event browsing/creation requests
+      path_pattern      = "/api/v1/events*"                # URL pattern for all events endpoints
       health_check_path = "/actuator/health"               # Health monitoring endpoint
       priority          = 200                              # Second priority for routing
     }
@@ -89,6 +89,9 @@ locals {
       priority          = 500                              # Lower priority routing
     }
   }
+
+  # Additional event service routes (highest priority for specific routes)
+  event_specific_routes = {}
 
   # Swagger documentation routes (separate from API routes)
   swagger_routes = {
@@ -323,6 +326,35 @@ resource "aws_lb_listener_rule" "service_routing" {
 }
 
 # ==============================================================================
+# HTTPS Listener Rules - Event Specific Routes (Highest Priority)
+# ==============================================================================
+
+resource "aws_lb_listener_rule" "event_specific_routing" {
+  for_each = var.certificate_arn != "" ? local.event_specific_routes : {}
+
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = each.value.priority
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.services[each.value.service_key].arn
+  }
+
+  condition {
+    path_pattern {
+      values = [each.value.path_pattern]
+    }
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-${each.key}-event-rule"
+    }
+  )
+}
+
+# ==============================================================================
 # HTTPS Listener Rules - Swagger Documentation Routes
 # ==============================================================================
 
@@ -412,6 +444,32 @@ resource "aws_lb_listener_rule" "http_service_routing" {
     {
       Name    = "${var.project_name}-${var.environment}-${each.value.name}-http-rule"
       Service = each.value.name
+    }
+  )
+}
+
+# HTTP Listener Rules - Event Specific Routes (when no HTTPS)
+resource "aws_lb_listener_rule" "http_event_specific_routing" {
+  for_each = var.certificate_arn == "" ? local.event_specific_routes : {}
+
+  listener_arn = aws_lb_listener.http.arn
+  priority     = each.value.priority
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.services[each.value.service_key].arn
+  }
+
+  condition {
+    path_pattern {
+      values = [each.value.path_pattern]
+    }
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${var.project_name}-${var.environment}-${each.key}-http-event-rule"
     }
   )
 }
