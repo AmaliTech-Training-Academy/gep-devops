@@ -1,103 +1,142 @@
 name: Master Pipeline Orchestrator
 
 on:
-  # Manual trigger (primary method)
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environment to deploy"
+        description: 'Environment to deploy'
         required: true
-        default: "dev"
+        default: 'dev'
         type: choice
         options: [dev, staging, prod]
       run_backend:
-        description: "Run Backend Pipeline"
+        description: 'Deploy Backend Services'
         required: false
         default: true
         type: boolean
       run_frontend:
-        description: "Run Frontend Pipeline"
-        required: false
-        default: true
-        type: boolean
-      run_security:
-        description: "Run Security Monitoring"
-        required: false
-        default: true
-        type: boolean
-      run_performance:
-        description: "Run Performance Tests"
-        required: false
-        default: false
-        type: boolean
-      run_health:
-        description: "Run Health Checks"
+        description: 'Deploy Frontend Application'
         required: false
         default: true
         type: boolean
       run_infrastructure:
-        description: "Run Infrastructure Pipeline"
+        description: 'Apply Infrastructure Changes'
+        required: false
+        default: false
+        type: boolean
+      run_security:
+        description: 'Run Security Scans'
+        required: false
+        default: true
+        type: boolean
+      run_performance:
+        description: 'Run Performance Tests'
+        required: false
+        default: false
+        type: boolean
+      skip_approval:
+        description: 'Skip production approval (emergency only)'
         required: false
         default: false
         type: boolean
 
+env:
+  DEPLOYMENT_ID: deploy-${{ github.run_number }}-${{ github.run_attempt }}
+
 jobs:
+  validate-inputs:
+    runs-on: ubuntu-latest
+    outputs:
+      is_valid: ${{ steps.validate.outputs.is_valid }}
+      deployment_strategy: ${{ steps.validate.outputs.deployment_strategy }}
+    steps:
+    - name: Validate Deployment Inputs
+      id: validate
+      run: |
+        echo "🔍 Validating deployment configuration..."
+        
+        # Check if at least one pipeline is selected
+        if [ "${{ inputs.run_backend }}" = "false" ] && \
+           [ "${{ inputs.run_frontend }}" = "false" ] && \
+           [ "${{ inputs.run_infrastructure }}" = "false" ]; then
+          echo "::error::At least one pipeline must be selected"
+          echo "is_valid=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+        
+        # Determine deployment strategy
+        if [ "${{ inputs.environment }}" = "prod" ]; then
+          STRATEGY="blue-green"
+        else
+          STRATEGY="rolling"
+        fi
+        
+        echo "is_valid=true" >> $GITHUB_OUTPUT
+        echo "deployment_strategy=$STRATEGY" >> $GITHUB_OUTPUT
+        echo "✅ Validation passed - Strategy: $STRATEGY"
+
+  production-approval:
+    needs: validate-inputs
+    if: inputs.environment == 'prod' && inputs.skip_approval == false
+    runs-on: ubuntu-latest
+    environment:
+      name: production-approval
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+    - name: Request Production Approval
+      run: |
+        echo "⏸️ Waiting for production deployment approval..."
+        echo "Environment: ${{ inputs.environment }}"
+        echo "Backend: ${{ inputs.run_backend }}"
+        echo "Frontend: ${{ inputs.run_frontend }}"
+        echo "Infrastructure: ${{ inputs.run_infrastructure }}"
+
   pipeline-start:
+    needs: [validate-inputs, production-approval]
+    if: always() && needs.validate-inputs.outputs.is_valid == 'true' && (needs.production-approval.result == 'success' || needs.production-approval.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ inputs.environment }}
       timestamp: ${{ steps.timestamp.outputs.timestamp }}
+      deployment_id: ${{ steps.deployment.outputs.id }}
     steps:
-      - name: Pipeline Start Notification
-        uses: 8398a7/action-slack@v3
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        with:
-          status: custom
-          custom_payload: |
-            {
-              "text": "🚀 Master Pipeline Started",
-              "attachments": [{
-                "color": "good",
-                "fields": [{
-                  "title": "Environment",
-                  "value": "${{ inputs.environment }}",
-                  "short": true
-                }, {
-                  "title": "Triggered By",
-                  "value": "${{ github.actor }}",
-                  "short": true
-                }, {
-                  "title": "Backend",
-                  "value": "${{ inputs.run_backend && '✅' || '❌' }}",
-                  "short": true
-                }, {
-                  "title": "Frontend",
-                  "value": "${{ inputs.run_frontend && '✅' || '❌' }}",
-                  "short": true
-                }, {
-                  "title": "Security",
-                  "value": "${{ inputs.run_security && '✅' || '❌' }}",
-                  "short": true
-                }, {
-                  "title": "Performance",
-                  "value": "${{ inputs.run_performance && '✅' || '❌' }}",
-                  "short": true
-                }, {
-                  "title": "Infrastructure",
-                  "value": "${{ inputs.run_infrastructure && '✅' || '❌' }}",
-                  "short": true
-                }, {
-                  "title": "Deployment Strategy",
-                  "value": "${{ inputs.environment == 'prod' && '🔵🟢 Blue-Green' || '🔄 Rolling' }}",
-                  "short": true
-                }]
-              }]
-            }
+    - name: Generate Deployment Metadata
+      id: deployment
+      run: |
+        DEPLOYMENT_ID="deploy-$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA:0:7}"
+        echo "id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+        echo "📦 Deployment ID: $DEPLOYMENT_ID"
 
-      - name: Generate Timestamp
-        id: timestamp
-        run: echo "timestamp=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+    - name: Generate Timestamp
+      id: timestamp
+      run: echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+
+    - name: Pipeline Start Notification
+      uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "🚀 Master Pipeline Started",
+            "attachments": [{
+              "color": "#36a64f",
+              "fields": [
+                {"title": "Environment", "value": "${{ inputs.environment }}", "short": true},
+                {"title": "Deployment ID", "value": "${{ steps.deployment.outputs.id }}", "short": true},
+                {"title": "Strategy", "value": "${{ needs.validate-inputs.outputs.deployment_strategy }}", "short": true},
+                {"title": "Triggered By", "value": "${{ github.actor }}", "short": true},
+                {"title": "Backend", "value": "${{ inputs.run_backend && '✅' || '⏭️' }}", "short": true},
+                {"title": "Frontend", "value": "${{ inputs.run_frontend && '✅' || '⏭️' }}", "short": true},
+                {"title": "Infrastructure", "value": "${{ inputs.run_infrastructure && '✅' || '⏭️' }}", "short": true},
+                {"title": "Security", "value": "${{ inputs.run_security && '✅' || '⏭️' }}", "short": true}
+              ],
+              "footer": "GitHub Actions",
+              "footer_icon": "https://github.githubassets.com/favicon.ico",
+              "ts": ${{ steps.timestamp.outputs.timestamp }}
+            }]
+          }
 
   infrastructure-pipeline:
     needs: pipeline-start
@@ -108,154 +147,277 @@ jobs:
       action: apply
     secrets: inherit
 
-  # Rolling deployment for dev and staging
-  backend-pipeline:
+  pre-deployment-checks:
     needs: [pipeline-start, infrastructure-pipeline]
-    if: inputs.run_backend && inputs.environment != 'prod' && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
+    if: always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped')
+    runs-on: ubuntu-latest
+    outputs:
+      checks_passed: ${{ steps.checks.outputs.passed }}
+    steps:
+    - name: Pre-Deployment Health Checks
+      id: checks
+      run: |
+        echo "🏥 Running pre-deployment health checks..."
+        
+        # Check AWS connectivity
+        aws sts get-caller-identity || exit 1
+        
+        # Check ECS cluster status
+        if [ "${{ inputs.run_backend }}" = "true" ]; then
+          CLUSTER_STATUS=$(aws ecs describe-clusters \
+            --clusters event-planner-${{ inputs.environment }}-cluster \
+            --query 'clusters[0].status' \
+            --output text)
+          
+          if [ "$CLUSTER_STATUS" != "ACTIVE" ]; then
+            echo "::error::ECS cluster is not active"
+            exit 1
+          fi
+        fi
+        
+        echo "passed=true" >> $GITHUB_OUTPUT
+        echo "✅ Pre-deployment checks passed"
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+
+  # Rolling deployment for dev/staging
+  backend-rolling:
+    needs: [pipeline-start, pre-deployment-checks]
+    if: inputs.run_backend && inputs.environment != 'prod' && needs.pre-deployment-checks.outputs.checks_passed == 'true'
     uses: ./.github/workflows/backend-ci-cd.yml
     with:
       environment: ${{ inputs.environment }}
     secrets: inherit
 
-  frontend-pipeline:
-    needs: [pipeline-start, infrastructure-pipeline]
-    if: inputs.run_frontend && inputs.environment != 'prod' && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
+  frontend-rolling:
+    needs: [pipeline-start, pre-deployment-checks]
+    if: inputs.run_frontend && inputs.environment != 'prod' && needs.pre-deployment-checks.outputs.checks_passed == 'true'
     uses: ./.github/workflows/frontend-ci-cd.yml
     with:
       environment: ${{ inputs.environment }}
     secrets: inherit
 
-  # Blue-green deployment for production only
+  # Blue-green deployment for production
   backend-blue-green:
-    needs: [pipeline-start, infrastructure-pipeline]
-    if: inputs.run_backend && inputs.environment == 'prod' && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
-    strategy:
-      matrix:
-        service:
-          [user-service, event-service, notification-service, gateway-service]
-    uses: ./.github/workflows/backend-blue-green.yml
+    needs: [pipeline-start, pre-deployment-checks]
+    if: inputs.run_backend && inputs.environment == 'prod' && needs.pre-deployment-checks.outputs.checks_passed == 'true'
+    uses: ./.github/workflows/backend-prod-blue-green.yml
     with:
-      environment: ${{ inputs.environment }}
-      service: ${{ matrix.service }}
-      image_tag: ${{ inputs.environment }}-${{ github.sha }}
+      services: '["auth-service", "notification-service"]'
     secrets: inherit
 
   frontend-blue-green:
-    needs: [pipeline-start, infrastructure-pipeline]
-    if: inputs.run_frontend && inputs.environment == 'prod' && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
-    uses: ./.github/workflows/frontend-blue-green.yml
-    with:
-      environment: ${{ inputs.environment }}
-      build_artifact: dist-${{ inputs.environment }}
+    needs: [pipeline-start, pre-deployment-checks]
+    if: inputs.run_frontend && inputs.environment == 'prod' && needs.pre-deployment-checks.outputs.checks_passed == 'true'
+    uses: ./.github/workflows/frontend-prod-blue-green.yml
     secrets: inherit
 
-  security-monitoring:
-    needs: [pipeline-start, infrastructure-pipeline]
-    if: inputs.run_security && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
+  post-deployment-validation:
+    needs: [pipeline-start, backend-rolling, frontend-rolling, backend-blue-green, frontend-blue-green]
+    if: always() && (needs.backend-rolling.result == 'success' || needs.frontend-rolling.result == 'success' || needs.backend-blue-green.result == 'success' || needs.frontend-blue-green.result == 'success')
+    runs-on: ubuntu-latest
+    outputs:
+      validation_passed: ${{ steps.validate.outputs.passed }}
+    steps:
+    - name: Post-Deployment Validation
+      id: validate
+      run: |
+        echo "🔍 Running post-deployment validation..."
+        
+        VALIDATION_FAILED=0
+        
+        # Validate backend deployment
+        if [ "${{ inputs.run_backend }}" = "true" ]; then
+          echo "Checking backend services..."
+          
+          # Check ECS service health
+          for service in auth-service notification-service; do
+            RUNNING_COUNT=$(aws ecs describe-services \
+              --cluster event-planner-${{ inputs.environment }}-cluster \
+              --services $service \
+              --query 'services[0].runningCount' \
+              --output text)
+            
+            DESIRED_COUNT=$(aws ecs describe-services \
+              --cluster event-planner-${{ inputs.environment }}-cluster \
+              --services $service \
+              --query 'services[0].desiredCount' \
+              --output text)
+            
+            if [ "$RUNNING_COUNT" != "$DESIRED_COUNT" ]; then
+              echo "::warning::Service $service: running=$RUNNING_COUNT, desired=$DESIRED_COUNT"
+              VALIDATION_FAILED=1
+            else
+              echo "✅ Service $service is healthy"
+            fi
+          done
+        fi
+        
+        # Validate frontend deployment
+        if [ "${{ inputs.run_frontend }}" = "true" ]; then
+          echo "Checking frontend deployment..."
+          
+          case "${{ inputs.environment }}" in
+            dev) URL="https://dev.events.sankofagrid.com" ;;
+            staging) URL="https://staging.events.sankofagrid.com" ;;
+            prod) URL="https://events.sankofagrid.com" ;;
+          esac
+          
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $URL || echo "000")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Frontend is accessible"
+          else
+            echo "::warning::Frontend returned HTTP $HTTP_CODE"
+            VALIDATION_FAILED=1
+          fi
+        fi
+        
+        if [ $VALIDATION_FAILED -eq 0 ]; then
+          echo "passed=true" >> $GITHUB_OUTPUT
+          echo "✅ All validations passed"
+        else
+          echo "passed=false" >> $GITHUB_OUTPUT
+          echo "⚠️ Some validations failed"
+        fi
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+
+  security-scan:
+    needs: [pipeline-start, post-deployment-validation]
+    if: inputs.run_security && always()
     uses: ./.github/workflows/security-monitoring.yml
     secrets: inherit
 
-  performance-monitoring:
-    needs: [pipeline-start, infrastructure-pipeline]
-    if: inputs.run_performance && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
+  performance-test:
+    needs: [pipeline-start, post-deployment-validation]
+    if: inputs.run_performance && needs.post-deployment-validation.outputs.validation_passed == 'true'
     uses: ./.github/workflows/performance-monitoring.yml
     secrets: inherit
 
-  health-monitoring:
-    needs: [pipeline-start, infrastructure-pipeline]
-    if: inputs.run_health && (always() && (needs.infrastructure-pipeline.result == 'success' || needs.infrastructure-pipeline.result == 'skipped'))
-    uses: ./.github/workflows/health-monitoring.yml
-    secrets: inherit
-
-  pipeline-summary:
-    needs:
-      [
-        pipeline-start,
-        backend-pipeline,
-        frontend-pipeline,
-        backend-blue-green,
-        frontend-blue-green,
-        security-monitoring,
-        performance-monitoring,
-        health-monitoring,
-        infrastructure-pipeline,
-      ]
+  deployment-report:
+    needs: [pipeline-start, infrastructure-pipeline, backend-rolling, frontend-rolling, backend-blue-green, frontend-blue-green, post-deployment-validation, security-scan, performance-test]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Generate Pipeline Report
-        run: |
-          echo "# Master Pipeline Report" > pipeline-report.md
-          echo "**Environment:** ${{ inputs.environment }}" >> pipeline-report.md
-          echo "**Timestamp:** ${{ needs.pipeline-start.outputs.timestamp }}" >> pipeline-report.md
-          echo "**Triggered By:** ${{ github.actor }}" >> pipeline-report.md
-          echo "" >> pipeline-report.md
-          echo "## Pipeline Results" >> pipeline-report.md
-          echo "- Backend Pipeline: ${{ needs.backend-pipeline.result || needs.backend-blue-green.result || 'skipped' }}" >> pipeline-report.md
-          echo "- Frontend Pipeline: ${{ needs.frontend-pipeline.result || needs.frontend-blue-green.result || 'skipped' }}" >> pipeline-report.md
-          echo "- Security Monitoring: ${{ needs.security-monitoring.result || 'skipped' }}" >> pipeline-report.md
-          echo "- Performance Monitoring: ${{ needs.performance-monitoring.result || 'skipped' }}" >> pipeline-report.md
-          echo "- Health Monitoring: ${{ needs.health-monitoring.result || 'skipped' }}" >> pipeline-report.md
-          echo "- Infrastructure Pipeline: ${{ needs.infrastructure-pipeline.result || 'skipped' }}" >> pipeline-report.md
+    - name: Calculate Deployment Duration
+      id: duration
+      run: |
+        START_TIME="${{ needs.pipeline-start.outputs.timestamp }}"
+        END_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        
+        START_EPOCH=$(date -d "$START_TIME" +%s)
+        END_EPOCH=$(date -d "$END_TIME" +%s)
+        DURATION=$((END_EPOCH - START_EPOCH))
+        
+        MINUTES=$((DURATION / 60))
+        SECONDS=$((DURATION % 60))
+        
+        echo "duration=${MINUTES}m ${SECONDS}s" >> $GITHUB_OUTPUT
+        echo "duration_seconds=$DURATION" >> $GITHUB_OUTPUT
 
-      - name: Upload Pipeline Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: pipeline-report-${{ needs.pipeline-start.outputs.timestamp }}
-          path: pipeline-report.md
+    - name: Generate Deployment Report
+      run: |
+        cat > deployment-report.md << 'EOF'
+        # 📊 Deployment Report
+        
+        ## Deployment Information
+        - **Deployment ID**: ${{ needs.pipeline-start.outputs.deployment_id }}
+        - **Environment**: ${{ inputs.environment }}
+        - **Strategy**: ${{ needs.validate-inputs.outputs.deployment_strategy }}
+        - **Triggered By**: ${{ github.actor }}
+        - **Start Time**: ${{ needs.pipeline-start.outputs.timestamp }}
+        - **Duration**: ${{ steps.duration.outputs.duration }}
+        
+        ## Pipeline Results
+        
+        | Pipeline | Status | Result |
+        |----------|--------|--------|
+        | Infrastructure | ${{ inputs.run_infrastructure && '✅' || '⏭️' }} | ${{ needs.infrastructure-pipeline.result || 'skipped' }} |
+        | Backend | ${{ inputs.run_backend && '✅' || '⏭️' }} | ${{ needs.backend-rolling.result || needs.backend-blue-green.result || 'skipped' }} |
+        | Frontend | ${{ inputs.run_frontend && '✅' || '⏭️' }} | ${{ needs.frontend-rolling.result || needs.frontend-blue-green.result || 'skipped' }} |
+        | Post-Deployment Validation | ✅ | ${{ needs.post-deployment-validation.result || 'skipped' }} |
+        | Security Scan | ${{ inputs.run_security && '✅' || '⏭️' }} | ${{ needs.security-scan.result || 'skipped' }} |
+        | Performance Test | ${{ inputs.run_performance && '✅' || '⏭️' }} | ${{ needs.performance-test.result || 'skipped' }} |
+        
+        ## Validation Results
+        - **Pre-Deployment Checks**: ${{ needs.pre-deployment-checks.outputs.checks_passed == 'true' && '✅ Passed' || '❌ Failed' }}
+        - **Post-Deployment Validation**: ${{ needs.post-deployment-validation.outputs.validation_passed == 'true' && '✅ Passed' || '⚠️ Issues Detected' }}
+        
+        ## Overall Status
+        ${{ contains(needs.*.result, 'failure') && '❌ **DEPLOYMENT FAILED**' || '✅ **DEPLOYMENT SUCCESSFUL**' }}
+        
+        ---
+        *Generated by Master Pipeline Orchestrator*
+        EOF
+        
+        cat deployment-report.md
 
-      - name: Final Pipeline Status
-        uses: 8398a7/action-slack@v3
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        with:
-          status: custom
-          custom_payload: |
-            {
-              "text": "Master Pipeline ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Completed ✅' }}",
-              "attachments": [{
-                "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
-                "fields": [{
-                  "title": "Environment",
-                  "value": "${{ inputs.environment }}",
-                  "short": true
-                }, {
-                  "title": "Duration",
-                  "value": "${{ github.event.workflow_run.conclusion && github.event.workflow_run.updated_at || 'In Progress' }}",
-                  "short": true
-                }, {
-                  "title": "Backend",
-                  "value": "${{ (needs.backend-pipeline.result == 'success' || needs.backend-blue-green.result == 'success') && '✅ Success' || (needs.backend-pipeline.result == 'failure' || needs.backend-blue-green.result == 'failure') && '❌ Failed' || (needs.backend-pipeline.result == 'skipped' && needs.backend-blue-green.result == 'skipped') && '⏭️ Skipped' || '⏳ Running' }}",
-                  "short": true
-                }, {
-                  "title": "Frontend", 
-                  "value": "${{ (needs.frontend-pipeline.result == 'success' || needs.frontend-blue-green.result == 'success') && '✅ Success' || (needs.frontend-pipeline.result == 'failure' || needs.frontend-blue-green.result == 'failure') && '❌ Failed' || (needs.frontend-pipeline.result == 'skipped' && needs.frontend-blue-green.result == 'skipped') && '⏭️ Skipped' || '⏳ Running' }}",
-                  "short": true
-                }, {
-                  "title": "Security",
-                  "value": "${{ needs.security-monitoring.result == 'success' && '✅ Success' || needs.security-monitoring.result == 'failure' && '❌ Failed' || needs.security-monitoring.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
-                  "short": true
-                }, {
-                  "title": "Performance",
-                  "value": "${{ needs.performance-monitoring.result == 'success' && '✅ Success' || needs.performance-monitoring.result == 'failure' && '❌ Failed' || needs.performance-monitoring.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
-                  "short": true
-                }, {
-                  "title": "Health",
-                  "value": "${{ needs.health-monitoring.result == 'success' && '✅ Success' || needs.health-monitoring.result == 'failure' && '❌ Failed' || needs.health-monitoring.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
-                  "short": true
-                }, {
-                  "title": "Infrastructure",
-                  "value": "${{ needs.infrastructure-pipeline.result == 'success' && '✅ Success' || needs.infrastructure-pipeline.result == 'failure' && '❌ Failed' || needs.infrastructure-pipeline.result == 'skipped' && '⏭️ Skipped' || '⏳ Running' }}",
-                  "short": true
-                }, {
-                  "title": "Triggered By",
-                  "value": "${{ github.actor }}",
-                  "short": true
-                }],
-                "actions": [{
-                  "type": "button",
-                  "text": "View Full Report",
-                  "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                }]
+    - name: Upload Deployment Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-report-${{ needs.pipeline-start.outputs.deployment_id }}
+        path: deployment-report.md
+        retention-days: 90
+
+    - name: Final Status Notification
+      uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "${{ contains(needs.*.result, 'failure') && '❌ Deployment Failed' || '✅ Deployment Successful' }}",
+            "attachments": [{
+              "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
+              "fields": [
+                {"title": "Environment", "value": "${{ inputs.environment }}", "short": true},
+                {"title": "Duration", "value": "${{ steps.duration.outputs.duration }}", "short": true},
+                {"title": "Deployment ID", "value": "${{ needs.pipeline-start.outputs.deployment_id }}", "short": false},
+                {"title": "Infrastructure", "value": "${{ needs.infrastructure-pipeline.result == 'success' && '✅' || needs.infrastructure-pipeline.result == 'failure' && '❌' || '⏭️' }}", "short": true},
+                {"title": "Backend", "value": "${{ (needs.backend-rolling.result == 'success' || needs.backend-blue-green.result == 'success') && '✅' || (needs.backend-rolling.result == 'failure' || needs.backend-blue-green.result == 'failure') && '❌' || '⏭️' }}", "short": true},
+                {"title": "Frontend", "value": "${{ (needs.frontend-rolling.result == 'success' || needs.frontend-blue-green.result == 'success') && '✅' || (needs.frontend-rolling.result == 'failure' || needs.frontend-blue-green.result == 'failure') && '❌' || '⏭️' }}", "short": true},
+                {"title": "Validation", "value": "${{ needs.post-deployment-validation.outputs.validation_passed == 'true' && '✅' || '⚠️' }}", "short": true},
+                {"title": "Security", "value": "${{ needs.security-scan.result == 'success' && '✅' || needs.security-scan.result == 'failure' && '❌' || '⏭️' }}", "short": true},
+                {"title": "Performance", "value": "${{ needs.performance-test.result == 'success' && '✅' || needs.performance-test.result == 'failure' && '❌' || '⏭️' }}", "short": true}
+              ],
+              "actions": [{
+                "type": "button",
+                "text": "View Report",
+                "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               }]
-            }
+            }]
+          }
+
+  rollback-on-failure:
+    needs: [pipeline-start, post-deployment-validation]
+    if: failure() && inputs.environment == 'prod'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Emergency Rollback Notification
+      uses: 8398a7/action-slack@v3
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "🚨 PRODUCTION DEPLOYMENT FAILED - ROLLBACK REQUIRED",
+            "attachments": [{
+              "color": "danger",
+              "fields": [
+                {"title": "Environment", "value": "Production", "short": true},
+                {"title": "Deployment ID", "value": "${{ needs.pipeline-start.outputs.deployment_id }}", "short": true},
+                {"title": "Action Required", "value": "Manual rollback may be needed", "short": false}
+              ],
+              "actions": [{
+                "type": "button",
+                "text": "View Logs",
+                "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              }]
+            }]
+          }
