@@ -112,6 +112,31 @@ locals {
       path_pattern = "/api/v1/users*"
       priority     = 93
     }
+    event_invitations = {
+      service_key  = "event"
+      path_pattern = "/api/v1/event-invitations*"
+      priority     = 94
+    }
+    event_meeting_types = {
+      service_key  = "event"
+      path_pattern = "/api/v1/event_meeting_types*"
+      priority     = 95
+    }
+    event_types = {
+      service_key  = "event"
+      path_pattern = "/api/v1/event_types*"
+      priority     = 96
+    }
+    tickets = {
+      service_key  = "event"
+      path_pattern = "/api/v1/tickets*"
+      priority     = 97
+    }
+    timezones = {
+      service_key  = "event"
+      path_pattern = "/api/v1/timezones*"
+      priority     = 98
+    }
   }
 
   # booking = {
