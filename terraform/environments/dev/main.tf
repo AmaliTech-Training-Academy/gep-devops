@@ -340,53 +340,6 @@ resource "aws_s3_bucket_policy" "cloudfront_access" {
 }
 
 # ==============================================================================
-# Route53 Module
-# ==============================================================================
-
-module "route53" {
-  source = "../../modules/route53"
-
-  project_name       = var.project_name
-  environment        = var.environment
-  domain_name        = var.domain_name
-  create_hosted_zone = true
-
-  # Phase 1: CloudFront not configured yet
-  create_cloudfront_records = false
-  frontend_subdomain        = ""
-  cloudfront_domain_name    = ""
-  cloudfront_zone_id        = ""
-
-  # Backend ALB - will be configured when ALB is ready
-  create_alb_records = false
-  api_subdomain      = "api"
-  alb_dns_name       = ""
-  alb_zone_id        = ""
-
-  enable_ipv6       = true
-  create_www_record = false
-
-  enable_health_checks           = false
-  health_check_path              = "/health"
-  health_check_failure_threshold = 3
-  health_check_interval          = 30
-
-  alarm_actions        = []
-  verification_records = {}
-  mx_records           = []
-  spf_record           = ""
-  dkim_records         = {}
-  dmarc_record         = ""
-
-  caa_records = [
-    "0 issue \"amazon.com\"",
-    "0 issue \"letsencrypt.org\""
-  ]
-
-  common_tags = local.common_tags
-}
-
-# ==============================================================================
 # CloudWatch Module
 # ==============================================================================
 

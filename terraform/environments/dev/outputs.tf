@@ -83,15 +83,7 @@ output "cloudfront" {
 # Route53 Outputs
 # ==============================================================================
 
-output "route53_hosted_zone_id" {
-  description = "Route53 hosted zone ID"
-  value       = module.route53.hosted_zone_id
-}
 
-output "route53_nameservers" {
-  description = "Route53 nameservers"
-  value       = module.route53.hosted_zone_name_servers
-}
 
 # ==============================================================================
 # ECR Outputs
@@ -253,7 +245,7 @@ output "deployment_summary" {
     ecs_cluster       = module.ecs.cluster_name
     alb_dns           = module.alb.alb_dns_name
     cloudfront_domain = module.cloudfront.distribution_domain_name
-    route53_zone_id   = module.route53.hosted_zone_id
+    # DNS managed externally (Cloudflare)
     services_deployed = keys(module.ecs.service_names)
     databases_created = keys(module.rds.primary_endpoints)
   }
@@ -293,10 +285,7 @@ output "next_steps" {
     Backend ALB: http://${module.alb.alb_dns_name}
         
      Next Steps:
-    1. Configure DNS nameservers:
-       terraform output route53_nameservers
-    
-    2. Deploy application containers:
+    1. Deploy application containers:
        - Build and push images to ECR
        - ECS will automatically pull and deploy
     

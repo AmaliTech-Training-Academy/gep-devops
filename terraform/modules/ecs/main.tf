@@ -387,7 +387,7 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "CORS_RESOURCE_ENDPOINT"
-            value = "https://events.sankofagrid.com"
+            value = "http://localhost:3000,http://localhost:8080,http://localhost:4200,https://events.sankofagrid.com"
           }
         ] : [],
         each.key == "booking" ? [

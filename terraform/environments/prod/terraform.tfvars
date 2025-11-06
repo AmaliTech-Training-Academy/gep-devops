@@ -32,7 +32,7 @@ alert_email_addresses = [
   "devops@sankofagrid.com",
   # "alerts@sankofagrid.com"
 ]
-#alert_email_addresses = ["mangucletus@gmail.com"]
+# alert_email_addresses = ["your-email@example.com"]
 
 # Tags
 tags = {

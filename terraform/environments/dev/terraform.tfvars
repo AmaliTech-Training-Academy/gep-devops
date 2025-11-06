@@ -32,7 +32,7 @@ alert_email_addresses = [
   "devops@sankofagrid.com",
   # "alerts@sankofagrid.com"
 ]
-#alert_email_addresses = ["mangucletus@gmail.com"]
+# alert_email_addresses = ["your-email@example.com"]
 
 # JWT Configuration (Auth Service)
 jwt_access_expiration  = 3600000  # 1 hour in milliseconds
