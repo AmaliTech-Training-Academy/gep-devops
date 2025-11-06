@@ -87,28 +87,219 @@ done
 
 ## Production Deployment Strategy
 
-### Blue-Green Deployment (Planned)
+### Blue-Green Deployment ⭐ IMPLEMENTED
 
 **Purpose**: Zero-downtime deployments with instant rollback capability.
 
 ```yaml
 # Production deployment uses blue-green strategy
-backend-blue-green:
+backend-prod-blue-green:
   needs: [pipeline-start, infrastructure-pipeline]
   if: inputs.run_backend && inputs.environment == 'prod'
   strategy:
     matrix:
-      service: [auth-service, event-service, notification-service, booking-service, payment-service]
-  uses: ./.github/workflows/backend-blue-green.yml
+      service: [auth-service, notification-service]  # Currently active
+  uses: ./.github/workflows/backend-prod-blue-green.yml
+
+frontend-prod-blue-green:
+  needs: [pipeline-start, infrastructure-pipeline]
+  if: inputs.run_frontend && inputs.environment == 'prod'
+  uses: ./.github/workflows/frontend-prod-blue-green.yml
+```
+
+### Blue-Green Architecture
+
+**Frontend**:
+```
+CloudFront (Production) → Origin Switch
+  ├── Blue S3 Bucket (current)
+  ├── Green S3 Bucket (new version)
+  └── Backup S3 Bucket (rollback)
+```
+
+**Backend**:
+```
+ALB → Weighted Target Groups
+  ├── Blue Target Group → Blue ECS Services
+  └── Green Target Group → Green ECS Services
 ```
 
 ### Blue-Green Process Flow
 
-1. **Green Environment**: Deploy new version to green environment
-2. **Health Checks**: Comprehensive testing of green environment
-3. **Traffic Switch**: Route traffic from blue to green
-4. **Monitoring**: Monitor green environment for issues
-5. **Cleanup**: Terminate blue environment after success confirmation
+#### Frontend Deployment
+
+1. **Security Scan** - npm audit (fails on critical/high)
+2. **Build** - Production Angular build with unique ID
+3. **Deploy Green** - Upload to green S3 bucket
+4. **Smoke Tests** - Health check + performance (< 2s)
+5. **Backup Blue** - Sync current blue to timestamped backup
+6. **Switch Origin** - Update CloudFront to point to green
+7. **Validate** - Production health checks + CloudWatch metrics
+8. **Promote** - Sync green to blue (or rollback on failure)
+
+**Duration**: 15-30 minutes
+
+#### Backend Deployment
+
+1. **Security & Build** - Trivy scan + Maven build + 70% coverage
+2. **Deploy Green Services** - Create/update green ECS services (2 tasks)
+3. **Health Checks** - Actuator endpoints (20 retries, 15s interval)
+4. **Canary Test** - 10% traffic to green for 5 minutes
+5. **Progressive Shift** - 50% (2 min) → 100% traffic to green
+6. **Validate** - CloudWatch alarms + 3-minute monitoring
+7. **Promote** - Update blue with green task def (or rollback)
+
+**Duration**: 35-60 minutes
+
+### Infrastructure Requirements
+
+#### Frontend Blue-Green Setup
+
+**Required Resources**:
+```bash
+# S3 Buckets
+event-planner-prod-frontend        # Blue (current)
+event-planner-prod-frontend-green  # Green (new)
+event-planner-prod-frontend-backup # Backup
+
+# CloudFront Distributions
+Production Distribution (E1234...)  # Switches between blue/green
+Green Distribution (E5678...)       # For testing green
+
+# DNS Records (External)
+events.sankofagrid.com              # Production
+green.events.sankofagrid.com        # Green testing
+```
+
+**Cost Impact**: +$6/month (S3 storage + CloudFront)
+
+#### Backend Blue-Green Setup
+
+**Required Resources**:
+```hcl
+# ECS Services (per microservice)
+resource "aws_ecs_service" "blue" {
+  name = "auth-service"
+  desired_count = 2
+}
+
+resource "aws_ecs_service" "green" {
+  name = "auth-service-green"
+  desired_count = 0  # Scaled to 0 when not deploying
+}
+
+# Target Groups
+resource "aws_lb_target_group" "blue" {
+  name = "event-planner-prod-auth-blue-tg"
+}
+
+resource "aws_lb_target_group" "green" {
+  name = "event-planner-prod-auth-green-tg"
+}
+
+# Weighted ALB Listener
+resource "aws_lb_listener_rule" "weighted" {
+  action {
+    type = "forward"
+    forward {
+      target_group {
+        arn = aws_lb_target_group.blue.arn
+        weight = 100  # Initially all to blue
+      }
+      target_group {
+        arn = aws_lb_target_group.green.arn
+        weight = 0    # No traffic to green
+      }
+    }
+  }
+}
+```
+
+**Cost Impact**: $0 (green scaled to 0), ~$1/hour during deployment
+
+### Challenges & Mitigations
+
+#### 1. Shared Database Challenge
+
+**Issue**: Both blue and green connect to same PostgreSQL instance
+
+**Mitigation**:
+```sql
+-- Use backward-compatible migrations
+-- Phase 1: Add new columns (nullable)
+ALTER TABLE users ADD COLUMN new_field VARCHAR(255);
+
+-- Phase 2: Deploy green services
+-- Phase 3: Backfill data
+UPDATE users SET new_field = old_field WHERE new_field IS NULL;
+
+-- Phase 4: Switch traffic
+-- Phase 5: Remove old columns (next deployment)
+ALTER TABLE users DROP COLUMN old_field;
+```
+
+#### 2. Shared Redis Cache
+
+**Issue**: Blue and green share same ElastiCache
+
+**Mitigation**:
+```java
+// Use key prefixes
+String cacheKey = environment + ":session:" + userId;
+// blue:session:123 vs green:session:123
+```
+
+#### 3. SQS/SNS Message Routing
+
+**Issue**: Both environments consume from same queues
+
+**Mitigation**: Accept shared queues (messages are idempotent)
+
+#### 4. External DNS Manual Updates
+
+**Issue**: Cannot automate DNS (not Route53)
+
+**Mitigation**:
+- Pre-create `green.events.sankofagrid.com`
+- Keep pointing to green CloudFront permanently
+- Only switch production CloudFront origin (automated)
+
+#### 5. Single-AZ Limitation (Dev)
+
+**Issue**: Dev uses single-AZ for cost optimization
+
+**Mitigation**:
+- Keep single-AZ for dev/staging
+- Use multi-AZ for production
+- Both blue and green run in same AZ during deployment
+
+### Deployment Security
+
+**Security Gates**:
+- ✅ Trivy scan blocks on CRITICAL/HIGH vulnerabilities
+- ✅ npm audit blocks on critical/high vulnerabilities
+- ✅ Code coverage minimum 70%
+- ✅ All secrets from AWS Secrets Manager
+- ✅ Encrypted in transit (HTTPS/TLS)
+- ✅ Private subnets for all services
+
+### Monitoring During Deployment
+
+**CloudWatch Metrics**:
+```yaml
+# Monitor during canary phase
+- HTTPCode_Target_5XX_Count
+- TargetResponseTime
+- HealthyHostCount
+- UnHealthyHostCount
+```
+
+**Automatic Rollback Triggers**:
+- Health check failures
+- High error rates (> 10 errors in 5 min)
+- CloudWatch alarm state = ALARM
+- Response time > 2s (frontend)
+- Integration test failures
 
 ---
 
@@ -430,15 +621,93 @@ secrets = [
 
 ---
 
+## Blue-Green Deployment Best Practices
+
+### Pre-Deployment Checklist
+
+- [ ] All tests passing in staging
+- [ ] Security scans completed
+- [ ] Database migrations backward-compatible
+- [ ] Rollback plan documented
+- [ ] Team notified of deployment window
+- [ ] Monitoring dashboards ready
+- [ ] Green infrastructure provisioned
+
+### During Deployment
+
+- [ ] Monitor deployment progress
+- [ ] Watch CloudWatch metrics
+- [ ] Check application logs
+- [ ] Verify health endpoints
+- [ ] Test critical user flows
+- [ ] Monitor canary metrics (backend)
+
+### Post-Deployment
+
+- [ ] Verify all services healthy
+- [ ] Check error rates normalized
+- [ ] Monitor for 24 hours
+- [ ] Document any issues
+- [ ] Update runbooks if needed
+- [ ] Scale down green environment
+
+### Rollback Procedures
+
+**Automatic Rollback** (built-in):
+- Triggers on any health check failure
+- Triggers on high error rates
+- Triggers on CloudWatch alarms
+- Immediate traffic switch back to blue
+
+**Manual Rollback**:
+
+```bash
+# Frontend rollback
+DISTRIBUTION_ID="E1234567890ABC"
+BLUE_BUCKET="event-planner-prod-frontend"
+
+CONFIG=$(aws cloudfront get-distribution-config --id $DISTRIBUTION_ID)
+ETAG=$(echo $CONFIG | jq -r '.ETag')
+
+echo $CONFIG | jq --arg bucket "$BLUE_BUCKET.s3.amazonaws.com" \
+  '.DistributionConfig.Origins.Items[0].DomainName = $bucket' | \
+  jq '.DistributionConfig' > config.json
+
+aws cloudfront update-distribution \
+  --id $DISTRIBUTION_ID \
+  --distribution-config file://config.json \
+  --if-match $ETAG
+
+# Backend rollback
+aws elbv2 modify-listener \
+  --listener-arn $ALB_LISTENER_ARN \
+  --default-actions Type=forward,TargetGroupArn=$BLUE_TARGET_GROUP
+
+for service in auth-service notification-service; do
+  aws ecs update-service \
+    --cluster event-planner-prod-cluster \
+    --service ${service}-green \
+    --desired-count 0
+done
+```
+
+---
+
 ## Future Enhancements
+
+### Completed ✅
+
+1. **Blue-Green Deployment**: Zero-downtime production deployments
+2. **Canary Testing**: Gradual traffic shifting with monitoring
+3. **Automated Rollback**: Automatic rollback on failures
 
 ### Planned Improvements
 
-1. **Canary Deployments**: Gradual traffic shifting for production
-2. **Feature Flags**: Runtime feature toggling without deployments
-3. **Automated Testing**: Integration and end-to-end test automation
-4. **Performance Testing**: Load testing during deployment process
-5. **Multi-Region Deployments**: Cross-region deployment orchestration
+1. **Feature Flags**: Runtime feature toggling without deployments
+2. **Automated E2E Testing**: End-to-end test automation in pipeline
+3. **Performance Testing**: Load testing during canary phase
+4. **Multi-Region Deployments**: Cross-region deployment orchestration
+5. **Database Blue-Green**: Separate database instances for blue/green
 
 ---
 
