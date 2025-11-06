@@ -216,6 +216,34 @@ resource "aws_vpc_security_group_egress_rule" "grafana_to_rds" {
   }
 }
 
+# Allow SMTP for gmail
+resource "aws_vpc_security_group_egress_rule" "grafana_to_smtp_587" {
+  security_group_id = aws_security_group.grafana.id
+  description       = "Allow SMTP to Gmail"
+  ip_protocol       = "tcp"
+  from_port         = 587
+  to_port           = 587
+  cidr_ipv4         = "0.0.0.0/0"
+
+  tags = {
+    Name = "allow-smtp-587"
+  }
+}
+
+resource "aws_vpc_security_group_egress_rule" "grafana_to_smtp_465" {
+  security_group_id = aws_security_group.grafana.id
+  description       = "Allow SMTP to Gmail"
+  ip_protocol       = "tcp"
+  from_port         = 465
+  to_port           = 465
+  cidr_ipv4         = "0.0.0.0/0"
+
+  tags = {
+    Name = "allow-smtp-465"
+  }
+}
+
+
 # ==============================================================================
 # Update RDS Security Group to Allow Grafana
 # ==============================================================================
@@ -306,6 +334,16 @@ locals {
     [log]
     mode = console file
     level = info
+
+    [smtp]
+    enabled = true
+    host = smtp.gmail.com:465
+    user = joseph.abrokwah@amalitechtraining.org
+    # Use an App Password if you have 2FA enabled
+    password = "qkmnqhkegnshclft"
+    skip_verify = true
+    from_address = joseph.abrokwah@amalitechtraining.org
+    from_name = Grafana Alerts
     CONFIG
     
     # Start and enable Grafana
