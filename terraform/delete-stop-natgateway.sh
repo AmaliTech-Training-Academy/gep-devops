@@ -1,13 +1,19 @@
 #!/bin/bash
 # scripts/utilities/stop-nat-gateway.sh
 
+# Set your AWS profile name here
+AWS_PROFILE="${AWS_PROFILE:-gtp-cletus}"
+AWS_REGION="${AWS_REGION:-eu-west-1}"
+
+echo "Using AWS Profile: $AWS_PROFILE"
+echo "Using AWS Region: $AWS_REGION"
 echo "Stopping NAT Gateway to save costs..."
 
 # 1. Scale down ECS services first
 echo "Scaling down ECS services..."
 aws ecs update-service --cluster event-planner-dev-cluster \
   --service notification-service --desired-count 0 \
-  --profile gtp-cletus --region eu-west-1 > /dev/null 2>&1
+  --profile $AWS_PROFILE --region $AWS_REGION > /dev/null 2>&1
 echo "✓ Service scaled to 0"
 
 # Wait for tasks to stop
@@ -15,7 +21,7 @@ echo "Waiting for tasks to stop..."
 sleep 60
 
 # 2. Get NAT Gateway ID
-NAT_ID=$(aws ec2 describe-nat-gateways --profile gtp-cletus --region eu-west-1 \
+NAT_ID=$(aws ec2 describe-nat-gateways --profile $AWS_PROFILE --region $AWS_REGION \
   --filter "Name=state,Values=available" \
   --query 'NatGateways[0].NatGatewayId' --output text)
 
@@ -28,23 +34,23 @@ echo "Deleting NAT Gateway: $NAT_ID"
 
 # 3. Delete NAT Gateway
 aws ec2 delete-nat-gateway --nat-gateway-id $NAT_ID \
-  --profile gtp-cletus --region eu-west-1 > /dev/null 2>&1
+  --profile $AWS_PROFILE --region $AWS_REGION > /dev/null 2>&1
 echo "✓ NAT Gateway deletion initiated"
 
 # 4. Wait for NAT Gateway to be deleted
 echo "Waiting for NAT Gateway deletion (this takes ~2 minutes)..."
 aws ec2 wait nat-gateway-deleted --nat-gateway-ids $NAT_ID \
-  --profile gtp-cletus --region eu-west-1 2>/dev/null || sleep 120
+  --profile $AWS_PROFILE --region $AWS_REGION 2>/dev/null || sleep 120
 
 # 5. Get and release EIP
-EIP_ID=$(aws ec2 describe-addresses --profile gtp-cletus --region eu-west-1 \
+EIP_ID=$(aws ec2 describe-addresses --profile $AWS_PROFILE --region $AWS_REGION \
   --filters "Name=domain,Values=vpc" \
   --query 'Addresses[?AssociationId==`null`].AllocationId' --output text | head -1)
 
 if [ ! -z "$EIP_ID" ] && [ "$EIP_ID" != "None" ]; then
   echo "Releasing EIP: $EIP_ID"
   aws ec2 release-address --allocation-id $EIP_ID \
-    --profile gtp-cletus --region eu-west-1 > /dev/null 2>&1
+    --profile $AWS_PROFILE --region $AWS_REGION > /dev/null 2>&1
   echo "✓ EIP released"
 else
   echo "No unattached EIP found to release"
