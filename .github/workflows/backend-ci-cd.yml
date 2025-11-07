@@ -133,19 +133,19 @@ jobs:
           # Build parent POM if exists
           if [ -f "pom.xml" ]; then
             echo "📋 Building parent POM..."
-            mvn clean install -N -DskipTests --batch-mode
+            mvn clean install -N -U -DskipTests --batch-mode
           fi
           
           # Build common-libraries
           if [ -d "common-libraries" ]; then
             echo "📚 Building common-libraries..."
             cd common-libraries
-            mvn clean install -DskipTests --batch-mode
+            mvn clean install -U -DskipTests --batch-mode
             cd ..
           elif [ -d "services/common-libraries" ]; then
             echo "📚 Building common-libraries..."
             cd services/common-libraries
-            mvn clean install -DskipTests --batch-mode
+            mvn clean install -U -DskipTests --batch-mode
             cd ../..
           else
             echo "⚠️ common-libraries not found, skipping..."
@@ -159,7 +159,7 @@ jobs:
           echo "🧪 Skipping unit tests for ${{ matrix.service }}..."
           # mvn clean test -T 1C --batch-mode
           echo "📦 Building package..."
-          mvn clean package -DskipTests -T 1C --batch-mode
+          mvn clean package -U -DskipTests -T 1C --batch-mode
 
       - name: Security Scan (Trivy)
         uses: aquasecurity/trivy-action@master
