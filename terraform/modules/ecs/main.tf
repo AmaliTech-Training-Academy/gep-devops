@@ -287,6 +287,24 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "VIRTUAL_TICKET_VERIFICATION_URL"
             value = "http://${var.alb_dns_name}/api/v1/tickets/verifyVirtualTicket/join"
+          },
+          {
+            name  = "AWS_ENDPOINT"
+            value = "https://s3.${var.aws_region}.amazonaws.com"
+          }
+        ] : [],
+        each.key == "event" ? [
+          {
+            name  = "JWT_ACCESS_EXPIRATION"
+            value = tostring(var.jwt_access_expiration)
+          },
+          {
+            name  = "JWT_REFRESH_EXPIRATION"
+            value = tostring(var.jwt_refresh_expiration)
+          },
+          {
+            name  = "AWS_ENDPOINT"
+            value = "https://s3.${var.aws_region}.amazonaws.com"
           }
         ] : [],
         # SQS configuration - only for services that need it
@@ -382,15 +400,23 @@ resource "aws_ecs_task_definition" "services" {
             value = "http://${var.alb_dns_name}/api/v1/tickets/verifyVirtualTicket/join"
           },
           {
-            name  = "AWS_ENDPOINT"
-            value = "https://s3.eu-west-1.amazonaws.com"
-          },
-          {
             name  = "CORS_RESOURCE_ENDPOINT"
             value = "http://localhost:3000,http://localhost:8080,http://localhost:4200,https://events.sankofagrid.com"
           }
         ] : [],
         each.key == "booking" ? [
+          {
+            name  = "JWT_ACCESS_EXPIRATION"
+            value = tostring(var.jwt_access_expiration)
+          },
+          {
+            name  = "JWT_REFRESH_EXPIRATION"
+            value = tostring(var.jwt_refresh_expiration)
+          },
+          {
+            name  = "AWS_ENDPOINT"
+            value = "https://s3.${var.aws_region}.amazonaws.com"
+          },
           {
             name  = "SQS_ENDPOINT"
             value = "https://sqs.${var.aws_region}.amazonaws.com"
@@ -406,6 +432,18 @@ resource "aws_ecs_task_definition" "services" {
         ] : [],
         each.key == "payment" ? [
           {
+            name  = "JWT_ACCESS_EXPIRATION"
+            value = tostring(var.jwt_access_expiration)
+          },
+          {
+            name  = "JWT_REFRESH_EXPIRATION"
+            value = tostring(var.jwt_refresh_expiration)
+          },
+          {
+            name  = "AWS_ENDPOINT"
+            value = "https://s3.${var.aws_region}.amazonaws.com"
+          },
+          {
             name  = "SQS_ENDPOINT"
             value = "https://sqs.${var.aws_region}.amazonaws.com"
           },
@@ -415,6 +453,18 @@ resource "aws_ecs_task_definition" "services" {
           }
         ] : [],
         each.key == "notification" ? [
+          {
+            name  = "JWT_ACCESS_EXPIRATION"
+            value = tostring(var.jwt_access_expiration)
+          },
+          {
+            name  = "JWT_REFRESH_EXPIRATION"
+            value = tostring(var.jwt_refresh_expiration)
+          },
+          {
+            name  = "AWS_ENDPOINT"
+            value = "https://s3.${var.aws_region}.amazonaws.com"
+          },
           {
             name  = "SQS_ENDPOINT"
             value = "https://sqs.${var.aws_region}.amazonaws.com"
@@ -575,8 +625,8 @@ resource "aws_ecs_task_definition" "services" {
             valueFrom = "${var.db_secret_arns["auth"]}:password::"
           }
         ] : [],
-        # JWT secret for auth and event services
-        (each.key == "auth" || each.key == "event") && var.jwt_secret_arn != null ? [
+        # JWT secret for all services that need JWT validation
+        (each.key == "auth" || each.key == "event" || each.key == "notification" || each.key == "booking" || each.key == "payment") && var.jwt_secret_arn != null ? [
           {
             name      = "JWT_SECRET"
             valueFrom = "${var.jwt_secret_arn}:JWT_SECRET::"
