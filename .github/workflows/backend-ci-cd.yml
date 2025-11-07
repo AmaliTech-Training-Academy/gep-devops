@@ -182,21 +182,26 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
           export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
           
-          # Build parent POM
-          if [ -f "pom.xml" ]; then
+          # Build parent POM in services directory
+          if [ -f "services/pom.xml" ]; then
             echo "📋 Building parent POM..."
-            mvn install -N -DskipTests --batch-mode
+            cd services
+            mvn install -N -DskipTests --batch-mode || { echo "❌ Parent POM build failed"; exit 1; }
+            echo "✅ Parent POM installed"
+            cd ..
+          else
+            echo "⚠️ No parent pom.xml found in services/"
           fi
           
           # Build common-libraries
-          if [ -d "common-libraries" ]; then
-            cd common-libraries
-            mvn install -DskipTests --batch-mode
-            cd ..
-          elif [ -d "services/common-libraries" ]; then
+          if [ -d "services/common-libraries" ]; then
+            echo "📚 Building common-libraries..."
             cd services/common-libraries
-            mvn install -DskipTests --batch-mode
+            mvn install -DskipTests --batch-mode || { echo "❌ common-libraries build failed"; exit 1; }
+            echo "✅ common-libraries installed"
             cd ../..
+          else
+            echo "⚠️ common-libraries not found"
           fi
 
       - name: Build and Test Service
