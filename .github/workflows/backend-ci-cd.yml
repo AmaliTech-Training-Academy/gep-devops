@@ -170,6 +170,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Clear Maven Cache Failures
+        run: |
+          # Remove cached resolution failures
+          find ~/.m2/repository -name "*.lastUpdated" -type f -delete
+          find ~/.m2/repository -name "_remote.repositories" -type f -delete
+          echo "✅ Cleared Maven cache failures"
+
       - name: Build and Test Service
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
