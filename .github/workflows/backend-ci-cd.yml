@@ -177,6 +177,28 @@ jobs:
           find ~/.m2/repository -name "_remote.repositories" -type f -delete
           echo "✅ Cleared Maven cache failures"
 
+      - name: Build Dependencies
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+          export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
+          
+          # Build parent POM
+          if [ -f "pom.xml" ]; then
+            echo "📋 Building parent POM..."
+            mvn install -N -DskipTests --batch-mode
+          fi
+          
+          # Build common-libraries
+          if [ -d "common-libraries" ]; then
+            cd common-libraries
+            mvn install -DskipTests --batch-mode
+            cd ..
+          elif [ -d "services/common-libraries" ]; then
+            cd services/common-libraries
+            mvn install -DskipTests --batch-mode
+            cd ../..
+          fi
+
       - name: Build and Test Service
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
