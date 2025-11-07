@@ -125,6 +125,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Build Common Libraries
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+          export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
+          if [ -d "common-libraries" ]; then
+            echo "📚 Building common-libraries..."
+            cd common-libraries
+            mvn clean install -DskipTests --batch-mode
+            cd ..
+          elif [ -d "services/common-libraries" ]; then
+            echo "📚 Building common-libraries..."
+            cd services/common-libraries
+            mvn clean install -DskipTests --batch-mode
+            cd ../..
+          else
+            echo "⚠️ common-libraries not found, skipping..."
+          fi
+
       - name: Build and Test Service
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
