@@ -12,15 +12,44 @@ echo "Stopping NAT Gateway to save costs..."
 # 1. Scale down ECS services first
 echo "Scaling down ECS services..."
 aws ecs update-service --cluster event-planner-dev-cluster \
+  --service auth-service --desired-count 0 \
+  --profile $AWS_PROFILE --region $AWS_REGION > /dev/null 2>&1
+echo "✓ auth-service scaled to 0"
+
+aws ecs update-service --cluster event-planner-dev-cluster \
+  --service event-service --desired-count 0 \
+  --profile $AWS_PROFILE --region $AWS_REGION > /dev/null 2>&1
+echo "✓ event-service scaled to 0"
+
+aws ecs update-service --cluster event-planner-dev-cluster \
   --service notification-service --desired-count 0 \
   --profile $AWS_PROFILE --region $AWS_REGION > /dev/null 2>&1
-echo "✓ Service scaled to 0"
+echo "✓ notification-service scaled to 0"
 
 # Wait for tasks to stop
 echo "Waiting for tasks to stop..."
 sleep 60
 
-# 2. Get NAT Gateway ID
+# 2. Stop RDS database
+echo "Checking RDS database status..."
+DB_STATUS=$(aws rds describe-db-instances \
+  --db-instance-identifier event-planner-dev-auth-db \
+  --profile $AWS_PROFILE --region $AWS_REGION \
+  --query 'DBInstances[0].DBInstanceStatus' --output text 2>/dev/null)
+
+if [ "$DB_STATUS" == "available" ]; then
+  echo "Stopping RDS database (authdb)..."
+  aws rds stop-db-instance \
+    --db-instance-identifier event-planner-dev-auth-db \
+    --profile $AWS_PROFILE --region $AWS_REGION > /dev/null 2>&1
+  echo "✓ Auth database stopped"
+elif [ "$DB_STATUS" == "stopped" ]; then
+  echo "✓ Auth database already stopped"
+else
+  echo "⚠ Auth database status: $DB_STATUS (skipping)"
+fi
+
+# 3. Get NAT Gateway ID
 NAT_ID=$(aws ec2 describe-nat-gateways --profile $AWS_PROFILE --region $AWS_REGION \
   --filter "Name=state,Values=available" \
   --query 'NatGateways[0].NatGatewayId' --output text)
@@ -32,17 +61,17 @@ fi
 
 echo "Deleting NAT Gateway: $NAT_ID"
 
-# 3. Delete NAT Gateway
+# 4. Delete NAT Gateway
 aws ec2 delete-nat-gateway --nat-gateway-id $NAT_ID \
   --profile $AWS_PROFILE --region $AWS_REGION > /dev/null 2>&1
 echo "✓ NAT Gateway deletion initiated"
 
-# 4. Wait for NAT Gateway to be deleted
+# 5. Wait for NAT Gateway to be deleted
 echo "Waiting for NAT Gateway deletion (this takes ~2 minutes)..."
 aws ec2 wait nat-gateway-deleted --nat-gateway-ids $NAT_ID \
   --profile $AWS_PROFILE --region $AWS_REGION 2>/dev/null || sleep 120
 
-# 5. Get and release EIP
+# 6. Get and release EIP
 EIP_ID=$(aws ec2 describe-addresses --profile $AWS_PROFILE --region $AWS_REGION \
   --filters "Name=domain,Values=vpc" \
   --query 'Addresses[?AssociationId==`null`].AllocationId' --output text | head -1)

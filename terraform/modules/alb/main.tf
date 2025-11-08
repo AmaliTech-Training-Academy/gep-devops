@@ -252,6 +252,10 @@ resource "aws_lb_target_group" "services" {
     cookie_duration = 86400
   }
 
+  # Preserve host header and enable CORS
+  preserve_client_ip = false
+  proxy_protocol_v2  = false
+
   tags = merge(
     local.common_tags,
     {
@@ -544,7 +548,7 @@ resource "aws_cloudwatch_metric_alarm" "http_5xx" {
 
   tags = local.common_tags
 }
-
+# Unhealthy target count alarm
 # Unhealthy target count alarm
 resource "aws_cloudwatch_metric_alarm" "unhealthy_targets" {
   for_each = local.services
