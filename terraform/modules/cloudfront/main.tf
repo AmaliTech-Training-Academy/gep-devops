@@ -282,6 +282,10 @@ resource "aws_cloudfront_distribution" "main" {
 resource "random_password" "custom_header" {
   length  = 32
   special = false
+
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 # CloudFront Function for URL rewriting (SPA support)
