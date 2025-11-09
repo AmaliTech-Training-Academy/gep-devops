@@ -533,11 +533,11 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "EVENT_INVITATION_QUEUE_NAME"
-            value = lookup(var.sqs_queue_names, "event_created_notification", "")
+            value = lookup(var.sqs_queue_names, "event_invitation", "")
           },
           {
             name  = "EVENT_INVITATION_QUEUE"
-            value = lookup(var.sqs_queue_urls, "event_created_notification", "")
+            value = lookup(var.sqs_queue_urls, "event_invitation", "")
           },
           {
             name  = "SPRING_MAIL_HOST"
