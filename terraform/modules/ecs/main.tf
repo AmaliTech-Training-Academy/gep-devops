@@ -241,6 +241,22 @@ resource "aws_ecs_task_definition" "services" {
           value = "true"
         },
         {
+          name  = "SPRING_DATA_REDIS_TIMEOUT"
+          value = "10000"
+        },
+        {
+          name  = "SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE"
+          value = "8"
+        },
+        {
+          name  = "SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE"
+          value = "8"
+        },
+        {
+          name  = "SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE"
+          value = "2"
+        },
+        {
           name  = "SERVICE_DISCOVERY_NAMESPACE"
           value = var.service_discovery_namespace
         },
@@ -410,7 +426,13 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "CORS_RESOURCE_ENDPOINT"
             value = "http://localhost:3000,http://localhost:8080,http://localhost:4200,https://events.sankofagrid.com"
+          },
+          {
+            name  = "AUTH_SERVICE_URL"
+            value = "https://api.sankofagrid.com"
           }
+          
+
         ] : [],
         each.key == "booking" ? [
           {
@@ -666,9 +688,9 @@ resource "aws_ecs_task_definition" "services" {
       healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/actuator/health || wget --no-verbose --tries=1 --spider http://localhost:${each.value.port}/actuator/health || exit 1"]
         interval    = 30
-        timeout     = 5
+        timeout     = 10
         retries     = 3
-        startPeriod = 90
+        startPeriod = 120
       }
 
       logConfiguration = {
@@ -712,7 +734,7 @@ resource "aws_service_discovery_service" "services" {
   }
 
   health_check_custom_config {
-    failure_threshold = 3
+    failure_threshold = 1
   }
 
   tags = merge(
