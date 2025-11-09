@@ -336,6 +336,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "PASSWORD_RESET_QUEUE"
             value = lookup(var.sqs_queue_urls, "password_reset", "")
+          },
+          {
+            name  = "EVENT_STAT_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "event_stat", "")
           }
         ] : [],
         each.key == "event" ? [
@@ -396,12 +400,16 @@ resource "aws_ecs_task_definition" "services" {
             value = lookup(var.sqs_queue_urls, "event_invitation", "")
           },
           {
+            name  = "EVENT_STAT_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "event_stat", "")
+          },
+          {
             name  = "VIRTUAL_TICKET_VERIFICATION_URL"
             value = "http://${var.alb_dns_name}/api/v1/tickets/verifyVirtualTicket/join"
           },
           {
             name  = "CORS_RESOURCE_ENDPOINT"
-            value = "https://events.sankofagrid.com"
+            value = "http://localhost:3000,http://localhost:8080,http://localhost:4200,https://events.sankofagrid.com"
           }
         ] : [],
         each.key == "booking" ? [

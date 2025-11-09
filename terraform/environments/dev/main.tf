@@ -119,9 +119,9 @@ module "vpc" {
   enable_nat_gateway = true  # Required for external SMTP and AWS service access
   single_nat_gateway = true  # Single NAT for cost optimization
 
-  # COST OPTIMIZATION: VPC Endpoints disabled - all AWS traffic routes through NAT Gateway
-  # Saves ~$88-176/month in VPC endpoint costs with minimal latency impact
-  enable_vpc_endpoints = false # Route all AWS service traffic through NAT Gateway
+  # VPC Endpoints enabled for Secrets Manager to reduce NAT Gateway data transfer costs
+  # Cost: ~$7.30/month per endpoint vs NAT Gateway data transfer charges
+  enable_vpc_endpoints = true # Use VPC endpoints for AWS services
 
   enable_flow_logs         = var.enable_flow_logs
   flow_logs_retention_days = 3

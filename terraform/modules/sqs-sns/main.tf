@@ -127,6 +127,15 @@ locals {
       message_retention  = 259200
     }
 
+    # Event stat queue
+    event_stat = {
+      name               = "${var.project_name}-${var.environment}-event-stat-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["event.stat"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
+
     # COMMENTED OUT: Booking and Payment queues (not needed yet)
     # booking_created_notification = {
     #   name               = "${var.project_name}-${var.environment}-booking-created-notification-queue"
