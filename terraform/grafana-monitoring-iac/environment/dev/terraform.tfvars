@@ -1,5 +1,6 @@
 # Grafana Configuration
-grafana_admin_password = "DevOps@123"
+# TODO: Move to AWS Secrets Manager
+# grafana_admin_password = "" # Set via environment variable: TF_VAR_grafana_admin_password
 
 alb_security_group_id = "sg-0d468f19277f52283"
 rds_security_group_id = "sg-00bf93d10923a6d61"

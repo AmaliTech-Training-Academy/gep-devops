@@ -86,8 +86,53 @@ jobs:
           echo "matrix=$FINAL_SERVICES" >> "$GITHUB_OUTPUT"
           echo "🚀 Final services to deploy: $FINAL_SERVICES"
 
-  build-and-test:
+  build-common:
     needs: prepare
+    runs-on: [self-hosted, backend]
+    steps:
+      - name: Checkout Backend Code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.BACKEND_REPO }}
+          ref: ${{ env.COMMIT_SHA }}
+          token: ${{ secrets.BACKEND_REPO_TOKEN }}
+
+      - name: Cache Maven Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build Parent POM and Common Libraries
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+          export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
+          
+          # Build parent POM if exists
+          if [ -f "pom.xml" ]; then
+            echo "📋 Building parent POM..."
+            mvn clean install -N -U -DskipTests --batch-mode
+          fi
+          
+          # Build common-libraries
+          if [ -d "common-libraries" ]; then
+            echo "📚 Building common-libraries..."
+            cd common-libraries
+            mvn clean install -U -DskipTests --batch-mode
+            cd ..
+          elif [ -d "services/common-libraries" ]; then
+            echo "📚 Building common-libraries..."
+            cd services/common-libraries
+            mvn clean install -U -DskipTests --batch-mode
+            cd ../..
+          else
+            echo "⚠️ common-libraries not found, skipping..."
+          fi
+
+  build-and-test:
+    needs: [prepare, build-common]
     runs-on: [self-hosted, backend]
     strategy:
       matrix:
@@ -125,13 +170,46 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Clear Maven Cache Failures
+        run: |
+          # Remove cached resolution failures
+          find ~/.m2/repository -name "*.lastUpdated" -type f -delete
+          find ~/.m2/repository -name "_remote.repositories" -type f -delete
+          echo "✅ Cleared Maven cache failures"
+
+      - name: Build Dependencies
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+          export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
+          
+          # Build parent POM in services directory
+          if [ -f "services/pom.xml" ]; then
+            echo "📋 Building parent POM..."
+            cd services
+            mvn install -N -DskipTests --batch-mode || { echo "❌ Parent POM build failed"; exit 1; }
+            echo "✅ Parent POM installed"
+            cd ..
+          else
+            echo "⚠️ No parent pom.xml found in services/"
+          fi
+          
+          # Build common-libraries
+          if [ -d "services/common-libraries" ]; then
+            echo "📚 Building common-libraries..."
+            cd services/common-libraries
+            mvn install -DskipTests --batch-mode || { echo "❌ common-libraries build failed"; exit 1; }
+            echo "✅ common-libraries installed"
+            cd ../..
+          else
+            echo "⚠️ common-libraries not found"
+          fi
+
       - name: Build and Test Service
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
           export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
           cd services/${{ matrix.service }}
           echo "🧪 Skipping unit tests for ${{ matrix.service }}..."
-          # mvn clean test -T 1C --batch-mode
           echo "📦 Building package..."
           mvn clean package -DskipTests -T 1C --batch-mode
 

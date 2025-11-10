@@ -241,6 +241,22 @@ resource "aws_ecs_task_definition" "services" {
           value = "true"
         },
         {
+          name  = "SPRING_DATA_REDIS_TIMEOUT"
+          value = "10000"
+        },
+        {
+          name  = "SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE"
+          value = "8"
+        },
+        {
+          name  = "SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE"
+          value = "8"
+        },
+        {
+          name  = "SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE"
+          value = "2"
+        },
+        {
           name  = "SERVICE_DISCOVERY_NAMESPACE"
           value = var.service_discovery_namespace
         },
@@ -287,6 +303,24 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "VIRTUAL_TICKET_VERIFICATION_URL"
             value = "http://${var.alb_dns_name}/api/v1/tickets/verifyVirtualTicket/join"
+          },
+          {
+            name  = "AWS_ENDPOINT"
+            value = "https://s3.${var.aws_region}.amazonaws.com"
+          }
+        ] : [],
+        each.key == "event" ? [
+          {
+            name  = "JWT_ACCESS_EXPIRATION"
+            value = tostring(var.jwt_access_expiration)
+          },
+          {
+            name  = "JWT_REFRESH_EXPIRATION"
+            value = tostring(var.jwt_refresh_expiration)
+          },
+          {
+            name  = "AWS_ENDPOINT"
+            value = "https://s3.${var.aws_region}.amazonaws.com"
           }
         ] : [],
         # SQS configuration - only for services that need it
@@ -318,6 +352,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "PASSWORD_RESET_QUEUE"
             value = lookup(var.sqs_queue_urls, "password_reset", "")
+          },
+          {
+            name  = "EVENT_STAT_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "event_stat", "")
           }
         ] : [],
         each.key == "event" ? [
@@ -378,19 +416,37 @@ resource "aws_ecs_task_definition" "services" {
             value = lookup(var.sqs_queue_urls, "event_invitation", "")
           },
           {
+            name  = "EVENT_STAT_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "event_stat", "")
+          },
+          {
             name  = "VIRTUAL_TICKET_VERIFICATION_URL"
             value = "http://${var.alb_dns_name}/api/v1/tickets/verifyVirtualTicket/join"
           },
           {
-            name  = "AWS_ENDPOINT"
-            value = "https://s3.eu-west-1.amazonaws.com"
+            name  = "CORS_RESOURCE_ENDPOINT"
+            value = "http://localhost:3000,http://localhost:8080,http://localhost:4200,https://events.sankofagrid.com"
           },
           {
-            name  = "CORS_RESOURCE_ENDPOINT"
-            value = "https://events.sankofagrid.com"
+            name  = "AUTH_SERVICE_URL"
+            value = "https://api.sankofagrid.com"
           }
+          
+
         ] : [],
         each.key == "booking" ? [
+          {
+            name  = "JWT_ACCESS_EXPIRATION"
+            value = tostring(var.jwt_access_expiration)
+          },
+          {
+            name  = "JWT_REFRESH_EXPIRATION"
+            value = tostring(var.jwt_refresh_expiration)
+          },
+          {
+            name  = "AWS_ENDPOINT"
+            value = "https://s3.${var.aws_region}.amazonaws.com"
+          },
           {
             name  = "SQS_ENDPOINT"
             value = "https://sqs.${var.aws_region}.amazonaws.com"
@@ -406,6 +462,18 @@ resource "aws_ecs_task_definition" "services" {
         ] : [],
         each.key == "payment" ? [
           {
+            name  = "JWT_ACCESS_EXPIRATION"
+            value = tostring(var.jwt_access_expiration)
+          },
+          {
+            name  = "JWT_REFRESH_EXPIRATION"
+            value = tostring(var.jwt_refresh_expiration)
+          },
+          {
+            name  = "AWS_ENDPOINT"
+            value = "https://s3.${var.aws_region}.amazonaws.com"
+          },
+          {
             name  = "SQS_ENDPOINT"
             value = "https://sqs.${var.aws_region}.amazonaws.com"
           },
@@ -415,6 +483,18 @@ resource "aws_ecs_task_definition" "services" {
           }
         ] : [],
         each.key == "notification" ? [
+          {
+            name  = "JWT_ACCESS_EXPIRATION"
+            value = tostring(var.jwt_access_expiration)
+          },
+          {
+            name  = "JWT_REFRESH_EXPIRATION"
+            value = tostring(var.jwt_refresh_expiration)
+          },
+          {
+            name  = "AWS_ENDPOINT"
+            value = "https://s3.${var.aws_region}.amazonaws.com"
+          },
           {
             name  = "SQS_ENDPOINT"
             value = "https://sqs.${var.aws_region}.amazonaws.com"
@@ -453,11 +533,11 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "EVENT_INVITATION_QUEUE_NAME"
-            value = lookup(var.sqs_queue_names, "event_created_notification", "")
+            value = lookup(var.sqs_queue_names, "event_invitation", "")
           },
           {
             name  = "EVENT_INVITATION_QUEUE"
-            value = lookup(var.sqs_queue_urls, "event_created_notification", "")
+            value = lookup(var.sqs_queue_urls, "event_invitation", "")
           },
           {
             name  = "SPRING_MAIL_HOST"
@@ -575,8 +655,8 @@ resource "aws_ecs_task_definition" "services" {
             valueFrom = "${var.db_secret_arns["auth"]}:password::"
           }
         ] : [],
-        # JWT secret for auth and event services
-        (each.key == "auth" || each.key == "event") && var.jwt_secret_arn != null ? [
+        # JWT secret for all services that need JWT validation
+        (each.key == "auth" || each.key == "event" || each.key == "notification" || each.key == "booking" || each.key == "payment") && var.jwt_secret_arn != null ? [
           {
             name      = "JWT_SECRET"
             valueFrom = "${var.jwt_secret_arn}:JWT_SECRET::"
@@ -608,9 +688,9 @@ resource "aws_ecs_task_definition" "services" {
       healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/actuator/health || wget --no-verbose --tries=1 --spider http://localhost:${each.value.port}/actuator/health || exit 1"]
         interval    = 30
-        timeout     = 5
+        timeout     = 10
         retries     = 3
-        startPeriod = 90
+        startPeriod = 120
       }
 
       logConfiguration = {
