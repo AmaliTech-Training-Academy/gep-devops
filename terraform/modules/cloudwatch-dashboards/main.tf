@@ -902,12 +902,11 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
         properties = {
           title = "🔥 Request Distribution by Status"
           metrics = [
-            ["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Total Requests", color = "#27AE60" }],
             [{ expression = "m1*m2/100", label = "4xx Errors", color = "#F39C12", id = "e1" }],
             [{ expression = "m1*m3/100", label = "5xx Errors", color = "#E74C3C", id = "e2" }],
-            [".", "Requests", ".", ".", ".", ".", { id = "m1", visible = false }],
-            [".", "4xxErrorRate", ".", ".", ".", ".", { id = "m2", visible = false }],
-            [".", "5xxErrorRate", ".", ".", ".", ".", { id = "m3", visible = false }]
+            ["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Total Requests", color = "#27AE60", id = "m1" }],
+            ["AWS/CloudFront", "4xxErrorRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { id = "m2", visible = false }],
+            ["AWS/CloudFront", "5xxErrorRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { id = "m3", visible = false }]
           ]
           view    = "timeSeries"
           stacked = true
