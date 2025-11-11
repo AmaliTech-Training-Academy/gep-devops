@@ -23,7 +23,7 @@
 # 1. Task Execution Role: Master key for AWS to manage containers
 # 2. Auth Service Role: Permissions for user management and email
 # 3. Event Service Role: Permissions for event management and notifications
-# 4. Booking Service Role: Permissions for reservation processing
+
 # 5. Payment Service Role: Permissions for payment processing
 # 6. Notification Service Role: Permissions for email and SMS sending
 #
@@ -135,7 +135,7 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
 # Each service gets exactly what it needs, nothing more:
 # - Auth Service: Can send emails and manage user files
 # - Event Service: Can publish notifications and manage event files
-# - Booking Service: Can process reservations and send confirmations
+
 # - Payment Service: Can process payments and send receipts
 # - Notification Service: Can send emails, SMS, and manage message queues
 
@@ -260,63 +260,6 @@ resource "aws_iam_role_policy" "event_service_task" {
         Resource = [
           "${var.frontend_bucket_arn}/*"
         ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "sqs:SendMessage",
-          "sqs:ReceiveMessage",
-          "sqs:DeleteMessage",
-          "sqs:GetQueueAttributes",
-          "sqs:GetQueueUrl"
-        ]
-        Resource = "arn:aws:sqs:*:*:event-planner-*"
-      }
-    ]
-  })
-}
-
-# Booking Service Task Role
-resource "aws_iam_role" "booking_service_task" {
-  name_prefix = "${var.project_name}-${var.environment}-booking-task-"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
-  })
-
-  tags = merge(
-    var.tags,
-    {
-      Name      = "${var.project_name}-${var.environment}-booking-service-task-role"
-      Service   = "booking-service"
-      Component = "task-role"
-      Purpose   = "service-permissions"
-    }
-  )
-}
-
-resource "aws_iam_role_policy" "booking_service_task" {
-  name_prefix = "booking-service-permissions-"
-  role        = aws_iam_role.booking_service_task.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "sns:Publish"
-        ]
-        Resource = "arn:aws:sns:*:*:event-planner-*"
       },
       {
         Effect = "Allow"

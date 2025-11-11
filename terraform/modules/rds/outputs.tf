@@ -30,7 +30,7 @@
 # ==============================================================================
 
 output "primary_endpoints" {
-  description = "Network addresses where applications connect to each business database (auth, event, booking, payment). Like office addresses for different departments."
+  description = "Network addresses where applications connect to each business database (auth, event, payment). Like office addresses for different departments."
   value = {
     for db, config in local.databases :
     db => {

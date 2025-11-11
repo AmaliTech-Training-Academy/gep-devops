@@ -217,7 +217,7 @@ resource "aws_subnet" "private_app" {
 # Like bank vault floors with no external access whatsoever.
 #
 # WHAT GOES HERE:
-# - RDS PostgreSQL databases (user data, events, bookings)
+# - RDS PostgreSQL databases (user data, events)
 # - ElastiCache Redis (session storage, caching)
 # - Any service storing sensitive customer information
 #

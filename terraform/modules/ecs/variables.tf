@@ -10,7 +10,7 @@
 # - Auth Service: Handles user login and registration
 # - Event Service: Manages event creation and updates
 # - Notification Service: Sends emails and SMS messages
-# - Booking Service: Processes event bookings (ready to deploy)
+
 # - Payment Service: Handles payment transactions (ready to deploy)
 #
 # CONFIGURATION CATEGORIES:

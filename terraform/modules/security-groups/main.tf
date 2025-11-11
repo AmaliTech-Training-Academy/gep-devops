@@ -46,7 +46,7 @@ terraform {
 # Each of our business services runs on a specific port number:
 # - Auth Service (8081): Handles user login and registration
 # - Event Service (8082): Manages event creation and updates
-# - Booking Service (8083): Processes event bookings
+
 # - Payment Service (8084): Handles payment transactions
 # - Notification Service (8085): Sends emails and notifications
 #
@@ -68,7 +68,6 @@ locals {
   microservice_ports = {
     auth_service         = 8081  # User authentication and management
     event_service        = 8082  # Event creation and management
-    booking_service      = 8083  # Event booking and registration
     payment_service      = 8084  # Payment processing
     notification_service = 8085  # Email and SMS notifications
   }
@@ -163,7 +162,7 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_ecs" {
 # ==============================================================================
 # WHAT THIS CREATES:
 # Security rules for our application servers (ECS containers) where our
-# business logic runs (auth, events, bookings, payments, notifications).
+# business logic runs (auth, events, payments, notifications).
 #
 # BUSINESS FUNCTION:
 # - Runs our core business services (user management, event planning, etc.)

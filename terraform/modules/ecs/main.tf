@@ -51,17 +51,7 @@ locals {
       min_capacity  = 1
       max_capacity  = 1
     }
-    # TEMPORARILY DISABLED: Booking service not yet ready
-    # Uncomment when developers are ready to deploy
-    # booking = {
-    #   name          = "booking-service"
-    #   port          = 8083
-    #   cpu           = var.environment == "dev" ? 256 : 512
-    #   memory        = var.environment == "dev" ? 512 : 1024
-    #   desired_count = var.environment == "dev" ? 1 : 2
-    #   min_capacity  = var.environment == "dev" ? 1 : 2
-    #   max_capacity  = var.environment == "dev" ? 2 : 4
-    # }
+
     # TEMPORARILY DISABLED: Payment service not yet ready
     # Uncomment when developers are ready to deploy
     # payment = {
@@ -434,32 +424,7 @@ resource "aws_ecs_task_definition" "services" {
           
 
         ] : [],
-        each.key == "booking" ? [
-          {
-            name  = "JWT_ACCESS_EXPIRATION"
-            value = tostring(var.jwt_access_expiration)
-          },
-          {
-            name  = "JWT_REFRESH_EXPIRATION"
-            value = tostring(var.jwt_refresh_expiration)
-          },
-          {
-            name  = "AWS_ENDPOINT"
-            value = "https://s3.${var.aws_region}.amazonaws.com"
-          },
-          {
-            name  = "SQS_ENDPOINT"
-            value = "https://sqs.${var.aws_region}.amazonaws.com"
-          },
-          {
-            name  = "BOOKING_CREATED_QUEUE_NAME"
-            value = lookup(var.sqs_queue_names, "booking-created", "")
-          },
-          {
-            name  = "BOOKING_CANCELLED_QUEUE_NAME"
-            value = lookup(var.sqs_queue_names, "booking-cancelled", "")
-          }
-        ] : [],
+
         each.key == "payment" ? [
           {
             name  = "JWT_ACCESS_EXPIRATION"
@@ -656,7 +621,7 @@ resource "aws_ecs_task_definition" "services" {
           }
         ] : [],
         # JWT secret for all services that need JWT validation
-        (each.key == "auth" || each.key == "event" || each.key == "notification" || each.key == "booking" || each.key == "payment") && var.jwt_secret_arn != null ? [
+        (each.key == "auth" || each.key == "event" || each.key == "notification" || each.key == "payment") && var.jwt_secret_arn != null ? [
           {
             name      = "JWT_SECRET"
             valueFrom = "${var.jwt_secret_arn}:JWT_SECRET::"

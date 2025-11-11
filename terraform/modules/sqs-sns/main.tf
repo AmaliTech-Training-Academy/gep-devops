@@ -30,7 +30,6 @@ locals {
   # SNS topics for event publishing
   topics = {
     event   = "${var.project_name}-${var.environment}-event-topic"
-    booking = "${var.project_name}-${var.environment}-booking-topic"
     payment = "${var.project_name}-${var.environment}-payment-topic"
   }
 
@@ -103,7 +102,7 @@ locals {
     # Ticket purchased event queue
     ticket_purchased_event = {
       name               = "${var.project_name}-${var.environment}-ticket-purchased-event-queue"
-      topic              = "booking"
+      topic              = "event"
       filter_policy      = { event_type = ["ticket.purchased"] }
       visibility_timeout = 30
       message_retention  = 259200
@@ -136,21 +135,7 @@ locals {
       message_retention  = 259200
     }
 
-    # COMMENTED OUT: Booking and Payment queues (not needed yet)
-    # booking_created_notification = {
-    #   name               = "${var.project_name}-${var.environment}-booking-created-notification-queue"
-    #   topic              = "booking"
-    #   filter_policy      = { event_type = ["booking.created"] }
-    #   visibility_timeout = 30
-    #   message_retention  = 345600
-    # }
-    # payment_completed_notification = {
-    #   name               = "${var.project_name}-${var.environment}-payment-completed-notification-queue"
-    #   topic              = "payment"
-    #   filter_policy      = { event_type = ["payment.completed"] }
-    #   visibility_timeout = 30
-    #   message_retention  = 345600
-    # }
+
   }
 
   common_tags = merge(

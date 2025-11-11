@@ -28,7 +28,6 @@ locals {
   microservices = [
     "auth-service",
     "event-service",
-    "booking-service",
     "payment-service",
     "notification-service"
   ]

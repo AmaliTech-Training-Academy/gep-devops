@@ -23,3 +23,4 @@ output "origin_access_control_id" {
   description = "Origin Access Control ID"
   value       = aws_cloudfront_origin_access_control.s3_oac.id
 }
+

@@ -11,14 +11,14 @@
 # - Receives all website traffic from users around the world
 # - Routes login requests to the authentication service
 # - Routes event browsing to the event management service
-# - Routes booking requests to the booking service
+
 # - Routes payment processing to the payment service
 # - Routes notifications to the notification service
 #
 # SMART ROUTING RULES:
 # - /api/v1/auth/* → Authentication Service (user login/registration)
 # - /api/v1/events/* → Event Service (event browsing/creation)
-# - /api/v1/bookings/* → Booking Service (event reservations)
+
 # - /api/v1/payments/* → Payment Service (payment processing)
 # - /api/v1/notifications/* → Notification Service (emails/SMS)
 #
@@ -54,7 +54,7 @@ terraform {
 # - Authentication: Handles user accounts and security
 # - Events: Manages event creation, updates, and browsing
 # - Notifications: Sends emails and SMS messages to users
-# - Bookings: Processes event reservations (ready to deploy)
+
 # - Payments: Handles payment transactions (ready to deploy)
 #
 # HEALTH CHECK STRATEGY:
@@ -142,13 +142,7 @@ locals {
     }
   }
 
-  # booking = {
-  #   name              = "booking-service"
-  #   port              = 8083
-  #   path_pattern      = "/api/v1/bookings/*"
-  #   health_check_path = "/actuator/health"
-  #   priority          = 300
-  # }
+
   # payment = {
   #   name              = "payment-service"
   #   port              = 8084

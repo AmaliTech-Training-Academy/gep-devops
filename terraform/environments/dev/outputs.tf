@@ -274,8 +274,8 @@ output "next_steps" {
     - CloudWatch monitoring
     
      Services Temporarily Disabled (Cost Savings: ~$108/month):
-    - ECS: event, booking, payment, notification services
-    - RDS: event, booking, payment databases
+    - ECS: event, payment, notification services
+    - RDS: event, payment databases
 
     
     See COST_OPTIMIZATION_CHANGES.md for re-enable instructions

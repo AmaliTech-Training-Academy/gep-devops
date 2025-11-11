@@ -4,7 +4,7 @@
 # This module creates RDS PostgreSQL instances for microservices:
 # - Auth Database (Authentication & User Management)
 # - Event Database (Event CRUD operations)
-# - Booking Database (Booking Management)
+
 # - Payment Database (Payment Processing)
 #
 # Features:
@@ -52,15 +52,8 @@ locals {
     #   read_replica_count    = var.create_read_replicas ? 2 : 0
     #   port                  = 5432
     # }
-    # TEMPORARILY DISABLED: Booking database not needed yet
-    # Uncomment when booking service is ready to deploy
-    # booking = {
-    #   instance_class        = var.booking_db_instance_class
-    #   allocated_storage     = var.booking_db_allocated_storage
-    #   max_allocated_storage = var.booking_db_max_allocated_storage
-    #   read_replica_count    = var.create_read_replicas ? 2 : 0
-    #   port                  = 5432
-    # }
+
+
     # TEMPORARILY DISABLED: Payment database not needed yet
     # Uncomment when payment service is ready to deploy
     # payment = {

@@ -9,7 +9,7 @@
 # BUSINESS DATA STORED:
 # - User accounts and authentication information
 # - Event details and scheduling data
-# - Booking records and customer information
+
 # - Payment transactions and financial data
 # - System audit logs and compliance records
 #
@@ -101,25 +101,6 @@ variable "event_db_allocated_storage" {
 
 variable "event_db_max_allocated_storage" {
   description = "Maximum allocated storage for event database (GB)"
-  type        = number
-  default     = 1000
-}
-
-# Booking Database
-variable "booking_db_instance_class" {
-  description = "Instance class for booking database"
-  type        = string
-  default     = "db.t3.micro"
-}
-
-variable "booking_db_allocated_storage" {
-  description = "Allocated storage for booking database (GB)"
-  type        = number
-  default     = 200
-}
-
-variable "booking_db_max_allocated_storage" {
-  description = "Maximum allocated storage for booking database (GB)"
   type        = number
   default     = 1000
 }

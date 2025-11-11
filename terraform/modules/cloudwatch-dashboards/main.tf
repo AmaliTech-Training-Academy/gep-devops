@@ -658,18 +658,18 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
 }
 
 # ==============================================================================
-# Frontend Dashboard (CloudFront + S3)
+# Frontend CloudFront Dashboard
 # ==============================================================================
 
-resource "aws_cloudwatch_dashboard" "frontend" {
-  dashboard_name = "${var.project_name}-${var.environment}-frontend"
+resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
+  dashboard_name = "${var.project_name}-${var.environment}-frontend-cloudfront-dashboard"
 
   dashboard_body = jsonencode({
     widgets = [
       {
         type = "text"
         properties = {
-          markdown = "# 🌐 Frontend Dashboard\n## CloudFront CDN and S3 Static Hosting\n**Environment:** ${upper(var.environment)} | **Region:** ${var.aws_region}"
+          markdown = "# 🌐 Frontend Application Dashboard\n## Angular App Performance - CloudFront CDN + S3 Static Hosting\n**Environment:** ${upper(var.environment)} | **Distribution:** ${var.cloudfront_distribution_id} | **S3 Bucket:** ${var.s3_bucket_name}\n**Frontend URL:** https://events.sankofagrid.com"
         }
         x      = 0
         y      = 0
@@ -677,133 +677,254 @@ resource "aws_cloudwatch_dashboard" "frontend" {
         height = 2
       },
       {
-        type       = "text"
-        properties = { markdown = "## ☁️ CloudFront Distribution Metrics" }
-        x          = 0
-        y          = 2
-        width      = 24
-        height     = 1
+        type = "text"
+        properties = {
+          markdown = "## 📊 Frontend Performance Metrics - User Experience Monitoring"
+        }
+        x      = 0
+        y      = 2
+        width  = 24
+        height = 1
       },
       {
         type = "metric"
         properties = {
-          title   = "📊 Total Requests"
-          metrics = [["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Total Requests", color = "#1f77b4" }]]
+          title   = "🔥 Page Views (5 min)"
+          metrics = [["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Views", color = "#FF6B6B" }]]
           view    = "singleValue"
           region  = "us-east-1"
           period  = 300
         }
         x      = 0
         y      = 3
-        width  = 6
-        height = 4
+        width  = 4
+        height = 3
       },
       {
         type = "metric"
         properties = {
-          title   = "📈 Request Rate"
-          metrics = [["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Requests/min", color = "#2ca02c" }]]
-          view    = "timeSeries"
+          title   = "⚡ CDN Cache Efficiency"
+          metrics = [["AWS/CloudFront", "CacheHitRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "Hit %", color = "#4ECDC4" }]]
+          view    = "singleValue"
+          region  = "us-east-1"
+          period  = 300
+        }
+        x      = 4
+        y      = 3
+        width  = 4
+        height = 3
+      },
+      {
+        type = "metric"
+        properties = {
+          title   = "🌍 Frontend Assets Served"
+          metrics = [["AWS/CloudFront", "BytesDownloaded", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Bytes", color = "#95E1D3" }]]
+          view    = "singleValue"
+          region  = "us-east-1"
+          period  = 300
+        }
+        x      = 8
+        y      = 3
+        width  = 4
+        height = 3
+      },
+      {
+        type = "metric"
+        properties = {
+          title   = "⏱️ Page Load Time (ms)"
+          metrics = [["AWS/CloudFront", "OriginLatency", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "Latency", color = "#F38181" }]]
+          view    = "singleValue"
+          region  = "us-east-1"
+          period  = 300
+        }
+        x      = 12
+        y      = 3
+        width  = 4
+        height = 3
+      },
+      {
+        type = "metric"
+        properties = {
+          title   = "⚠️ Frontend Error Rate"
+          metrics = [
+            [{ expression = "(m1+m2)*100", label = "Errors %", color = "#E74C3C" }],
+            ["AWS/CloudFront", "4xxErrorRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { id = "m1", visible = false }],
+            [".", "5xxErrorRate", ".", ".", ".", ".", { id = "m2", visible = false }]
+          ]
+          view    = "singleValue"
+          region  = "us-east-1"
+          period  = 300
+        }
+        x      = 16
+        y      = 3
+        width  = 4
+        height = 3
+      },
+      {
+        type = "metric"
+        properties = {
+          title   = "👥 Active Users"
+          metrics = [["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "SampleCount", label = "Users", color = "#3498DB" }]]
+          view    = "singleValue"
           region  = "us-east-1"
           period  = 60
         }
-        x      = 6
+        x      = 20
         y      = 3
-        width  = 9
+        width  = 4
+        height = 3
+      },
+      {
+        type = "text"
+        properties = {
+          markdown = "## 📈 User Traffic & CDN Performance"
+        }
+        x      = 0
+        y      = 6
+        width  = 24
+        height = 1
+      },
+      {
+        type = "metric"
+        properties = {
+          title = "🔥 Frontend Traffic Volume"
+          metrics = [["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Page Requests", color = "#FF6B6B" }]]
+          view    = "timeSeries"
+          region  = "us-east-1"
+          period  = 60
+          yAxis   = { left = { label = "Requests", showUnits = false } }
+        }
+        x      = 0
+        y      = 7
+        width  = 12
         height = 6
       },
       {
         type = "metric"
         properties = {
-          title = "⚡ Cache Hit Rate"
+          title = "⚡ Static Asset Caching Efficiency"
           metrics = [
-            [{ expression = "(m1/(m1+m2))*100", label = "Cache Hit %", color = "#2ca02c" }],
-            ["AWS/CloudFront", "CacheHitRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { id = "m1", visible = false }],
-            [".", "CacheMissRate", ".", ".", ".", ".", { id = "m2", visible = false }]
+            ["AWS/CloudFront", "CacheHitRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "Cache Hit %", color = "#4ECDC4", yAxis = "left" }],
+            [".", "Requests", ".", ".", ".", ".", { stat = "Sum", label = "Asset Requests", color = "#95E1D3", yAxis = "right" }]
           ]
           view        = "timeSeries"
           region      = "us-east-1"
-          period      = 300
-          yAxis       = { left = { min = 0, max = 100 } }
-          annotations = { horizontal = [{ value = 80, label = "Target", color = "#2ca02c" }] }
+          period      = 60
+          yAxis       = { left = { min = 0, max = 100, label = "Hit Rate %" }, right = { label = "Requests" } }
+          annotations = { horizontal = [{ value = 85, label = "Optimal Cache", fill = "above", color = "#27AE60" }] }
         }
-        x      = 15
-        y      = 3
-        width  = 9
+        x      = 12
+        y      = 7
+        width  = 12
         height = 6
+      },
+      {
+        type = "text"
+        properties = {
+          markdown = "## 🌍 Global CDN Performance & User Experience"
+        }
+        x      = 0
+        y      = 13
+        width  = 24
+        height = 1
       },
       {
         type = "metric"
         properties = {
-          title = "📥 Data Transfer"
+          title = "📥 Frontend Assets Bandwidth"
           metrics = [
-            ["AWS/CloudFront", "BytesDownloaded", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Downloaded", color = "#1f77b4" }],
-            [".", "BytesUploaded", ".", ".", ".", ".", { stat = "Sum", label = "Uploaded", color = "#ff7f0e" }]
+            ["AWS/CloudFront", "BytesDownloaded", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Assets Downloaded (JS/CSS/HTML)", color = "#3498DB" }],
+            [".", "BytesUploaded", ".", ".", ".", ".", { stat = "Sum", label = "User Uploads", color = "#E67E22" }]
           ]
           view   = "timeSeries"
           region = "us-east-1"
-          period = 300
+          period = 60
           yAxis  = { left = { label = "Bytes" } }
         }
         x      = 0
-        y      = 9
+        y      = 14
         width  = 12
         height = 6
       },
       {
         type = "metric"
         properties = {
-          title = "🚦 HTTP Status Codes"
+          title = "🚦 Frontend Error Monitoring"
           metrics = [
-            ["AWS/CloudFront", "4xxErrorRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "4xx Errors", color = "#ff7f0e" }],
-            [".", "5xxErrorRate", ".", ".", ".", ".", { stat = "Average", label = "5xx Errors", color = "#d62728" }]
+            ["AWS/CloudFront", "4xxErrorRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "4xx (Page Not Found)", color = "#F39C12" }],
+            [".", "5xxErrorRate", ".", ".", ".", ".", { stat = "Average", label = "5xx (S3 Origin Errors)", color = "#E74C3C" }],
+            [".", "TotalErrorRate", ".", ".", ".", ".", { stat = "Average", label = "Total Errors", color = "#C0392B" }]
           ]
-          view   = "timeSeries"
-          region = "us-east-1"
-          period = 300
-          yAxis  = { left = { label = "Error Rate %" } }
+          view        = "timeSeries"
+          region      = "us-east-1"
+          period      = 60
+          yAxis       = { left = { label = "Error Rate %", min = 0 } }
+          annotations = { horizontal = [{ value = 1, label = "Alert Threshold", fill = "above", color = "#E74C3C" }] }
         }
         x      = 12
-        y      = 9
+        y      = 14
         width  = 12
         height = 6
       },
       {
-        type = "metric"
+        type = "text"
         properties = {
-          title   = "⏱️ Origin Latency"
-          metrics = [["AWS/CloudFront", "OriginLatency", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "Avg Latency", color = "#9467bd" }]]
-          view    = "timeSeries"
-          region  = "us-east-1"
-          period  = 300
-          yAxis   = { left = { label = "Milliseconds" } }
+          markdown = "## ⏱️ Latency & Response Time Analysis"
         }
         x      = 0
-        y      = 15
-        width  = 12
-        height = 5
+        y      = 20
+        width  = 24
+        height = 1
       },
       {
         type = "metric"
         properties = {
-          title = "🌍 Geographic Distribution"
+          title = "⏱️ Origin Response Time (Real-time)"
           metrics = [
-            ["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Global" }]
+            ["AWS/CloudFront", "OriginLatency", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "Avg Latency", color = "#9B59B6" }],
+            ["...", { stat = "p50", label = "P50", color = "#3498DB" }],
+            ["...", { stat = "p90", label = "P90", color = "#F39C12" }],
+            ["...", { stat = "p99", label = "P99", color = "#E74C3C" }]
           ]
-          view   = "timeSeries"
-          region = "us-east-1"
-          period = 3600
+          view        = "timeSeries"
+          region      = "us-east-1"
+          period      = 60
+          yAxis       = { left = { label = "Milliseconds", min = 0 } }
+          annotations = { horizontal = [{ value = 100, label = "Target SLA", fill = "above", color = "#E67E22" }] }
         }
-        x      = 12
-        y      = 15
+        x      = 0
+        y      = 21
         width  = 12
-        height = 5
+        height = 6
       },
       {
+        type = "metric"
+        properties = {
+          title = "🔥 Request Distribution by Status"
+          metrics = [
+            ["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Total Requests", color = "#27AE60" }],
+            [{ expression = "m1*m2/100", label = "4xx Errors", color = "#F39C12", id = "e1" }],
+            [{ expression = "m1*m3/100", label = "5xx Errors", color = "#E74C3C", id = "e2" }],
+            [".", "Requests", ".", ".", ".", ".", { id = "m1", visible = false }],
+            [".", "4xxErrorRate", ".", ".", ".", ".", { id = "m2", visible = false }],
+            [".", "5xxErrorRate", ".", ".", ".", ".", { id = "m3", visible = false }]
+          ]
+          view    = "timeSeries"
+          stacked = true
+          region  = "us-east-1"
+          period  = 60
+        }
+        x      = 12
+        y      = 21
+        width  = 12
+        height = 6
+      },
+
+      {
         type       = "text"
-        properties = { markdown = "## 🪣 S3 Bucket Metrics" }
+        properties = { markdown = "## 🪣 S3 Origin Metrics" }
         x          = 0
-        y          = 20
+        y          = 27
         width      = 24
         height     = 1
       },
@@ -818,7 +939,7 @@ resource "aws_cloudwatch_dashboard" "frontend" {
           yAxis   = { left = { label = "Bytes" } }
         }
         x      = 0
-        y      = 21
+        y      = 28
         width  = 12
         height = 5
       },
@@ -832,7 +953,7 @@ resource "aws_cloudwatch_dashboard" "frontend" {
           period  = 86400
         }
         x      = 12
-        y      = 21
+        y      = 28
         width  = 12
         height = 5
       },
@@ -850,7 +971,7 @@ resource "aws_cloudwatch_dashboard" "frontend" {
           period = 300
         }
         x      = 0
-        y      = 26
+        y      = 33
         width  = 12
         height = 5
       },
@@ -867,7 +988,7 @@ resource "aws_cloudwatch_dashboard" "frontend" {
           period = 300
         }
         x      = 12
-        y      = 26
+        y      = 33
         width  = 12
         height = 5
       }

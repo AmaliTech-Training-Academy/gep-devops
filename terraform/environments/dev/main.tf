@@ -452,10 +452,6 @@ module "rds" {
   # event_db_allocated_storage     = 20
   # event_db_max_allocated_storage = 100
 
-  # Booking DB - Not created yet
-  # booking_db_instance_class        = "db.t3.micro"
-  # booking_db_allocated_storage     = 20
-  # booking_db_max_allocated_storage = 100
 
   # Payment DB - Not created yet
   # payment_db_instance_class        = "db.t3.micro"

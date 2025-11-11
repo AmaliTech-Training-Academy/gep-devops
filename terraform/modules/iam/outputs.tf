@@ -20,7 +20,7 @@ output "ecs_task_role_arns" {
   value = {
     auth-service         = aws_iam_role.auth_service_task.arn         # User authentication and account management permissions
     event-service        = aws_iam_role.event_service_task.arn        # Event creation and management permissions
-    booking-service      = aws_iam_role.booking_service_task.arn      # Event booking and reservation permissions
+
     payment-service      = aws_iam_role.payment_service_task.arn      # Payment processing and transaction permissions
     notification-service = aws_iam_role.notification_service_task.arn # Email and SMS notification permissions
   }

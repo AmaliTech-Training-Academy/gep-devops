@@ -366,9 +366,7 @@ module "rds" {
   event_db_allocated_storage     = 20
   event_db_max_allocated_storage = 100
 
-  booking_db_instance_class        = "db.t4g.small"
-  booking_db_allocated_storage     = 20
-  booking_db_max_allocated_storage = 100
+
 
   payment_db_instance_class        = "db.t4g.micro"
   payment_db_allocated_storage     = 20
