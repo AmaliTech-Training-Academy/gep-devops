@@ -276,6 +276,17 @@ resource "aws_cloudfront_distribution" "main" {
       Environment = var.environment
     }
   )
+
+  lifecycle {
+    ignore_changes = [
+      # Ignore computed fields that change on every read
+      etag,
+      # Ignore ordering changes in custom error responses
+      custom_error_response,
+      # Ignore viewer certificate changes if using ACM
+      viewer_certificate[0].cloudfront_default_certificate,
+    ]
+  }
 }
 
 # Random password for custom header (security)
