@@ -1,0 +1,23 @@
+name: 'S3 Deploy'
+description: 'Deploy to S3 and invalidate CloudFront'
+inputs:
+  bucket:
+    description: 'S3 bucket name'
+    required: true
+  distribution-id:
+    description: 'CloudFront distribution ID'
+    required: true
+  source-dir:
+    description: 'Source directory to deploy'
+    required: false
+    default: 'dist/'
+runs:
+  using: 'composite'
+  steps:
+    - name: Deploy to S3
+      shell: bash
+      run: aws s3 sync ${{ inputs.source-dir }} s3://${{ inputs.bucket }} --delete
+
+    - name: Invalidate CloudFront
+      shell: bash
+      run: aws cloudfront create-invalidation --distribution-id ${{ inputs.distribution-id }} --paths "/*"

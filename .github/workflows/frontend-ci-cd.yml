@@ -21,27 +21,15 @@ jobs:
   security-scan:
     runs-on: [self-hosted, frontend]
     steps:
-    - name: Checkout Frontend Code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+
+    - uses: ./.github/actions/checkout-frontend
       with:
         repository: ${{ env.FRONTEND_REPO }}
         ref: ${{ env.COMMIT_SHA }}
         token: ${{ secrets.FRONTEND_REPO_TOKEN }}
-        path: frontend
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-
-    - name: Install Dependencies
-      working-directory: frontend
-      run: |
-        if [ -f "package-lock.json" ]; then
-          npm ci
-        else
-          npm install
-        fi
+    - uses: ./.github/actions/setup-node
 
     - name: Dependency Vulnerability Scan
       working-directory: frontend
@@ -49,74 +37,29 @@ jobs:
         npm audit --audit-level=moderate --json > audit-results.json || true
         VULN_COUNT=$(jq '.metadata.vulnerabilities.total' audit-results.json 2>/dev/null || echo "0")
         echo "Found $VULN_COUNT vulnerabilities"
-        if [ "$VULN_COUNT" -gt 0 ]; then
-          npm audit --audit-level=moderate || true
-        fi
+        [ "$VULN_COUNT" -gt 0 ] && npm audit --audit-level=moderate || true
 
     - name: Secrets Detection
       working-directory: frontend
       run: |
-        echo "Scanning for potential secrets..."
-        
-        # Common secret patterns
         SECRETS_FOUND=0
-        
-        # AWS keys
-        echo "Checking for AWS access keys..."
-        if grep -rn "AKIA[0-9A-Z]\{16\}" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock"; then
-          echo "::error::AWS access key found in above locations"
-          SECRETS_FOUND=1
-        fi
-        
-        # JWT tokens
-        echo "Checking for JWT tokens..."
-        if grep -rn "eyJ[A-Za-z0-9-_=]\+\.[A-Za-z0-9-_=]\+\.\?[A-Za-z0-9-_.+/=]*" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock"; then
-          echo "::error::JWT token found in above locations"
-          SECRETS_FOUND=1
-        fi
-        
-        # Generic API keys
-        echo "Checking for API keys..."
-        if grep -rin "api[_-]\?key.*['\"][0-9a-zA-Z]\{16,\}['\"]" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock"; then
-          echo "::error::API key found in above locations"
-          SECRETS_FOUND=1
-        fi
-        
-        # Private keys
-        echo "Checking for private keys..."
-        if grep -rn "BEGIN.*PRIVATE.*KEY" . --exclude-dir=node_modules; then
-          echo "::error::Private key found in above locations"
-          SECRETS_FOUND=1
-        fi
-        
-        if [ $SECRETS_FOUND -eq 0 ]; then
-          echo "✅ No secrets detected"
-        else
-          echo "❌ Found $SECRETS_FOUND type(s) of secrets"
-        fi
+        grep -rn "AKIA[0-9A-Z]\{16\}" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock" && SECRETS_FOUND=1 || true
+        grep -rn "eyJ[A-Za-z0-9-_=]\+\.[A-Za-z0-9-_=]\+\.\?[A-Za-z0-9-_.+/=]*" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock" && SECRETS_FOUND=1 || true
+        grep -rin "api[_-]\?key.*['\"][0-9a-zA-Z]\{16,\}['\"]" . --exclude-dir=node_modules --exclude="*.json" --exclude="*.lock" && SECRETS_FOUND=1 || true
+        grep -rn "BEGIN.*PRIVATE.*KEY" . --exclude-dir=node_modules && SECRETS_FOUND=1 || true
+        [ $SECRETS_FOUND -eq 0 ] && echo "✅ No secrets detected" || echo "❌ Secrets found"
 
     - name: Linting
       working-directory: frontend
-      run: |
-        if npm run | grep -q "lint"; then
-          npm run lint
-        else
-          echo "No lint script found, skipping linting"
-        fi
+      run: npm run | grep -q "lint" && npm run lint || echo "No lint script found"
 
     - name: License Check
       working-directory: frontend
       run: |
         npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD' --json > license-report.json || true
-        if npx license-checker --failOn 'GPL;AGPL;LGPL' --summary; then
-          echo "License check passed"
-        else
-          echo "::error::Restricted licenses found"
-          exit 1
-        fi
+        npx license-checker --failOn 'GPL;AGPL;LGPL' --summary || exit 1
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
+    - uses: ./.github/actions/aws-configure
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -127,45 +70,16 @@ jobs:
       run: |
         TIMESTAMP=$(date +%Y%m%d-%H%M%S)
         case "${{ env.ENVIRONMENT }}" in
-          dev) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_DEV }}" ;;
-          staging) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_STAGING }}" ;;
-          prod) REPORTS_BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_PROD }}" ;;
+          dev) BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_DEV }}" ;;
+          staging) BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_STAGING }}" ;;
+          prod) BUCKET="${{ secrets.SECURITY_REPORTS_BUCKET_PROD }}" ;;
         esac
         
-        echo "📊 Uploading security reports to S3..."
-        echo "Bucket: $REPORTS_BUCKET"
-        echo "Path: frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/"
+        [ -f "frontend/audit-results.json" ] && aws s3 cp frontend/audit-results.json s3://$BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/audit-results.json
+        [ -f "frontend/license-report.json" ] && aws s3 cp frontend/license-report.json s3://$BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/license-report.json
         
-        # Upload audit results
-        if [ -f "frontend/audit-results.json" ]; then
-          aws s3 cp frontend/audit-results.json s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/audit-results.json
-          echo "✅ Uploaded audit results to S3"
-        else
-          echo "⚠️ No audit results file found"
-        fi
-        
-        # Upload license report
-        if [ -f "frontend/license-report.json" ]; then
-          aws s3 cp frontend/license-report.json s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/license-report.json
-          echo "✅ Uploaded license report to S3"
-        else
-          echo "⚠️ No license report file found"
-        fi
-        
-        # Upload SARIF results (if exists)
-        if [ -f "results.sarif" ]; then
-          aws s3 cp results.sarif s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/semgrep-results.sarif
-          echo "✅ Uploaded SARIF results to S3"
-        else
-          echo "ℹ️ No SARIF results file found (not enabled)"
-        fi
-        
-        # Create summary report
         echo "{\"timestamp\":\"$TIMESTAMP\",\"environment\":\"${{ env.ENVIRONMENT }}\",\"repository\":\"frontend\",\"commit\":\"${{ env.COMMIT_SHA }}\",\"actor\":\"${{ github.actor }}\",\"workflow_run\":\"${{ github.run_id }}\"}" > scan-summary.json
-        aws s3 cp scan-summary.json s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/scan-summary.json
-        echo "✅ Uploaded scan summary to S3"
-        
-        echo "📊 Security reports uploaded to s3://$REPORTS_BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/"
+        aws s3 cp scan-summary.json s3://$BUCKET/frontend/${{ env.ENVIRONMENT }}/$TIMESTAMP/scan-summary.json
 
     - name: Upload Security Reports (Artifacts)
       uses: actions/upload-artifact@v4
@@ -175,7 +89,6 @@ jobs:
         path: |
           frontend/audit-results.json
           frontend/license-report.json
-          results.sarif
           scan-summary.json
 
   build-and-test:
@@ -183,36 +96,20 @@ jobs:
     if: always() && (needs.security-scan.result == 'success' || needs.security-scan.result == 'failure')
     runs-on: [self-hosted, frontend]
     steps:
-    - name: Checkout Frontend Code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+
+    - uses: ./.github/actions/checkout-frontend
       with:
         repository: ${{ env.FRONTEND_REPO }}
-        ref: ${{ env.COMMIT_SHA || 'main' }}
+        ref: ${{ env.COMMIT_SHA }}
         token: ${{ secrets.FRONTEND_REPO_TOKEN }}
-        path: frontend
-        fetch-depth: 0
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    - uses: ./.github/actions/setup-node
+
+    - uses: ./.github/actions/frontend-build
       with:
-        node-version: '18'
-
-    - name: Install and Build
-      working-directory: frontend
-      run: |
-        if [ -f "package-lock.json" ]; then
-          npm ci
-        else
-          npm install
-        fi
-        
-        if npm run | grep -q "build:${{ env.ENVIRONMENT }}"; then
-          npm run build:${{ env.ENVIRONMENT }}
-        else
-          npm run build
-        fi
-      env:
-        NG_APP_PROD_API: ${{ secrets.NG_APP_PROD_API }}
+        environment: ${{ env.ENVIRONMENT }}
+        api-url: ${{ secrets.NG_APP_PROD_API }}
 
     - name: Upload Build Artifacts
       if: success()
@@ -226,64 +123,49 @@ jobs:
     if: always() && needs.build-and-test.result == 'success'
     runs-on: [self-hosted, frontend]
     steps:
+    - uses: actions/checkout@v4
+
     - name: Download Build Artifacts
       uses: actions/download-artifact@v4
       with:
         name: dist-${{ env.ENVIRONMENT }}
         path: dist/
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
+    - uses: ./.github/actions/aws-configure
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Deploy to S3
+    - name: Get Deployment Config
+      id: config
       run: |
         case "${{ env.ENVIRONMENT }}" in
-          dev) BUCKET="${{ secrets.S3_BUCKET_DEV }}" ;;
-          staging) BUCKET="${{ secrets.S3_BUCKET_STAGING }}" ;;
-          prod) BUCKET="${{ secrets.S3_BUCKET_PROD }}" ;;
+          dev) 
+            echo "bucket=${{ secrets.S3_BUCKET_DEV }}" >> $GITHUB_OUTPUT
+            echo "distribution=${{ secrets.CLOUDFRONT_DISTRIBUTION_DEV }}" >> $GITHUB_OUTPUT
+            ;;
+          staging) 
+            echo "bucket=${{ secrets.S3_BUCKET_STAGING }}" >> $GITHUB_OUTPUT
+            echo "distribution=${{ secrets.CLOUDFRONT_DISTRIBUTION_STAGING }}" >> $GITHUB_OUTPUT
+            ;;
+          prod) 
+            echo "bucket=${{ secrets.S3_BUCKET_PROD }}" >> $GITHUB_OUTPUT
+            echo "distribution=${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}" >> $GITHUB_OUTPUT
+            ;;
         esac
-        
-        if [ -z "$BUCKET" ]; then
-          echo "::error::S3 bucket not configured for environment ${{ env.ENVIRONMENT }}"
-          exit 1
-        fi
-        
-        aws s3 sync dist/ s3://$BUCKET --delete
 
-    - name: Invalidate CloudFront
-      run: |
-        case "${{ env.ENVIRONMENT }}" in
-          dev) DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_DEV }}" ;;
-          staging) DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_STAGING }}" ;;
-          prod) DISTRIBUTION="${{ secrets.CLOUDFRONT_DISTRIBUTION_PROD }}" ;;
-        esac
-        
-        if [ -z "$DISTRIBUTION" ]; then
-          echo "::error::CloudFront distribution not configured for environment ${{ env.ENVIRONMENT }}"
-          exit 1
-        fi
-        
-        aws cloudfront create-invalidation --distribution-id $DISTRIBUTION --paths "/*"
+    - uses: ./.github/actions/s3-deploy
+      with:
+        bucket: ${{ steps.config.outputs.bucket }}
+        distribution-id: ${{ steps.config.outputs.distribution }}
 
   notify:
     needs: [security-scan, build-and-test, deploy-to-s3]
     if: always()
     runs-on: [self-hosted, frontend]
     steps:
-    - name: Security Summary
-      if: always()
-      run: |
-        echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- **Security Scan Status:** ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Reports Uploaded to S3:** ✅ Available in security-reports bucket" >> $GITHUB_STEP_SUMMARY
-        echo "- **Environment:** ${{ env.ENVIRONMENT }}" >> $GITHUB_STEP_SUMMARY
-
     - name: Slack Notification
-      if: always()
       uses: 8398a7/action-slack@v3
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -295,26 +177,9 @@ jobs:
             "attachments": [{
               "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
               "fields": [
-                {
-                  "title": "Environment",
-                  "value": "${{ env.ENVIRONMENT }}",
-                  "short": true
-                },
-                {
-                  "title": "Repository",
-                  "value": "event-planner-frontend",
-                  "short": true
-                },
-                {
-                  "title": "Security Scan",
-                  "value": "${{ needs.security-scan.result }}",
-                  "short": true
-                },
-                {
-                  "title": "Triggered By",
-                  "value": "${{ github.actor }}",
-                  "short": true
-                }
+                {"title": "Environment", "value": "${{ env.ENVIRONMENT }}", "short": true},
+                {"title": "Security Scan", "value": "${{ needs.security-scan.result }}", "short": true},
+                {"title": "Triggered By", "value": "${{ github.actor }}", "short": true}
               ]
             }]
           }
