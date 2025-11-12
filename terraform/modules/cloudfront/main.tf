@@ -279,8 +279,6 @@ resource "aws_cloudfront_distribution" "main" {
 
   lifecycle {
     ignore_changes = [
-      # Ignore computed fields that change on every read
-      etag,
       # Ignore ordering changes in custom error responses
       custom_error_response,
       # Ignore viewer certificate changes if using ACM
