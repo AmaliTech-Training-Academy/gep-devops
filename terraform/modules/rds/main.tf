@@ -248,7 +248,6 @@ resource "aws_db_instance" "primary" {
   )
 
   lifecycle {
-    prevent_destroy = true  # Protect existing database from accidental deletion
     ignore_changes = [
       password,              # Password managed externally
       db_name,               # Database name already set (authdb)
