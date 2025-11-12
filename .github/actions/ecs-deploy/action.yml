@@ -1,0 +1,56 @@
+name: 'Deploy to ECS'
+description: 'Deploy service to ECS with health checks'
+inputs:
+  service:
+    description: 'Service name'
+    required: true
+  cluster:
+    description: 'ECS cluster name'
+    required: true
+  region:
+    description: 'AWS region'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Check and Activate Service
+      shell: bash
+      run: |
+        SERVICE_INFO=$(aws ecs describe-services \
+          --cluster "${{ inputs.cluster }}" \
+          --services "${{ inputs.service }}" \
+          --region ${{ inputs.region }} \
+          --query 'services[0].{Status:status,DesiredCount:desiredCount}' \
+          --output json 2>/dev/null || echo '{"Status":"NOT_FOUND"}')
+        
+        STATUS=$(echo $SERVICE_INFO | jq -r '.Status')
+        DESIRED=$(echo $SERVICE_INFO | jq -r '.DesiredCount')
+        
+        if [ "$STATUS" = "NOT_FOUND" ] || [ "$STATUS" = "null" ]; then
+          echo "❌ Service not found. Apply Terraform first."
+          exit 1
+        elif [ "$STATUS" = "INACTIVE" ] || [ "$DESIRED" = "0" ]; then
+          aws ecs update-service --cluster "${{ inputs.cluster }}" --service "${{ inputs.service }}" --desired-count 1 --region ${{ inputs.region }}
+          aws ecs wait services-stable --cluster "${{ inputs.cluster }}" --services "${{ inputs.service }}" --region ${{ inputs.region }}
+        fi
+
+    - name: Deploy Service
+      shell: bash
+      run: |
+        aws ecs update-service \
+          --cluster "${{ inputs.cluster }}" \
+          --service "${{ inputs.service }}" \
+          --force-new-deployment \
+          --region ${{ inputs.region }}
+
+    - name: Wait for Stability
+      shell: bash
+      run: |
+        if ! timeout 600 aws ecs wait services-stable \
+          --cluster "${{ inputs.cluster }}" \
+          --services "${{ inputs.service }}" \
+          --region ${{ inputs.region }}; then
+          echo "❌ Deployment failed"
+          aws ecs describe-services --cluster "${{ inputs.cluster }}" --services "${{ inputs.service }}" --region ${{ inputs.region }} --query 'services[0].events[:5]' --output table
+          exit 1
+        fi

@@ -1,0 +1,30 @@
+name: 'Docker Build and Push'
+description: 'Build and push Docker image to ECR'
+inputs:
+  service:
+    description: 'Service name'
+    required: true
+  environment:
+    description: 'Environment name'
+    required: true
+  commit-sha:
+    description: 'Commit SHA for tagging'
+    required: true
+  ecr-registry:
+    description: 'ECR registry URL'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Build and Push
+      shell: bash
+      run: |
+        cd services
+        REPO_NAME="event-planner-${{ inputs.environment }}-${{ inputs.service }}"
+        IMAGE_TAG="${{ inputs.commit-sha }}"
+        
+        docker build -f ${{ inputs.service }}/Dockerfile -t "${{ inputs.ecr-registry }}/$REPO_NAME:$IMAGE_TAG" .
+        docker push "${{ inputs.ecr-registry }}/$REPO_NAME:$IMAGE_TAG"
+        
+        docker tag "${{ inputs.ecr-registry }}/$REPO_NAME:$IMAGE_TAG" "${{ inputs.ecr-registry }}/$REPO_NAME:latest"
+        docker push "${{ inputs.ecr-registry }}/$REPO_NAME:latest"

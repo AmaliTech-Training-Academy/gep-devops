@@ -25,7 +25,6 @@ env:
   BACKEND_REPO: "${{ github.event.client_payload.repository || 'AmaliTech-Training-Academy/gep-backend' }}"
   COMMIT_SHA: "${{ github.event.client_payload.sha || github.sha }}"
   AWS_REGION: eu-west-1
-  # Terraform-managed naming convention
   ECS_CLUSTER: "event-planner-${{ github.event.client_payload.environment || inputs.environment }}-cluster"
 
 jobs:
@@ -34,101 +33,50 @@ jobs:
     outputs:
       services: ${{ steps.services.outputs.matrix }}
     steps:
-      - name: Checkout Backend Code
-        uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-backend
         with:
           repository: ${{ env.BACKEND_REPO }}
           ref: ${{ env.COMMIT_SHA }}
           token: ${{ secrets.BACKEND_REPO_TOKEN }}
 
-      - name: List Repository Contents
-        run: |
-          echo "Repository contents:"
-          ls -la
-          echo "Looking for service directories..."
-          find . -maxdepth 2 -type d -name "*service*" || echo "No service directories found"
-
-      - name: Determine Services to Deploy
+      - name: Determine Services
         id: services
         run: |
-          # Use services from repository dispatch payload, fallback to enabled services
-          if [ -n "${{ github.event.client_payload.services }}" ]; then
-            SERVICES='${{ toJson(github.event.client_payload.services) }}'
-            echo "📦 Services from repository dispatch: $SERVICES"
-          elif [ -n "${{ inputs.services }}" ]; then
-            SERVICES='${{ inputs.services }}'
-            echo "📦 Services from manual input: $SERVICES"
-          else
-            # Default enabled services (Terraform-managed)
-            SERVICES='["auth-service", "event-service", "notification-service"]'
-            echo "📦 Using default enabled services: $SERVICES"
-          fi
-          
-          # Filter only services that are enabled in Terraform
-          ENABLED_SERVICES=("auth-service" "event-service" "notification-service")
-          FILTERED_SERVICES=()
+          SERVICES='${{ github.event.client_payload.services || inputs.services || '["auth-service", "event-service", "notification-service"]' }}'
+          ENABLED=("auth-service" "event-service" "notification-service")
+          FILTERED=()
           
           for service in $(echo $SERVICES | jq -r '.[]'); do
-            if [[ " ${ENABLED_SERVICES[*]} " =~ " $service " ]]; then
-              FILTERED_SERVICES+=("\"$service\"")
-              echo "✅ $service is enabled for deployment"
-            else
-              echo "⚠️ $service is not enabled in Terraform (skipping)"
-            fi
+            [[ " ${ENABLED[*]} " =~ " $service " ]] && FILTERED+=("\"$service\"")
           done
           
-          if [ ${#FILTERED_SERVICES[@]} -eq 0 ]; then
-            echo "⚠️ No enabled services to deploy, using defaults"
-            FILTERED_SERVICES=("\"auth-service\"" "\"event-service\"" "\"notification-service\"")
-          fi
+          [ ${#FILTERED[@]} -eq 0 ] && FILTERED=("\"auth-service\"" "\"event-service\"" "\"notification-service\"")
           
-          FINAL_SERVICES="[$(IFS=,; echo "${FILTERED_SERVICES[*]}")]"
-          echo "matrix=$FINAL_SERVICES" >> "$GITHUB_OUTPUT"
-          echo "🚀 Final services to deploy: $FINAL_SERVICES"
+          echo "matrix=[$(IFS=,; echo "${FILTERED[*]}")]" >> "$GITHUB_OUTPUT"
 
   build-common:
     needs: prepare
     runs-on: [self-hosted, backend]
     steps:
-      - name: Checkout Backend Code
-        uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-backend
         with:
           repository: ${{ env.BACKEND_REPO }}
           ref: ${{ env.COMMIT_SHA }}
           token: ${{ secrets.BACKEND_REPO_TOKEN }}
 
-      - name: Cache Maven Dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+      - uses: ./.github/actions/setup-maven
 
-      - name: Build Parent POM and Common Libraries
+      - name: Build Common
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
           export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
           
-          # Build parent POM if exists
-          if [ -f "pom.xml" ]; then
-            echo "📋 Building parent POM..."
-            mvn clean install -N -U -DskipTests --batch-mode
-          fi
+          [ -f "pom.xml" ] && mvn clean install -N -U -DskipTests --batch-mode
           
-          # Build common-libraries
           if [ -d "common-libraries" ]; then
-            echo "📚 Building common-libraries..."
-            cd common-libraries
-            mvn clean install -U -DskipTests --batch-mode
-            cd ..
+            cd common-libraries && mvn clean install -U -DskipTests --batch-mode
           elif [ -d "services/common-libraries" ]; then
-            echo "📚 Building common-libraries..."
-            cd services/common-libraries
-            mvn clean install -U -DskipTests --batch-mode
-            cd ../..
-          else
-            echo "⚠️ common-libraries not found, skipping..."
+            cd services/common-libraries && mvn clean install -U -DskipTests --batch-mode
           fi
 
   build-and-test:
@@ -138,82 +86,19 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.prepare.outputs.services) }}
     steps:
-      - name: Checkout Backend Code
-        uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-backend
         with:
           repository: ${{ env.BACKEND_REPO }}
           ref: ${{ env.COMMIT_SHA }}
           token: ${{ secrets.BACKEND_REPO_TOKEN }}
 
-      - name: Verify Java Environment
-        run: |
-          echo "Java version:"
-          java --version
-          echo "JAVA_HOME: $JAVA_HOME"
-          echo "Maven version:"
-          mvn --version
-          export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
-          echo "Updated JAVA_HOME: $JAVA_HOME"
+      - uses: ./.github/actions/setup-maven
 
-      - name: Debug Service Path
-        run: |
-          echo "Processing service: ${{ matrix.service }}"
-          echo "Looking for directory: services/${{ matrix.service }}"
-          ls -la services/ || echo "services/ directory not found"
-          ls -la services/${{ matrix.service }} || echo "services/${{ matrix.service }} not found"
-
-      - name: Cache Maven Dependencies
-        uses: actions/cache@v3
+      - uses: ./.github/actions/build-maven
         with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+          service: ${{ matrix.service }}
 
-      - name: Clear Maven Cache Failures
-        run: |
-          # Remove cached resolution failures
-          find ~/.m2/repository -name "*.lastUpdated" -type f -delete
-          find ~/.m2/repository -name "_remote.repositories" -type f -delete
-          echo "✅ Cleared Maven cache failures"
-
-      - name: Build Dependencies
-        run: |
-          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-          export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
-          
-          # Build parent POM in services directory
-          if [ -f "services/pom.xml" ]; then
-            echo "📋 Building parent POM..."
-            cd services
-            mvn install -N -DskipTests --batch-mode || { echo "❌ Parent POM build failed"; exit 1; }
-            echo "✅ Parent POM installed"
-            cd ..
-          else
-            echo "⚠️ No parent pom.xml found in services/"
-          fi
-          
-          # Build common-libraries
-          if [ -d "services/common-libraries" ]; then
-            echo "📚 Building common-libraries..."
-            cd services/common-libraries
-            mvn install -DskipTests --batch-mode || { echo "❌ common-libraries build failed"; exit 1; }
-            echo "✅ common-libraries installed"
-            cd ../..
-          else
-            echo "⚠️ common-libraries not found"
-          fi
-
-      - name: Build and Test Service
-        run: |
-          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-          export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
-          cd services/${{ matrix.service }}
-          echo "🧪 Skipping unit tests for ${{ matrix.service }}..."
-          echo "📦 Building package..."
-          mvn clean package -DskipTests -T 1C --batch-mode
-
-      - name: Security Scan (Trivy)
+      - name: Security Scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -226,15 +111,13 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.prepare.outputs.services) }}
     steps:
-      - name: Checkout Backend Code
-        uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-backend
         with:
           repository: ${{ env.BACKEND_REPO }}
           ref: ${{ env.COMMIT_SHA }}
           token: ${{ secrets.BACKEND_REPO_TOKEN }}
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: ./.github/actions/aws-configure
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -244,26 +127,12 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and Push Docker Image
-        run: |
-          cd services
-          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-          
-          # Use Terraform naming convention: event-planner-{env}-{service}
-          REPO_NAME="event-planner-${{ env.ENVIRONMENT }}-${{ matrix.service }}"
-          IMAGE_TAG="${{ env.COMMIT_SHA }}"
-          
-          echo "Building image: $REGISTRY/$REPO_NAME:$IMAGE_TAG"
-          docker build -f ${{ matrix.service }}/Dockerfile -t "$REGISTRY/$REPO_NAME:$IMAGE_TAG" .
-          docker push "$REGISTRY/$REPO_NAME:$IMAGE_TAG"
-          
-          # Also tag as latest (Terraform uses 'latest' by default)
-          docker tag "$REGISTRY/$REPO_NAME:$IMAGE_TAG" "$REGISTRY/$REPO_NAME:latest"
-          docker push "$REGISTRY/$REPO_NAME:latest"
-          
-          echo "✅ Pushed images:"
-          echo "  - $REGISTRY/$REPO_NAME:$IMAGE_TAG"
-          echo "  - $REGISTRY/$REPO_NAME:latest"
+      - uses: ./.github/actions/docker-build-push
+        with:
+          service: ${{ matrix.service }}
+          environment: ${{ env.ENVIRONMENT }}
+          commit-sha: ${{ env.COMMIT_SHA }}
+          ecr-registry: ${{ steps.login-ecr.outputs.registry }}
 
   deploy-to-ecs:
     needs: [prepare, build-and-push]
@@ -272,223 +141,18 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.prepare.outputs.services) }}
     steps:
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: ./.github/actions/aws-configure
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Check and Activate Service
-        run: |
-          SERVICE_NAME="${{ matrix.service }}"
-          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
-          
-          echo "🔍 Checking service $SERVICE_NAME in cluster $CLUSTER_NAME"
-          
-          # Check if service exists and get its status
-          SERVICE_INFO=$(aws ecs describe-services \
-            --cluster "$CLUSTER_NAME" \
-            --services "$SERVICE_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'services[0].{Status:status,DesiredCount:desiredCount}' \
-            --output json 2>/dev/null || echo '{"Status":"NOT_FOUND"}')
-          
-          SERVICE_STATUS=$(echo $SERVICE_INFO | jq -r '.Status')
-          DESIRED_COUNT=$(echo $SERVICE_INFO | jq -r '.DesiredCount')
-          
-          echo "Service status: $SERVICE_STATUS, Desired count: $DESIRED_COUNT"
-          
-          if [ "$SERVICE_STATUS" = "NOT_FOUND" ] || [ "$SERVICE_STATUS" = "null" ]; then
-            echo "❌ Service $SERVICE_NAME not found in cluster $CLUSTER_NAME"
-            echo "📋 Available services:"
-            aws ecs list-services --cluster "$CLUSTER_NAME" --region ${{ env.AWS_REGION }} --output table
-            echo "⚠️ Please apply Terraform changes first to create the service"
-            echo "   cd terraform/environments/dev && terraform apply"
-            exit 1
-          elif [ "$SERVICE_STATUS" = "INACTIVE" ] || [ "$DESIRED_COUNT" = "0" ]; then
-            echo "🔄 Service $SERVICE_NAME is INACTIVE or scaled to 0. Scaling up..."
-            
-            # Scale up the service to 1 task
-            aws ecs update-service \
-              --cluster "$CLUSTER_NAME" \
-              --service "$SERVICE_NAME" \
-              --desired-count 1 \
-              --region ${{ env.AWS_REGION }}
-            
-            echo "⏳ Waiting for service to become active..."
-            aws ecs wait services-stable \
-              --cluster "$CLUSTER_NAME" \
-              --services "$SERVICE_NAME" \
-              --region ${{ env.AWS_REGION }}
-            
-            echo "✅ Service $SERVICE_NAME is now active"
-          elif [ "$SERVICE_STATUS" != "ACTIVE" ]; then
-            echo "⚠️ Service $SERVICE_NAME is in unexpected state: $SERVICE_STATUS"
-            exit 1
-          else
-            echo "✅ Service $SERVICE_NAME is already ACTIVE"
-          fi
+      - uses: ./.github/actions/ecs-deploy
+        with:
+          service: ${{ matrix.service }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to ECS (Force New Deployment)
-        run: |
-          SERVICE_NAME="${{ matrix.service }}"
-          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
-          
-          echo "🚀 Deploying $SERVICE_NAME to $CLUSTER_NAME"
-          echo "📦 New image will be pulled from ECR (tag: latest)"
-          
-          # Force new deployment (ECS will pull latest image)
-          aws ecs update-service \
-            --cluster "$CLUSTER_NAME" \
-            --service "$SERVICE_NAME" \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
-          
-          echo "⏳ Waiting for deployment to complete..."
-          aws ecs wait services-stable \
-            --cluster "$CLUSTER_NAME" \
-            --services "$SERVICE_NAME" \
-            --region ${{ env.AWS_REGION }}
-          
-          echo "✅ Successfully deployed $SERVICE_NAME"vice "$SERVICE_NAME" \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
-          
-          echo "✅ Deployment initiated for $SERVICE_NAME"
-
-      - name: Wait for Service Stability
-        run: |
-          SERVICE_NAME="${{ matrix.service }}"
-          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
-          
-          echo "⏳ Waiting for service to stabilize (timeout: 10 minutes)..."
-          
-          # Wait with timeout and better error handling
-          if timeout 600 aws ecs wait services-stable \
-            --cluster "$CLUSTER_NAME" \
-            --services "$SERVICE_NAME" \
-            --region ${{ env.AWS_REGION }}; then
-            echo "✅ Service $SERVICE_NAME is stable"
-          else
-            echo "❌ Service failed to stabilize within 10 minutes"
-            echo "📊 Current service status:"
-            aws ecs describe-services \
-              --cluster "$CLUSTER_NAME" \
-              --services "$SERVICE_NAME" \
-              --region ${{ env.AWS_REGION }} \
-              --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount,Deployments:deployments[*].{Status:status,TaskDef:taskDefinition,Running:runningCount}}' \
-              --output table
-            
-            echo "📋 Recent events:"
-            aws ecs describe-services \
-              --cluster "$CLUSTER_NAME" \
-              --services "$SERVICE_NAME" \
-              --region ${{ env.AWS_REGION }} \
-              --query 'services[0].events[:5]' \
-              --output table
-            
-            echo "🔍 Task failures (if any):"
-            TASK_ARNS=$(aws ecs list-tasks \
-              --cluster "$CLUSTER_NAME" \
-              --service-name "$SERVICE_NAME" \
-              --region ${{ env.AWS_REGION }} \
-              --query 'taskArns' \
-              --output text)
-            
-            if [ -n "$TASK_ARNS" ]; then
-              aws ecs describe-tasks \
-                --cluster "$CLUSTER_NAME" \
-                --tasks $TASK_ARNS \
-                --region ${{ env.AWS_REGION }} \
-                --query 'tasks[*].{TaskArn:taskArn,LastStatus:lastStatus,HealthStatus:healthStatus,StoppedReason:stoppedReason}' \
-                --output table
-            fi
-            
-            exit 1
-          fi
-
-      - name: Store Previous Task Definition
-        id: backup
-        run: |
-          SERVICE_NAME="${{ matrix.service }}"
-          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
-          
-          # Get current task definition before deployment
-          CURRENT_TASK_DEF=$(aws ecs describe-services \
-            --cluster "$CLUSTER_NAME" \
-            --services "$SERVICE_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'services[0].taskDefinition' \
-            --output text)
-          
-          echo "previous_task_def=$CURRENT_TASK_DEF" >> $GITHUB_OUTPUT
-          echo "📋 Stored previous task definition: $CURRENT_TASK_DEF"
-
-      - name: Get Deployment Status
-        id: deployment_status
-        run: |
-          SERVICE_NAME="${{ matrix.service }}"
-          CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
-          
-          echo "📊 Service Status:"
-          aws ecs describe-services \
-            --cluster "$CLUSTER_NAME" \
-            --services "$SERVICE_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount,Deployments:deployments[*].{Status:status,TaskDef:taskDefinition,Running:runningCount}}' \
-            --output table
-
-  # rollback-on-failure:
-  #   needs: [prepare, deploy-to-ecs]
-  #   if: failure()
-  #   runs-on: [self-hosted, backend]
-  #   strategy:
-  #     matrix:
-  #       service: ${{ fromJson(needs.prepare.outputs.services) }}
-  #   steps:
-  #     - name: Configure AWS Credentials
-  #       uses: aws-actions/configure-aws-credentials@v4
-  #       with:
-  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #         aws-region: ${{ env.AWS_REGION }}
-  #
-  #     - name: Rollback Deployment
-  #       run: |
-  #         SERVICE_NAME="${{ matrix.service }}"
-  #         CLUSTER_NAME="${{ env.ECS_CLUSTER }}"
-  #         
-  #         echo "🔄 Rolling back $SERVICE_NAME due to deployment failure"
-  #         
-  #         # Get the previous stable task definition
-  #         PREVIOUS_TASK_DEF=$(aws ecs describe-services \
-  #           --cluster "$CLUSTER_NAME" \
-  #           --services "$SERVICE_NAME" \
-  #           --region ${{ env.AWS_REGION }} \
-  #           --query 'services[0].deployments[?status==`PRIMARY`].taskDefinition' \
-  #           --output text | head -1)
-  #         
-  #         if [ -n "$PREVIOUS_TASK_DEF" ] && [ "$PREVIOUS_TASK_DEF" != "None" ]; then
-  #           echo "📋 Rolling back to task definition: $PREVIOUS_TASK_DEF"
-  #           
-  #           # Update service to use previous task definition
-  #           aws ecs update-service \
-  #             --cluster "$CLUSTER_NAME" \
-  #             --service "$SERVICE_NAME" \
-  #             --task-definition "$PREVIOUS_TASK_DEF" \
-  #             --region ${{ env.AWS_REGION }}
-  #           
-  #           echo "⏳ Waiting for rollback to stabilize..."
-  #           aws ecs wait services-stable \
-  #             --cluster "$CLUSTER_NAME" \
-  #             --services "$SERVICE_NAME" \
-  #             --region ${{ env.AWS_REGION }}
-  #           
-  #           echo "✅ Rollback completed for $SERVICE_NAME"
-  #         else
-  #           echo "❌ No previous task definition found for rollback"
-  #         fi
   notify:
     needs: [prepare, deploy-to-ecs]
     if: always()
@@ -503,31 +167,12 @@ jobs:
           custom_payload: |
             {
               "text": "Backend Deployment Status",
-              "attachments": [
-                {
-                  "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
-                  "fields": [
-                    {
-                      "title": "Status",
-                      "value": "${{ contains(needs.*.result, 'failure') && 'Failed' || 'Succeeded' }}",
-                      "short": true
-                    },
-                    {
-                      "title": "Environment",
-                      "value": "${{ env.ENVIRONMENT }}",
-                      "short": true
-                    },
-                    {
-                      "title": "Services",
-                      "value": "auth-service, event-service, notification-service",
-                      "short": true
-                    },
-                    {
-                      "title": "Commit SHA",
-                      "value": "${{ env.COMMIT_SHA }}",
-                      "short": true
-                    }
-                  ]
-                }
-              ]
+              "attachments": [{
+                "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
+                "fields": [
+                  {"title": "Status", "value": "${{ contains(needs.*.result, 'failure') && 'Failed' || 'Succeeded' }}", "short": true},
+                  {"title": "Environment", "value": "${{ env.ENVIRONMENT }}", "short": true},
+                  {"title": "Commit SHA", "value": "${{ env.COMMIT_SHA }}", "short": true}
+                ]
+              }]
             }

@@ -1,0 +1,20 @@
+name: 'Checkout Backend'
+description: 'Checkout backend repository code'
+inputs:
+  repository:
+    description: 'Backend repository'
+    required: true
+  ref:
+    description: 'Git ref to checkout'
+    required: true
+  token:
+    description: 'GitHub token'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repository }}
+        ref: ${{ inputs.ref }}
+        token: ${{ inputs.token }}

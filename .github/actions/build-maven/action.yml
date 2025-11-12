@@ -1,0 +1,30 @@
+name: 'Build Maven Project'
+description: 'Build Maven dependencies and service'
+inputs:
+  service:
+    description: 'Service name to build'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Build Dependencies
+      shell: bash
+      run: |
+        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+        export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
+        
+        if [ -f "services/pom.xml" ]; then
+          cd services && mvn install -N -DskipTests --batch-mode && cd ..
+        fi
+        
+        if [ -d "services/common-libraries" ]; then
+          cd services/common-libraries && mvn install -DskipTests --batch-mode && cd ../..
+        fi
+
+    - name: Build Service
+      shell: bash
+      run: |
+        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+        export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
+        cd services/${{ inputs.service }}
+        mvn clean package -DskipTests -T 1C --batch-mode
