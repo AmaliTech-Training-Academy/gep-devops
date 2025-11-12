@@ -23,3 +23,8 @@
 /ext
 scripts/terraform.tfvars
 final-confluence-upload.sh
+
+# Ansible
+ansible/
+*.retry
+.ansible/
