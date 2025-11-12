@@ -33,6 +33,8 @@ jobs:
     outputs:
       services: ${{ steps.services.outputs.matrix }}
     steps:
+      - uses: actions/checkout@v4
+
       - uses: ./.github/actions/checkout-backend
         with:
           repository: ${{ env.BACKEND_REPO }}
@@ -58,6 +60,8 @@ jobs:
     needs: prepare
     runs-on: [self-hosted, backend]
     steps:
+      - uses: actions/checkout@v4
+
       - uses: ./.github/actions/checkout-backend
         with:
           repository: ${{ env.BACKEND_REPO }}
@@ -86,6 +90,8 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.prepare.outputs.services) }}
     steps:
+      - uses: actions/checkout@v4
+
       - uses: ./.github/actions/checkout-backend
         with:
           repository: ${{ env.BACKEND_REPO }}
@@ -111,6 +117,8 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.prepare.outputs.services) }}
     steps:
+      - uses: actions/checkout@v4
+
       - uses: ./.github/actions/checkout-backend
         with:
           repository: ${{ env.BACKEND_REPO }}
@@ -141,6 +149,8 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.prepare.outputs.services) }}
     steps:
+      - uses: actions/checkout@v4
+
       - uses: ./.github/actions/aws-configure
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
