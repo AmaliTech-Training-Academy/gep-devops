@@ -225,9 +225,10 @@ module "secrets_manager" {
 module "iam" {
   source = "../../modules/iam"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  frontend_bucket_arn = module.s3.assets_bucket_arn
+  project_name             = var.project_name
+  environment              = var.environment
+  frontend_bucket_arn      = module.s3.assets_bucket_arn
+  backend_files_bucket_arn = module.s3.backend_files_bucket_arn
 
   # Use wildcard for flexibility - actual secrets created by RDS modules
   db_secrets_arns = [

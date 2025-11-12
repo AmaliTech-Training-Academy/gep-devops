@@ -51,6 +51,11 @@ variable "frontend_bucket_arn" {
   type        = string
 }
 
+variable "backend_files_bucket_arn" {
+  description = "Location of backend files bucket for user uploads (profile pictures, documents, etc.). Services use presigned URLs to allow secure direct uploads."
+  type        = string
+}
+
 variable "jwt_secret_arn" {
   description = "Secure storage location for user authentication keys. Auth service needs this to verify user logins and create secure sessions."
   type        = string

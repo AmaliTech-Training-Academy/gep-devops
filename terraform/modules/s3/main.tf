@@ -340,6 +340,49 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "backend_files" {
   }
 }
 
+# CORS configuration for backend_files bucket (presigned URL uploads)
+resource "aws_s3_bucket_cors_configuration" "backend_files" {
+  bucket = aws_s3_bucket.backend_files.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
+    allowed_origins = var.cors_allowed_origins
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3600
+  }
+}
+
+# Lifecycle rules for backend_files bucket
+resource "aws_s3_bucket_lifecycle_configuration" "backend_files" {
+  bucket = aws_s3_bucket.backend_files.id
+
+  rule {
+    id     = "transition-old-files"
+    status = "Enabled"
+
+    transition {
+      days          = 90
+      storage_class = "STANDARD_IA"
+    }
+
+    filter {
+      prefix = "uploads/"
+    }
+  }
+
+  rule {
+    id     = "delete-incomplete-uploads"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+
+    filter {}
+  }
+}
+
 # ==============================================================================
 # Security Reports Bucket
 # ==============================================================================
