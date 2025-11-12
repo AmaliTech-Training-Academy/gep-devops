@@ -33,17 +33,8 @@ jobs:
     outputs:
       services: ${{ steps.services.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/checkout-backend
-        with:
-          repository: ${{ env.BACKEND_REPO }}
-          ref: ${{ env.COMMIT_SHA }}
-          token: ${{ secrets.BACKEND_REPO_TOKEN }}
-
       - name: Determine Services
         id: services
-        working-directory: backend
         run: |
           SERVICES='${{ github.event.client_payload.services || inputs.services || '["auth-service", "event-service", "notification-service"]' }}'
           ENABLED=("auth-service" "event-service" "notification-service")
