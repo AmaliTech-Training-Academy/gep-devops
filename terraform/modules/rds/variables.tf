@@ -2,29 +2,27 @@
 # RDS Module Variables - Database Infrastructure Configuration
 # ==============================================================================
 # WHAT THIS FILE DOES:
-# Defines all settings for our database infrastructure where customer and business
-# data is stored securely. Think of it like configuring a high-security bank vault
-# with different safety deposit boxes for different types of valuable information.
+# Defines settings for the existing auth-db PostgreSQL instance where all
+# microservices store their data using separate schemas.
 #
-# BUSINESS DATA STORED:
-# - User accounts and authentication information
-# - Event details and scheduling data
-
-# - Payment transactions and financial data
+# BUSINESS DATA STORED (Multi-Schema Approach):
+# - Auth Service: User accounts and authentication (public schema)
+# - Event Service: Event details and scheduling (event_schema)
+# - Payment Service: Payment transactions (payment_schema)
 # - System audit logs and compliance records
 #
 # CONFIGURATION CATEGORIES:
-# - Database Sizing: How much computing power and storage each database needs
+# - Database Sizing: Computing power and storage for the shared database
 # - Security Settings: Encryption, access controls, and compliance features
 # - Backup & Recovery: How we protect against data loss
 # - Performance: Speed and reliability optimizations
 # - Monitoring: Health checks and alerting for database issues
 #
 # BUSINESS IMPACT:
+# - Cost Optimization: Single database instance instead of multiple
 # - Data Loss Prevention: Automated backups and redundancy
 # - Performance: Fast response times for user interactions
 # - Security: Encrypted storage and secure access controls
-# - Compliance: Audit trails and data protection measures
 # ==============================================================================
 
 # ==============================================================================
@@ -67,59 +65,21 @@ variable "security_group_id" {
 # Databases automatically grow when they need more space, up to the maximum limit.
 # Prevents running out of storage space during business growth.
 
-# Auth Database - Stores user accounts and login information
-variable "auth_db_instance_class" {
-  description = "Computing power for user authentication database. Medium size handles thousands of concurrent users logging in."
+# Single Database Configuration (Multi-Schema Approach)
+variable "db_instance_class" {
+  description = "Computing power for the database. All services connect to this single instance using different schemas."
   type        = string
   default     = "db.t3.medium"
 }
 
-variable "auth_db_allocated_storage" {
-  description = "Starting storage space for user data (GB). Automatically grows as more users register."
+variable "db_allocated_storage" {
+  description = "Starting storage space for the database (GB). Automatically grows as data increases."
   type        = number
   default     = 100
 }
 
-variable "auth_db_max_allocated_storage" {
-  description = "Maximum storage limit for user database (GB). Prevents runaway storage costs while allowing growth."
-  type        = number
-  default     = 500
-}
-
-# Event Database
-variable "event_db_instance_class" {
-  description = "Instance class for event database"
-  type        = string
-  default     = "db.t3.micro"
-}
-
-variable "event_db_allocated_storage" {
-  description = "Allocated storage for event database (GB)"
-  type        = number
-  default     = 200
-}
-
-variable "event_db_max_allocated_storage" {
-  description = "Maximum allocated storage for event database (GB)"
-  type        = number
-  default     = 1000
-}
-
-# Payment Database
-variable "payment_db_instance_class" {
-  description = "Instance class for payment database"
-  type        = string
-  default     = "db.t3.micro"
-}
-
-variable "payment_db_allocated_storage" {
-  description = "Allocated storage for payment database (GB)"
-  type        = number
-  default     = 100
-}
-
-variable "payment_db_max_allocated_storage" {
-  description = "Maximum allocated storage for payment database (GB)"
+variable "db_max_allocated_storage" {
+  description = "Maximum storage limit for the database (GB). Prevents runaway storage costs while allowing growth."
   type        = number
   default     = 500
 }
