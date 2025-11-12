@@ -4,11 +4,16 @@ inputs:
   service:
     description: 'Service name to build'
     required: true
+  working-directory:
+    description: 'Working directory'
+    required: false
+    default: 'backend'
 runs:
   using: 'composite'
   steps:
     - name: Build Dependencies
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: |
         export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
         export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
@@ -23,6 +28,7 @@ runs:
 
     - name: Build Service
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: |
         export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
         export MAVEN_OPTS="-Dmaven.repo.local=$HOME/.m2/repository -Xmx1024m"
