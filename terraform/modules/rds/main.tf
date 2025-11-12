@@ -242,7 +242,7 @@ resource "aws_db_instance" "primary" {
     {
       Name     = "${var.project_name}-${var.environment}-auth-db"
       Database = local.db_name
-      Schemas  = join(", ", values(local.schemas))
+      Schemas  = join("-", values(local.schemas))
       Role     = "primary"
     }
   )
