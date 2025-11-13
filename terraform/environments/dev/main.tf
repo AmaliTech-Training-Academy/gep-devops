@@ -636,6 +636,7 @@ module "ecs" {
   sqs_queue_urls  = module.sqs-sns.queue_urls
   sqs_queue_names = module.sqs-sns.queue_names
   s3_bucket_name  = module.s3.assets_bucket_id
+  s3_backend_files_bucket_name = module.s3.backend_files_bucket_id
   alb_dns_name    = module.alb.alb_dns_name
 
   target_group_arns = module.alb.target_group_arns
