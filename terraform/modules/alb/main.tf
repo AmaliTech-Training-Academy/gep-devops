@@ -115,6 +115,11 @@ locals {
       path_pattern = "/api/v1/users*"
       priority     = 93
     }
+    auth_user_invitations = {
+      service_key  = "auth"
+      path_pattern = "/api/v1/user-invitations*"
+      priority     = 89
+    }
     event_invitations = {
       service_key  = "event"
       path_pattern = "/api/v1/event-invitations*"
