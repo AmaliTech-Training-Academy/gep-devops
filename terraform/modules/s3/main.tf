@@ -311,13 +311,30 @@ resource "aws_s3_bucket" "backend_files" {
   )
 }
 
+# Enable ACL for backend_files bucket (required for application uploads)
+resource "aws_s3_bucket_ownership_controls" "backend_files" {
+  bucket = aws_s3_bucket.backend_files.id
+
+  rule {
+    object_ownership = "ObjectWriter"
+  }
+}
+
+# Configure bucket ACL
+resource "aws_s3_bucket_acl" "backend_files" {
+  depends_on = [aws_s3_bucket_ownership_controls.backend_files]
+
+  bucket = aws_s3_bucket.backend_files.id
+  acl    = "private"
+}
+
 resource "aws_s3_bucket_public_access_block" "backend_files" {
   bucket = aws_s3_bucket.backend_files.id
 
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+  block_public_acls       = false  # Allow ACLs for uploads
+  block_public_policy     = true   # Block public bucket policies
+  ignore_public_acls      = false  # Respect ACLs
+  restrict_public_buckets = true   # Restrict public bucket access
 }
 
 resource "aws_s3_bucket_versioning" "backend_files" {
