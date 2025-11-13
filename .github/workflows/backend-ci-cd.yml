@@ -28,7 +28,25 @@ env:
   ECS_CLUSTER: "event-planner-${{ github.event.client_payload.environment || inputs.environment }}-cluster"
 
 jobs:
+  check-branch:
+    runs-on: [self-hosted, backend]
+    outputs:
+      should-deploy: ${{ steps.check.outputs.deploy }}
+    steps:
+      - name: Check Branch
+        id: check
+        run: |
+          BRANCH="${{ github.event.client_payload.ref || 'dev' }}"
+          if [[ "$BRANCH" == "refs/heads/dev" || "$BRANCH" == "dev" ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ Skipping deployment - branch '$BRANCH' is not 'dev'"
+          fi
+
   prepare:
+    needs: check-branch
+    if: needs.check-branch.outputs.should-deploy == 'true'
     runs-on: [self-hosted, backend]
     outputs:
       services: ${{ steps.services.outputs.matrix }}
@@ -49,7 +67,8 @@ jobs:
           echo "matrix=[$(IFS=,; echo "${FILTERED[*]}")]" >> "$GITHUB_OUTPUT"
 
   build-common:
-    needs: prepare
+    needs: [check-branch, prepare]
+    if: needs.check-branch.outputs.should-deploy == 'true'
     runs-on: [self-hosted, backend]
     steps:
       - uses: actions/checkout@v4
@@ -77,7 +96,8 @@ jobs:
           fi
 
   build-and-test:
-    needs: [prepare, build-common]
+    needs: [check-branch, prepare, build-common]
+    if: needs.check-branch.outputs.should-deploy == 'true'
     runs-on: [self-hosted, backend]
     strategy:
       matrix:
@@ -104,7 +124,8 @@ jobs:
           scan-ref: 'backend/services/${{ matrix.service }}'
 
   build-and-push:
-    needs: [prepare, build-and-test]
+    needs: [check-branch, prepare, build-and-test]
+    if: needs.check-branch.outputs.should-deploy == 'true'
     runs-on: [self-hosted, backend]
     strategy:
       matrix:
@@ -136,7 +157,8 @@ jobs:
           ecr-registry: ${{ steps.login-ecr.outputs.registry }}
 
   deploy-to-ecs:
-    needs: [prepare, build-and-push]
+    needs: [check-branch, prepare, build-and-push]
+    if: needs.check-branch.outputs.should-deploy == 'true'
     runs-on: [self-hosted, backend]
     strategy:
       matrix:
@@ -157,8 +179,8 @@ jobs:
           region: ${{ env.AWS_REGION }}
 
   notify:
-    needs: [prepare, deploy-to-ecs]
-    if: always()
+    needs: [check-branch, prepare, deploy-to-ecs]
+    if: always() && needs.check-branch.outputs.should-deploy == 'true'
     runs-on: [self-hosted, backend]
     steps:
       - name: Slack Notification
