@@ -272,10 +272,6 @@ resource "aws_ecs_task_definition" "services" {
         },
         {
           name  = "AWS_S3_BUCKET"
-          value = var.s3_bucket_name
-        },
-        {
-          name  = "AWS_S3_BACKEND_FILES_BUCKET"
           value = var.s3_backend_files_bucket_name
         }
         ],
