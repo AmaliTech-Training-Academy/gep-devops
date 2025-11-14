@@ -311,13 +311,30 @@ resource "aws_s3_bucket" "backend_files" {
   )
 }
 
+# Enable ACL for backend_files bucket
+resource "aws_s3_bucket_ownership_controls" "backend_files" {
+  bucket = aws_s3_bucket.backend_files.id
+
+  rule {
+    object_ownership = "ObjectWriter"
+  }
+}
+
+# Configure bucket ACL as public-read for direct frontend access
+resource "aws_s3_bucket_acl" "backend_files" {
+  depends_on = [aws_s3_bucket_ownership_controls.backend_files, aws_s3_bucket_public_access_block.backend_files]
+
+  bucket = aws_s3_bucket.backend_files.id
+  acl    = "public-read"
+}
+
 resource "aws_s3_bucket_public_access_block" "backend_files" {
   bucket = aws_s3_bucket.backend_files.id
 
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+  block_public_acls       = false  # Allow public ACLs
+  block_public_policy     = false  # Allow public bucket policy
+  ignore_public_acls      = false  # Respect ACLs
+  restrict_public_buckets = false  # Allow public bucket access
 }
 
 resource "aws_s3_bucket_versioning" "backend_files" {
@@ -337,6 +354,69 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "backend_files" {
       kms_master_key_id = var.kms_key_arn
     }
     bucket_key_enabled = var.kms_key_arn != null ? true : false
+  }
+}
+
+# CORS configuration for backend_files bucket (direct frontend uploads)
+resource "aws_s3_bucket_cors_configuration" "backend_files" {
+  bucket = aws_s3_bucket.backend_files.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
+    allowed_origins = var.cors_allowed_origins
+    expose_headers  = ["ETag", "x-amz-request-id"]
+    max_age_seconds = 3600
+  }
+}
+
+# Bucket policy for public read access
+resource "aws_s3_bucket_policy" "backend_files" {
+  depends_on = [aws_s3_bucket_public_access_block.backend_files]
+
+  bucket = aws_s3_bucket.backend_files.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.backend_files.arn}/*"
+      }
+    ]
+  })
+}
+
+# Lifecycle rules for backend_files bucket
+resource "aws_s3_bucket_lifecycle_configuration" "backend_files" {
+  bucket = aws_s3_bucket.backend_files.id
+
+  rule {
+    id     = "transition-old-files"
+    status = "Enabled"
+
+    transition {
+      days          = 90
+      storage_class = "STANDARD_IA"
+    }
+
+    filter {
+      prefix = "uploads/"
+    }
+  }
+
+  rule {
+    id     = "delete-incomplete-uploads"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+
+    filter {}
   }
 }
 

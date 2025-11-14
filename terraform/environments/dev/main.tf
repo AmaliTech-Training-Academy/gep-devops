@@ -225,9 +225,10 @@ module "secrets_manager" {
 module "iam" {
   source = "../../modules/iam"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  frontend_bucket_arn = module.s3.assets_bucket_arn
+  project_name             = var.project_name
+  environment              = var.environment
+  frontend_bucket_arn      = module.s3.assets_bucket_arn
+  backend_files_bucket_arn = module.s3.backend_files_bucket_arn
 
   # Use wildcard for flexibility - actual secrets created by RDS modules
   db_secrets_arns = [
@@ -355,7 +356,7 @@ module "cloudwatch" {
   ecs_cluster_name          = module.ecs.cluster_name
   alb_arn                   = module.alb.alb_arn
   alb_arn_suffix            = module.alb.alb_arn_suffix
-  rds_instance_id           = module.rds.primary_instance_ids["auth"]
+  rds_instance_id           = module.rds.primary_instance_id
   elasticache_cluster_id    = module.elasticache.replication_group_id
   cloudfront_distribution_id = module.cloudfront.distribution_id
 
@@ -397,7 +398,7 @@ module "cloudwatch_dashboards" {
   ecs_cluster_name             = module.ecs.cluster_name
   auth_target_group_arn_suffix = module.alb.target_group_arn_suffixes["auth"]
   event_target_group_arn_suffix = lookup(module.alb.target_group_arn_suffixes, "event", "")
-  auth_db_instance_id          = module.rds.primary_instance_ids["auth"]
+  auth_db_instance_id          = module.rds.primary_instance_id
   elasticache_cluster_id       = module.elasticache.replication_group_id
   cloudfront_distribution_id   = module.cloudfront.distribution_id
   s3_bucket_name               = module.s3.assets_bucket_id
@@ -442,21 +443,14 @@ module "rds" {
   subnet_ids        = module.vpc.private_data_subnet_ids
   security_group_id = module.security_groups.rds_security_group_id
 
-  # Auth DB - Currently running (upgraded to t3.medium)
-  auth_db_instance_class        = "db.t3.medium"
-  auth_db_allocated_storage     = 20
-  auth_db_max_allocated_storage = 100
-
-  # Event DB - Not created yet
-  # event_db_instance_class        = "db.t3.micro"
-  # event_db_allocated_storage     = 20
-  # event_db_max_allocated_storage = 100
-
-
-  # Payment DB - Not created yet
-  # payment_db_instance_class        = "db.t3.micro"
-  # payment_db_allocated_storage     = 20
-  # payment_db_max_allocated_storage = 100
+  # Single database with multiple schemas
+  # All services connect to authdb using their specific schema:
+  # - Auth service: public schema
+  # - Event service: event_schema
+  # - Payment service: payment_schema
+  db_instance_class        = "db.t3.medium"
+  db_allocated_storage     = 20
+  db_max_allocated_storage = 100
 
   postgres_version = "15.12"
   postgres_family  = "postgres15"
@@ -464,7 +458,7 @@ module "rds" {
   max_connections  = "100"
 
   storage_type     = "gp3"
-  provisioned_iops = null # Use gp3 default (3000 IOPS)
+  provisioned_iops = null
 
   # Dev: Single-AZ, no replicas
   multi_az             = false
@@ -642,6 +636,7 @@ module "ecs" {
   sqs_queue_urls  = module.sqs-sns.queue_urls
   sqs_queue_names = module.sqs-sns.queue_names
   s3_bucket_name  = module.s3.assets_bucket_id
+  s3_backend_files_bucket_name = module.s3.backend_files_bucket_id
   alb_dns_name    = module.alb.alb_dns_name
 
   target_group_arns = module.alb.target_group_arns

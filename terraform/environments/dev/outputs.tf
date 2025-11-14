@@ -99,9 +99,9 @@ output "ecr_repository_urls" {
 # RDS Outputs
 # ==============================================================================
 
-output "rds_endpoints" {
-  description = "RDS database endpoints"
-  value       = module.rds.primary_endpoints
+output "rds_endpoint" {
+  description = "RDS database endpoint (single database with multi-schema)"
+  value       = module.rds.primary_endpoint
   sensitive   = true
 }
 
@@ -247,7 +247,7 @@ output "deployment_summary" {
     cloudfront_domain = module.cloudfront.distribution_domain_name
     # DNS managed externally (Cloudflare)
     services_deployed = keys(module.ecs.service_names)
-    databases_created = keys(module.rds.primary_endpoints)
+    database_schemas  = keys(module.rds.schemas)
   }
 }
 

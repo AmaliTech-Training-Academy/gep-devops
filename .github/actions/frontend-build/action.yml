@@ -1,0 +1,27 @@
+name: 'Frontend Build'
+description: 'Build frontend application'
+inputs:
+  environment:
+    description: 'Environment to build for'
+    required: true
+  working-directory:
+    description: 'Working directory'
+    required: false
+    default: 'frontend'
+  api-url:
+    description: 'API URL for production'
+    required: false
+runs:
+  using: 'composite'
+  steps:
+    - name: Build
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        if npm run | grep -q "build:${{ inputs.environment }}"; then
+          npm run build:${{ inputs.environment }}
+        else
+          npm run build
+        fi
+      env:
+        NG_APP_PROD_API: ${{ inputs.api-url }}

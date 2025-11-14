@@ -187,10 +187,12 @@ resource "aws_iam_role_policy" "auth_service_task" {
         Effect = "Allow"
         Action = [
           "s3:GetObject",
-          "s3:PutObject"
+          "s3:PutObject",
+          "s3:DeleteObject"
         ]
         Resource = [
-          "${var.frontend_bucket_arn}/*"
+          "${var.frontend_bucket_arn}/*",
+          "${var.backend_files_bucket_arn}/*"
         ]
       },
       {
@@ -258,7 +260,8 @@ resource "aws_iam_role_policy" "event_service_task" {
           "s3:DeleteObject"
         ]
         Resource = [
-          "${var.frontend_bucket_arn}/*"
+          "${var.frontend_bucket_arn}/*",
+          "${var.backend_files_bucket_arn}/*"
         ]
       },
       {
@@ -317,6 +320,18 @@ resource "aws_iam_role_policy" "payment_service_task" {
           "sns:Publish"
         ]
         Resource = "arn:aws:sns:*:*:event-planner-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "${var.frontend_bucket_arn}/*",
+          "${var.backend_files_bucket_arn}/*"
+        ]
       },
       {
         Effect = "Allow"
@@ -381,6 +396,19 @@ resource "aws_iam_role_policy" "notification_service_task" {
           "sns:Unsubscribe"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "S3Permissions"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "${var.frontend_bucket_arn}/*",
+          "${var.backend_files_bucket_arn}/*"
+        ]
       },
       {
         Sid    = "SQSPermissions"

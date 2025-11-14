@@ -1,16 +1,16 @@
 # ==============================================================================
-# RDS Module - PostgreSQL Databases
+# RDS Module - PostgreSQL Database
 # ==============================================================================
-# This module creates RDS PostgreSQL instances for microservices:
-# - Auth Database (Authentication & User Management)
-# - Event Database (Event CRUD operations)
-
-# - Payment Database (Payment Processing)
+# This module manages the existing auth-db PostgreSQL instance.
+# All services connect to this single database using different schemas:
+# - Auth Service: public schema
+# - Event Service: event_schema
+# - Payment Service: payment_schema (when deployed)
 #
 # Features:
 # - Multi-AZ deployment (prod) / Single-AZ (dev)
 # - Read replicas (prod only)
-# - Automated backups with cross-region copy
+# - Automated backups
 # - Encryption at rest and in transit
 # - Enhanced monitoring and Performance Insights
 # - Auto-scaling storage
@@ -32,37 +32,19 @@ terraform {
 # ==============================================================================
 
 locals {
-  # Database configurations
-  # COST OPTIMIZATION: Commented out databases for services not yet deployed
-  # To re-enable: Uncomment the database blocks below and run terraform apply
-  databases = {
-    auth = {
-      instance_class        = var.auth_db_instance_class
-      allocated_storage     = var.auth_db_allocated_storage
-      max_allocated_storage = var.auth_db_max_allocated_storage
-      read_replica_count    = var.create_read_replicas ? 2 : 0
-      port                  = 5432
-    }
-    # TEMPORARILY DISABLED: Event database not needed yet
-    # Uncomment when event service is ready to deploy
-    # event = {
-    #   instance_class        = var.event_db_instance_class
-    #   allocated_storage     = var.event_db_allocated_storage
-    #   max_allocated_storage = var.event_db_max_allocated_storage
-    #   read_replica_count    = var.create_read_replicas ? 2 : 0
-    #   port                  = 5432
-    # }
-
-
-    # TEMPORARILY DISABLED: Payment database not needed yet
-    # Uncomment when payment service is ready to deploy
-    # payment = {
-    #   instance_class        = var.payment_db_instance_class
-    #   allocated_storage     = var.payment_db_allocated_storage
-    #   max_allocated_storage = var.payment_db_max_allocated_storage
-    #   read_replica_count    = var.create_read_replicas ? 2 : 0
-    #   port                  = 5432
-    # }
+  # Single database with multiple schemas
+  # All services connect to authdb and use their specific schema:
+  # - Auth service: public schema (default)
+  # - Event service: event_schema
+  # - Payment service: payment_schema
+  db_name = "authdb"
+  db_port = 5432
+  
+  # Schemas to create in the database
+  schemas = {
+    auth    = "public"         # Auth service uses default public schema
+    event   = "event_schema"   # Event service schema
+    payment = "payment_schema" # Payment service schema
   }
 
   common_tags = merge(
@@ -137,22 +119,19 @@ resource "aws_db_parameter_group" "postgres" {
 # Secrets Manager - Database Credentials
 # ==============================================================================
 
-# Generate random passwords for databases
-resource "random_password" "db_passwords" {
-  for_each = local.databases
-
+# Generate random password for the single database
+resource "random_password" "db_password" {
   length  = 32
   special = true
-  # Exclude characters that might cause issues in connection strings
   override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
-# Store database credentials in Secrets Manager
+# Store database credentials in Secrets Manager (one secret per service with schema info)
 resource "aws_secretsmanager_secret" "db_credentials" {
-  for_each = local.databases
+  for_each = local.schemas
 
   name_prefix             = "${var.project_name}/${var.environment}/${each.key}-db-"
-  description             = "Database credentials for ${each.key} service"
+  description             = "Database credentials for ${each.key} service (schema: ${each.value})"
   recovery_window_in_days = var.secret_recovery_window_days
   kms_key_id              = var.kms_key_arn
 
@@ -161,6 +140,7 @@ resource "aws_secretsmanager_secret" "db_credentials" {
     {
       Name    = "${var.project_name}-${var.environment}-${each.key}-db-secret"
       Service = each.key
+      Schema  = each.value
     }
   )
 
@@ -169,49 +149,48 @@ resource "aws_secretsmanager_secret" "db_credentials" {
   }
 }
 
-# Store credentials in secrets
+# Store credentials with schema information
 resource "aws_secretsmanager_secret_version" "db_credentials" {
-  for_each = local.databases
+  for_each = local.schemas
 
   secret_id = aws_secretsmanager_secret.db_credentials[each.key].id
 
   secret_string = jsonencode({
     username = var.master_username
-    password = random_password.db_passwords[each.key].result
+    password = random_password.db_password.result
     engine   = "postgres"
-    host     = aws_db_instance.primary[each.key].address
-    port     = each.value.port
-    dbname   = "${each.key}db"
-    url      = "jdbc:postgresql://${aws_db_instance.primary[each.key].address}:${each.value.port}/${each.key}db"
+    host     = aws_db_instance.primary.address
+    port     = local.db_port
+    dbname   = local.db_name
+    schema   = each.value
+    url      = "jdbc:postgresql://${aws_db_instance.primary.address}:${local.db_port}/${local.db_name}?currentSchema=${each.value}"
   })
 }
 
 # ==============================================================================
-# RDS Primary Instances
+# RDS Primary Instance (Single Database with Multiple Schemas)
 # ==============================================================================
 
-# Primary RDS instances for each database
+# Single RDS instance - all services connect to this database
 resource "aws_db_instance" "primary" {
-  for_each = local.databases
-
-  identifier     = "${var.project_name}-${var.environment}-${each.key}-db"
+  identifier     = "${var.project_name}-${var.environment}-auth-db"
   engine         = "postgres"
   engine_version = var.postgres_version
 
   # Instance configuration
-  instance_class    = each.value.instance_class
-  allocated_storage = each.value.allocated_storage
+  instance_class    = var.db_instance_class
+  allocated_storage = var.db_allocated_storage
   storage_type      = var.storage_type
   iops              = var.storage_type == "io1" ? var.provisioned_iops : null
 
   # Storage auto-scaling
-  max_allocated_storage = each.value.max_allocated_storage
+  max_allocated_storage = var.db_max_allocated_storage
 
   # Database configuration
-  db_name  = "${each.key}db"
+  db_name  = local.db_name
   username = var.master_username
-  password = random_password.db_passwords[each.key].result
-  port     = each.value.port
+  password = random_password.db_password.result
+  port     = local.db_port
 
   # Enable IAM authentication for enhanced security
   iam_database_authentication_enabled = true
@@ -233,7 +212,7 @@ resource "aws_db_instance" "primary" {
   maintenance_window        = var.maintenance_window
   copy_tags_to_snapshot     = true
   skip_final_snapshot       = var.skip_final_snapshot
-  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.project_name}-${var.environment}-${each.key}-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
+  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.project_name}-${var.environment}-auth-db-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
 
   # Enable automated backups
   enabled_cloudwatch_logs_exports = var.enabled_cloudwatch_logs_exports
@@ -261,15 +240,17 @@ resource "aws_db_instance" "primary" {
   tags = merge(
     local.common_tags,
     {
-      Name    = "${var.project_name}-${var.environment}-${each.key}-db"
-      Service = each.key
-      Role    = "primary"
+      Name     = "${var.project_name}-${var.environment}-auth-db"
+      Database = local.db_name
+      Schemas  = join("-", values(local.schemas))
+      Role     = "primary"
     }
   )
 
   lifecycle {
     ignore_changes = [
-      password, # Password managed by Secrets Manager rotation
+      password,              # Password managed externally
+      db_name,               # Database name already set (authdb)
       final_snapshot_identifier
     ]
   }
@@ -281,17 +262,17 @@ resource "aws_db_instance" "primary" {
 
 # Read replica 1 (Same AZ as primary)
 resource "aws_db_instance" "read_replica_1" {
-  for_each = var.create_read_replicas ? local.databases : {}
+  count = var.create_read_replicas ? 1 : 0
 
-  identifier             = "${var.project_name}-${var.environment}-${each.key}-replica-1"
-  replicate_source_db    = aws_db_instance.primary[each.key].identifier
-  instance_class         = each.value.instance_class
+  identifier             = "${var.project_name}-${var.environment}-auth-db-replica-1"
+  replicate_source_db    = aws_db_instance.primary.identifier
+  instance_class         = var.db_instance_class
   publicly_accessible    = false
   skip_final_snapshot    = true
   vpc_security_group_ids = [var.security_group_id]
 
   # Use same AZ as primary for low-latency reads
-  availability_zone = aws_db_instance.primary[each.key].availability_zone
+  availability_zone = aws_db_instance.primary.availability_zone
 
   # Encryption (inherited from primary)
   storage_encrypted = true
@@ -309,8 +290,8 @@ resource "aws_db_instance" "read_replica_1" {
   tags = merge(
     local.common_tags,
     {
-      Name          = "${var.project_name}-${var.environment}-${each.key}-replica-1"
-      Service       = each.key
+      Name          = "${var.project_name}-${var.environment}-auth-db-replica-1"
+      Database      = local.db_name
       Role          = "read_replica"
       ReplicaNumber = "1"
     }
@@ -319,17 +300,17 @@ resource "aws_db_instance" "read_replica_1" {
 
 # Read replica 2 (Different AZ for high availability)
 resource "aws_db_instance" "read_replica_2" {
-  for_each = var.create_read_replicas ? local.databases : {}
+  count = var.create_read_replicas ? 1 : 0
 
-  identifier             = "${var.project_name}-${var.environment}-${each.key}-replica-2"
-  replicate_source_db    = aws_db_instance.primary[each.key].identifier
-  instance_class         = each.value.instance_class
+  identifier             = "${var.project_name}-${var.environment}-auth-db-replica-2"
+  replicate_source_db    = aws_db_instance.primary.identifier
+  instance_class         = var.db_instance_class
   publicly_accessible    = false
   skip_final_snapshot    = true
   vpc_security_group_ids = [var.security_group_id]
 
   # Place in different AZ for cross-AZ redundancy
-  multi_az = false # Read replicas don't support Multi-AZ
+  multi_az = false
 
   # Encryption (inherited from primary)
   storage_encrypted = true
@@ -347,8 +328,8 @@ resource "aws_db_instance" "read_replica_2" {
   tags = merge(
     local.common_tags,
     {
-      Name          = "${var.project_name}-${var.environment}-${each.key}-replica-2"
-      Service       = each.key
+      Name          = "${var.project_name}-${var.environment}-auth-db-replica-2"
+      Database      = local.db_name
       Role          = "read_replica"
       ReplicaNumber = "2"
     }
@@ -393,11 +374,9 @@ resource "aws_iam_role_policy_attachment" "rds_monitoring" {
 # CloudWatch Alarms
 # ==============================================================================
 
-# CPU utilization alarm for primary instances
+# CPU utilization alarm
 resource "aws_cloudwatch_metric_alarm" "cpu_high" {
-  for_each = local.databases
-
-  alarm_name          = "${var.project_name}-${var.environment}-${each.key}-db-cpu-high"
+  alarm_name          = "${var.project_name}-${var.environment}-auth-db-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"
@@ -405,11 +384,11 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high" {
   period              = "300"
   statistic           = "Average"
   threshold           = var.cpu_alarm_threshold
-  alarm_description   = "CPU utilization is too high for ${each.key} database"
+  alarm_description   = "CPU utilization is too high for auth database"
   alarm_actions       = var.alarm_actions
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.primary[each.key].identifier
+    DBInstanceIdentifier = aws_db_instance.primary.identifier
   }
 
   tags = local.common_tags
@@ -417,9 +396,7 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high" {
 
 # Free storage space alarm
 resource "aws_cloudwatch_metric_alarm" "storage_low" {
-  for_each = local.databases
-
-  alarm_name          = "${var.project_name}-${var.environment}-${each.key}-db-storage-low"
+  alarm_name          = "${var.project_name}-${var.environment}-auth-db-storage-low"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "1"
   metric_name         = "FreeStorageSpace"
@@ -427,11 +404,11 @@ resource "aws_cloudwatch_metric_alarm" "storage_low" {
   period              = "300"
   statistic           = "Average"
   threshold           = var.storage_alarm_threshold_bytes
-  alarm_description   = "Free storage space is low for ${each.key} database"
+  alarm_description   = "Free storage space is low for auth database"
   alarm_actions       = var.alarm_actions
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.primary[each.key].identifier
+    DBInstanceIdentifier = aws_db_instance.primary.identifier
   }
 
   tags = local.common_tags
@@ -439,9 +416,7 @@ resource "aws_cloudwatch_metric_alarm" "storage_low" {
 
 # Database connections alarm
 resource "aws_cloudwatch_metric_alarm" "connections_high" {
-  for_each = local.databases
-
-  alarm_name          = "${var.project_name}-${var.environment}-${each.key}-db-connections-high"
+  alarm_name          = "${var.project_name}-${var.environment}-auth-db-connections-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "DatabaseConnections"
@@ -449,11 +424,11 @@ resource "aws_cloudwatch_metric_alarm" "connections_high" {
   period              = "300"
   statistic           = "Average"
   threshold           = var.connections_alarm_threshold
-  alarm_description   = "Database connections are too high for ${each.key} database"
+  alarm_description   = "Database connections are too high for auth database"
   alarm_actions       = var.alarm_actions
 
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.primary[each.key].identifier
+    DBInstanceIdentifier = aws_db_instance.primary.identifier
   }
 
   tags = local.common_tags

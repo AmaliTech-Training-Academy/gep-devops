@@ -135,7 +135,14 @@ locals {
       message_retention  = 259200
     }
 
-
+    # User invitation queue
+    user_invitation = {
+      name               = "${var.project_name}-${var.environment}-user-invitation-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["user.invitation"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
   }
 
   common_tags = merge(

@@ -273,6 +273,10 @@ resource "aws_ecs_task_definition" "services" {
         {
           name  = "AWS_S3_BUCKET"
           value = var.s3_bucket_name
+        },
+        {
+          name  = "AWS_S3_BACKEND_FILES_BUCKET"
+          value = var.s3_backend_files_bucket_name
         }
         ],
         [
@@ -346,6 +350,14 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "EVENT_STAT_QUEUE_URL"
             value = lookup(var.sqs_queue_urls, "event_stat", "")
+          },
+          {
+            name  = "USER_INVITATION_QUEUE"
+            value = lookup(var.sqs_queue_urls, "user_invitation", "")
+          },
+          {
+            name  = "FRONTEND_BASE_URL"
+            value = "https://events.sankofagrid.com"
           }
         ] : [],
         each.key == "event" ? [
@@ -559,6 +571,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "PAYMENT_COMPLETED_EVENT_QUEUE_NAME"
             value = lookup(var.sqs_queue_names, "payment_completed_event", "")
+          },
+          {
+            name  = "USER_INVITATION_QUEUE"
+            value = lookup(var.sqs_queue_urls, "user_invitation", "")
           }
         ] : []
       )

@@ -29,24 +29,24 @@
 # Database Connection Information
 # ==============================================================================
 
-output "primary_endpoints" {
-  description = "Network addresses where applications connect to each business database (auth, event, payment). Like office addresses for different departments."
+output "primary_endpoint" {
+  description = "Network address where all services connect to the database. Each service uses its own schema."
   value = {
-    for db, config in local.databases :
-    db => {
-      address  = aws_db_instance.primary[db].address  # Database server hostname
-      port     = aws_db_instance.primary[db].port     # Network port (usually 5432 for PostgreSQL)
-      endpoint = aws_db_instance.primary[db].endpoint # Complete connection string
-    }
+    address  = aws_db_instance.primary.address
+    port     = aws_db_instance.primary.port
+    endpoint = aws_db_instance.primary.endpoint
+    database = local.db_name
   }
 }
 
-output "primary_instance_ids" {
-  description = "Unique identifiers for each database instance. Operations team uses these for monitoring, backups, and troubleshooting database issues."
-  value = {
-    for db in keys(local.databases) :
-    db => aws_db_instance.primary[db].identifier
-  }
+output "primary_instance_id" {
+  description = "Unique identifier for the database instance. Used for monitoring, backups, and troubleshooting."
+  value       = aws_db_instance.primary.identifier
+}
+
+output "schemas" {
+  description = "Schema mapping for each service. Services use these schemas to isolate their data."
+  value       = local.schemas
 }
 
 # ==============================================================================
@@ -54,18 +54,15 @@ output "primary_instance_ids" {
 # ==============================================================================
 
 output "read_replica_endpoints" {
-  description = "Network addresses for read-only database copies that improve performance. Applications use these for data queries while main database handles updates."
+  description = "Network addresses for read-only database copies that improve performance."
   value = var.create_read_replicas ? {
-    for db in keys(local.databases) :
-    db => {
-      replica_1 = {
-        address = aws_db_instance.read_replica_1[db].address  # First read-only copy
-        port    = aws_db_instance.read_replica_1[db].port
-      }
-      replica_2 = {
-        address = aws_db_instance.read_replica_2[db].address  # Second read-only copy
-        port    = aws_db_instance.read_replica_2[db].port
-      }
+    replica_1 = {
+      address = aws_db_instance.read_replica_1[0].address
+      port    = aws_db_instance.read_replica_1[0].port
+    }
+    replica_2 = {
+      address = aws_db_instance.read_replica_2[0].address
+      port    = aws_db_instance.read_replica_2[0].port
     }
   } : {}
 }
@@ -75,10 +72,10 @@ output "read_replica_endpoints" {
 # ==============================================================================
 
 output "secret_arns" {
-  description = "Secure storage locations for database passwords and credentials. Applications retrieve these securely without hardcoding sensitive information."
+  description = "Secure storage locations for database credentials per service. Each secret contains schema information."
   value = {
-    for db in keys(local.databases) :
-    db => aws_secretsmanager_secret.db_credentials[db].arn
+    for service in keys(local.schemas) :
+    service => aws_secretsmanager_secret.db_credentials[service].arn
   }
 }
 
