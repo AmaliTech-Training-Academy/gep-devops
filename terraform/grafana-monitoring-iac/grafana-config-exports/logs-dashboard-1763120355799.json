@@ -1,0 +1,915 @@
+{
+  "apiVersion": "dashboard.grafana.app/v2beta1",
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "adjhn5v",
+    "generation": 9,
+    "creationTimestamp": "2025-11-06T16:11:54Z",
+    "labels": {},
+    "annotations": {}
+  },
+  "spec": {
+    "annotations": [
+      {
+        "kind": "AnnotationQuery",
+        "spec": {
+          "builtIn": true,
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "query": {
+            "group": "grafana",
+            "kind": "DataQuery",
+            "spec": {},
+            "version": "v0"
+          }
+        }
+      }
+    ],
+    "cursorSync": "Off",
+    "editable": true,
+    "elements": {
+      "panel-1": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {},
+                        "expression": "fields @timestamp, @message |\nsort @timestamp desc |\nlimit 100",
+                        "id": "",
+                        "label": "",
+                        "logGroups": [
+                          {
+                            "accountId": "904570587823",
+                            "arn": "arn:aws:logs:eu-west-1:904570587823:log-group:/ecs/event-planner/dev/event-service:*",
+                            "name": "/ecs/event-planner/dev/event-service"
+                          }
+                        ],
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "",
+                        "metricQueryType": 0,
+                        "namespace": "",
+                        "period": "",
+                        "queryLanguage": "CWLI",
+                        "queryMode": "Logs",
+                        "region": "default",
+                        "sqlExpression": "",
+                        "statistic": "Average",
+                        "statsGroups": []
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 1,
+          "links": [],
+          "title": "Event Service Logs",
+          "vizConfig": {
+            "group": "table",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "footer": {
+                      "reducers": []
+                    },
+                    "hideFrom": {
+                      "viz": false
+                    },
+                    "inspect": false
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "__logstream__grafana_internal__"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 403
+                      }
+                    ]
+                  }
+                ]
+              },
+              "options": {
+                "cellHeight": "sm",
+                "showHeader": true,
+                "sortBy": [
+                  {
+                    "desc": false,
+                    "displayName": "@message"
+                  }
+                ]
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      },
+      "panel-2": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {},
+                        "expression": "fields @timestamp, @message |\nsort @timestamp desc |\nlimit 100",
+                        "id": "",
+                        "label": "",
+                        "logGroups": [
+                          {
+                            "accountId": "904570587823",
+                            "arn": "arn:aws:logs:eu-west-1:904570587823:log-group:/ecs/event-planner/dev/auth-service:*",
+                            "name": "/ecs/event-planner/dev/auth-service"
+                          }
+                        ],
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "",
+                        "metricQueryType": 0,
+                        "namespace": "",
+                        "period": "",
+                        "queryLanguage": "CWLI",
+                        "queryMode": "Logs",
+                        "region": "default",
+                        "sqlExpression": "",
+                        "statistic": "Average",
+                        "statsGroups": []
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 2,
+          "links": [],
+          "title": "Auth Service Logs",
+          "vizConfig": {
+            "group": "table",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "footer": {
+                      "reducers": []
+                    },
+                    "hideFrom": {
+                      "viz": false
+                    },
+                    "inspect": false
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "cellHeight": "sm",
+                "showHeader": true,
+                "sortBy": [
+                  {
+                    "desc": false,
+                    "displayName": "@message"
+                  }
+                ]
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      },
+      "panel-3": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {},
+                        "expression": "fields @timestamp, @message |\nsort @timestamp desc |\nlimit 100",
+                        "id": "",
+                        "label": "",
+                        "logGroups": [
+                          {
+                            "accountId": "904570587823",
+                            "arn": "arn:aws:logs:eu-west-1:904570587823:log-group:/ecs/event-planner/dev/notification-service:*",
+                            "name": "/ecs/event-planner/dev/notification-service"
+                          }
+                        ],
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "",
+                        "metricQueryType": 0,
+                        "namespace": "",
+                        "period": "",
+                        "queryLanguage": "CWLI",
+                        "queryMode": "Logs",
+                        "region": "default",
+                        "sqlExpression": "",
+                        "statistic": "Average",
+                        "statsGroups": []
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 3,
+          "links": [],
+          "title": "Notification Service Logs",
+          "vizConfig": {
+            "group": "table",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "footer": {
+                      "reducers": []
+                    },
+                    "hideFrom": {
+                      "viz": false
+                    },
+                    "inspect": false
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "cellHeight": "sm",
+                "showHeader": true,
+                "sortBy": [
+                  {
+                    "desc": false,
+                    "displayName": "@message"
+                  }
+                ]
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      },
+      "panel-4": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {},
+                        "expression": "fields @timestamp, @message |\nsort @timestamp desc |\nlimit 100",
+                        "id": "",
+                        "label": "",
+                        "logGroups": [
+                          {
+                            "accountId": "904570587823",
+                            "arn": "arn:aws:logs:eu-west-1:904570587823:log-group:/aws/ecs/containerinsights/event-planner-dev-cluster/performance:*",
+                            "name": "/aws/ecs/containerinsights/event-planner-dev-cluster/performance"
+                          }
+                        ],
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "",
+                        "metricQueryType": 0,
+                        "namespace": "",
+                        "period": "",
+                        "queryLanguage": "CWLI",
+                        "queryMode": "Logs",
+                        "region": "default",
+                        "sqlExpression": "",
+                        "statistic": "Average",
+                        "statsGroups": []
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 4,
+          "links": [],
+          "title": "Container Insights Logs",
+          "vizConfig": {
+            "group": "table",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "footer": {
+                      "reducers": []
+                    },
+                    "hideFrom": {
+                      "viz": false
+                    },
+                    "inspect": false
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "cellHeight": "sm",
+                "showHeader": true,
+                "sortBy": [
+                  {
+                    "desc": false,
+                    "displayName": "@message"
+                  }
+                ]
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      },
+      "panel-5": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {},
+                        "expression": "fields @timestamp, @message |\nsort @timestamp desc |\nlimit 100",
+                        "id": "",
+                        "label": "",
+                        "logGroups": [
+                          {
+                            "accountId": "904570587823",
+                            "arn": "arn:aws:logs:eu-west-1:904570587823:log-group:/aws/vpc/event-planner-dev:*",
+                            "name": "/aws/vpc/event-planner-dev"
+                          }
+                        ],
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "",
+                        "metricQueryType": 0,
+                        "namespace": "",
+                        "period": "",
+                        "queryLanguage": "CWLI",
+                        "queryMode": "Logs",
+                        "region": "default",
+                        "sqlExpression": "",
+                        "statistic": "Average",
+                        "statsGroups": []
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 5,
+          "links": [],
+          "title": "VPC Flow Logs",
+          "vizConfig": {
+            "group": "table",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "footer": {
+                      "reducers": []
+                    },
+                    "hideFrom": {
+                      "viz": false
+                    },
+                    "inspect": false
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "cellHeight": "sm",
+                "showHeader": true,
+                "sortBy": [
+                  {
+                    "desc": false,
+                    "displayName": "@message"
+                  }
+                ]
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      },
+      "panel-6": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {},
+                        "expression": "fields @timestamp, @message |\nsort @timestamp desc |\nlimit 100",
+                        "id": "",
+                        "label": "",
+                        "logGroups": [
+                          {
+                            "accountId": "904570587823",
+                            "arn": "arn:aws:logs:eu-west-1:904570587823:log-group:/aws/rds/instance/event-planner-dev-auth-db/postgresql:*",
+                            "name": "/aws/rds/instance/event-planner-dev-auth-db/postgresql"
+                          }
+                        ],
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "",
+                        "metricQueryType": 0,
+                        "namespace": "",
+                        "period": "",
+                        "queryLanguage": "CWLI",
+                        "queryMode": "Logs",
+                        "region": "default",
+                        "sqlExpression": "",
+                        "statistic": "Average",
+                        "statsGroups": []
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 6,
+          "links": [],
+          "title": "RDS Database Logs",
+          "vizConfig": {
+            "group": "table",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "footer": {
+                      "reducers": []
+                    },
+                    "hideFrom": {
+                      "viz": false
+                    },
+                    "inspect": false
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "cellHeight": "sm",
+                "showHeader": true,
+                "sortBy": [
+                  {
+                    "desc": false,
+                    "displayName": "@message"
+                  }
+                ]
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      },
+      "panel-7": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {},
+                        "expression": "fields @timestamp, @message |\nsort @timestamp desc |\nlimit 100",
+                        "id": "",
+                        "label": "",
+                        "logGroups": [
+                          {
+                            "accountId": "904570587823",
+                            "arn": "arn:aws:logs:eu-west-1:904570587823:log-group:RDSOSMetrics:*",
+                            "name": "RDSOSMetrics"
+                          }
+                        ],
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "",
+                        "metricQueryType": 0,
+                        "namespace": "",
+                        "period": "",
+                        "queryLanguage": "CWLI",
+                        "queryMode": "Logs",
+                        "region": "default",
+                        "sqlExpression": "",
+                        "statistic": "Average",
+                        "statsGroups": []
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 7,
+          "links": [],
+          "title": "RDS Database Logs",
+          "vizConfig": {
+            "group": "table",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "footer": {
+                      "reducers": []
+                    },
+                    "hideFrom": {
+                      "viz": false
+                    },
+                    "inspect": false
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "cellHeight": "sm",
+                "showHeader": true,
+                "sortBy": [
+                  {
+                    "desc": false,
+                    "displayName": "@message"
+                  }
+                ]
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      }
+    },
+    "layout": {
+      "kind": "GridLayout",
+      "spec": {
+        "items": [
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-1"
+              },
+              "height": 8,
+              "width": 24,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-2"
+              },
+              "height": 8,
+              "width": 24,
+              "x": 0,
+              "y": 8
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-3"
+              },
+              "height": 8,
+              "width": 24,
+              "x": 0,
+              "y": 16
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-4"
+              },
+              "height": 8,
+              "width": 24,
+              "x": 0,
+              "y": 24
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-5"
+              },
+              "height": 8,
+              "width": 24,
+              "x": 0,
+              "y": 32
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-6"
+              },
+              "height": 8,
+              "width": 24,
+              "x": 0,
+              "y": 40
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-7"
+              },
+              "height": 8,
+              "width": 24,
+              "x": 0,
+              "y": 48
+            }
+          }
+        ]
+      }
+    },
+    "links": [],
+    "liveNow": false,
+    "preload": false,
+    "tags": [],
+    "timeSettings": {
+      "autoRefresh": "",
+      "autoRefreshIntervals": [
+        "5s",
+        "10s",
+        "30s",
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "1d"
+      ],
+      "fiscalYearStartMonth": 0,
+      "from": "now-30m",
+      "hideTimepicker": false,
+      "timezone": "browser",
+      "to": "now"
+    },
+    "title": "Logs dashboard",
+    "variables": []
+  },
+  "status": {}
+}

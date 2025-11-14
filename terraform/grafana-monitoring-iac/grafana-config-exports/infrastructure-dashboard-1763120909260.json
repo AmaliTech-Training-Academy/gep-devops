@@ -1,0 +1,1121 @@
+{
+  "apiVersion": "dashboard.grafana.app/v2beta1",
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "adjsjgr",
+    "namespace": "default",
+    "uid": "0W17aGbkd981lvaTsQ9v2y7EYdnziJUGRrwrQ8l9u7EX",
+    "resourceVersion": "12",
+    "generation": 12,
+    "creationTimestamp": "2025-11-05T14:04:30Z",
+    "labels": {
+      "grafana.app/deprecatedInternalID": "4"
+    },
+    "annotations": {
+      "grafana.app/createdBy": "user:cf37hyizyeepsc",
+      "grafana.app/folder": "df37k2i6madc0b",
+      "grafana.app/updatedBy": "user:cf37hyizyeepsc",
+      "grafana.app/updatedTimestamp": "2025-11-05T14:42:40Z"
+    }
+  },
+  "spec": {
+    "annotations": [
+      {
+        "kind": "AnnotationQuery",
+        "spec": {
+          "builtIn": true,
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "query": {
+            "datasource": {
+              "name": "-- Grafana --"
+            },
+            "group": "grafana",
+            "kind": "DataQuery",
+            "spec": {},
+            "version": "v0"
+          }
+        }
+      }
+    ],
+    "cursorSync": "Off",
+    "editable": true,
+    "elements": {
+      "panel-1": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "ClusterName": "event-planner-dev-cluster"
+                        },
+                        "label": "",
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "CPUUtilization",
+                        "metricQueryType": 0,
+                        "namespace": "AWS/ECS",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "ClusterName": "event-planner-dev-cluster"
+                        },
+                        "expression": "",
+                        "id": "",
+                        "label": "",
+                        "logGroups": [],
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "MemoryUtilization",
+                        "metricQueryType": 0,
+                        "namespace": "AWS/ECS",
+                        "period": "",
+                        "queryLanguage": "CWLI",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "sqlExpression": "",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "B"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 1,
+          "links": [],
+          "title": "ECS Resources Utilization",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": true,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      },
+      "panel-2": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "ClusterName": "event-planner-dev-cluster",
+                          "ServiceName": "auth-service"
+                        },
+                        "label": "Auth-RunningTasks",
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "RunningTaskCount",
+                        "metricQueryType": 0,
+                        "namespace": "ECS/ContainerInsights",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "ClusterName": "event-planner-dev-cluster",
+                          "ServiceName": "auth-service"
+                        },
+                        "expression": "",
+                        "id": "",
+                        "label": "Auth-DesireTasks",
+                        "logGroups": [],
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "DesiredTaskCount",
+                        "metricQueryType": 0,
+                        "namespace": "ECS/ContainerInsights",
+                        "period": "",
+                        "queryLanguage": "CWLI",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "sqlExpression": "",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "B"
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "ClusterName": "event-planner-dev-cluster",
+                          "ServiceName": "event-service"
+                        },
+                        "label": "Event-RunningTasks",
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "RunningTaskCount",
+                        "metricQueryType": 0,
+                        "namespace": "ECS/ContainerInsights",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "C"
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "ClusterName": "event-planner-dev-cluster",
+                          "ServiceName": "event-service"
+                        },
+                        "expression": "",
+                        "id": "",
+                        "label": "Event-DesireTasks",
+                        "logGroups": [],
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "DesiredTaskCount",
+                        "metricQueryType": 0,
+                        "namespace": "ECS/ContainerInsights",
+                        "period": "",
+                        "queryLanguage": "CWLI",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "sqlExpression": "",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "D"
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "ClusterName": "event-planner-dev-cluster",
+                          "ServiceName": "notification-service"
+                        },
+                        "label": "Notify-RunningTasks",
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "RunningTaskCount",
+                        "metricQueryType": 0,
+                        "namespace": "ECS/ContainerInsights",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "E"
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "ClusterName": "event-planner-dev-cluster",
+                          "ServiceName": "notification-service"
+                        },
+                        "expression": "",
+                        "id": "",
+                        "label": "Notif-DesireTasks",
+                        "logGroups": [],
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "DesiredTaskCount",
+                        "metricQueryType": 0,
+                        "namespace": "ECS/ContainerInsights",
+                        "period": "",
+                        "queryLanguage": "CWLI",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "sqlExpression": "",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "F"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 2,
+          "links": [],
+          "title": "ECS Task Count",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "none"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      },
+      "panel-3": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "DBInstanceIdentifier": "event-planner-dev-auth-db"
+                        },
+                        "label": "",
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "CPUUtilization",
+                        "metricQueryType": 0,
+                        "namespace": "AWS/RDS",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "statistic": "Average"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 3,
+          "links": [],
+          "title": "RDS CPU utilization",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      },
+      "panel-4": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "DBInstanceIdentifier": "event-planner-dev-auth-db"
+                        },
+                        "label": "",
+                        "metricEditorMode": 0,
+                        "metricName": "ReadIOPS",
+                        "metricQueryType": 0,
+                        "namespace": "AWS/RDS",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "DBInstanceIdentifier": "event-planner-dev-auth-db"
+                        },
+                        "label": "",
+                        "metricEditorMode": 0,
+                        "metricName": "WriteIOPS",
+                        "metricQueryType": 0,
+                        "namespace": "AWS/RDS",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "B"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 4,
+          "links": [],
+          "title": "RDS read/write IOPS",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "KiBs"
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      },
+      "panel-5": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "CacheNodeId": "0001"
+                        },
+                        "label": "",
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "CPUUtilization",
+                        "metricQueryType": 0,
+                        "namespace": "AWS/ElastiCache",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 5,
+          "links": [],
+          "title": "ElastiCache CPU utilization",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      },
+      "panel-6": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "CacheClusterId": "event-planner-dev-redis-001"
+                        },
+                        "label": "",
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "CacheHits",
+                        "metricQueryType": 0,
+                        "namespace": "AWS/ElastiCache",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "bf37imgb0zbb4c"
+                      },
+                      "group": "cloudwatch",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dimensions": {
+                          "CacheClusterId": "event-planner-dev-redis-001"
+                        },
+                        "label": "",
+                        "matchExact": true,
+                        "metricEditorMode": 0,
+                        "metricName": "CacheMisses",
+                        "metricQueryType": 0,
+                        "namespace": "AWS/ElastiCache",
+                        "queryMode": "Metrics",
+                        "region": "default",
+                        "statistic": "Sum"
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "B"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 6,
+          "links": [],
+          "title": "Cache hit/miss ratio",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "12.2.1"
+          }
+        }
+      }
+    },
+    "layout": {
+      "kind": "GridLayout",
+      "spec": {
+        "items": [
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-2"
+              },
+              "height": 8,
+              "width": 12,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-1"
+              },
+              "height": 8,
+              "width": 12,
+              "x": 12,
+              "y": 0
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-5"
+              },
+              "height": 8,
+              "width": 12,
+              "x": 0,
+              "y": 8
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-6"
+              },
+              "height": 8,
+              "width": 12,
+              "x": 12,
+              "y": 8
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-3"
+              },
+              "height": 8,
+              "width": 12,
+              "x": 0,
+              "y": 16
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-4"
+              },
+              "height": 8,
+              "width": 12,
+              "x": 12,
+              "y": 16
+            }
+          }
+        ]
+      }
+    },
+    "links": [],
+    "liveNow": false,
+    "preload": false,
+    "tags": [],
+    "timeSettings": {
+      "autoRefresh": "",
+      "autoRefreshIntervals": [
+        "5s",
+        "10s",
+        "30s",
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "1d"
+      ],
+      "fiscalYearStartMonth": 0,
+      "from": "now-3h",
+      "hideTimepicker": false,
+      "timezone": "browser",
+      "to": "now"
+    },
+    "title": "Infrastructure Dashboard",
+    "variables": []
+  },
+  "status": {}
+}
