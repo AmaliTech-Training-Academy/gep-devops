@@ -21,7 +21,13 @@ This repository contains the complete Terraform infrastructure code for the Even
 
 ## Architecture Overview
 
-![Architecture Diagram](CURRENT%20ARCHITECTURE_DIAGRAM.png)
+### Frontend Architecture
+
+![Frontend Architecture](docs/diagrams/frontend-architecture.png)
+
+### Backend Architecture
+
+![Backend Architecture](docs/diagrams/backend-architecture.png)
 
 ### Infrastructure Components
 
@@ -51,7 +57,7 @@ This repository contains the complete Terraform infrastructure code for the Even
 
 ## Centralized DevOps Structure
 
-[View Centralized DevOps Structure](centralized-devops-structure.md)
+[View Centralized DevOps Structure](docs/centralized-devops-structure.md)
 
 This repository implements a centralized DevOps approach where:
 - **Single repository** controls all infrastructure deployments
