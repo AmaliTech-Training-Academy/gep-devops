@@ -40,14 +40,11 @@
 │  │  │        │                  │                         │    │    │
 │  │  │  ┌─────▼──────────────────▼──────────────┐         │    │    │
 │  │  │  │   ECS Fargate Cluster                 │         │    │    │
-│  │  │  │   - Auth Service (8081)               │         │    │    │
-│  │  │  │   - Notification Service (8085)       │         │    │    │
+│  │  │  │   (4 Microservices)                   │         │    │    │
+│  │  │  │   Auth, Event, Notification, Payment  │         │    │    │
+│  │  │  │   Ports: 8081-8085                    │         │    │    │
 │  │  │  │   Service Discovery: eventplanner.local│        │    │    │
 │  │  │  └───────────────────────────────────────┘         │    │    │
-│  │  │                                                     │    │    │
-│  │  │  ┌──────────────────────────────────────┐          │    │    │
-│  │  │  │   VPC Endpoints (Secrets Manager)    │          │    │    │
-│  │  │  └──────────────────────────────────────┘          │    │    │
 │  │  └─────────────────────────────────────────────────────┘    │    │
 │  │                                                              │    │
 │  │  ┌─────────────────────────────────────────────────────┐    │    │
@@ -75,7 +72,7 @@
         │   ECR    │CloudWatch│   SQS    │   SNS    │    S3    │
         │ Registry │   Logs   │  Queues  │  Topics  │  Buckets │
         └──────────┴──────────┴──────────┴──────────┴──────────┘
-                    (via NAT Gateway + VPC Endpoints)
+                    (via NAT Gateway + S3 Gateway Endpoint)
 ```
 
 ## Key Components
@@ -92,7 +89,7 @@
 **Frontend:** CloudFront CDN → S3 (events.sankofagrid.com)  
 **Backend:** External DNS → ALB → ECS Services (api.sankofagrid.com)
 
-**Active Services:** Auth (8081), Notification (8085)  
+**Active Services:** Auth (8081), Event (8082), Notification (8085), Payment (8084)  
 **Service Discovery:** eventplanner.local namespace
 
-**Connectivity:** NAT Gateway enabled for external access (SMTP, AWS services)
+**Connectivity:** NAT Gateway for external access, S3 Gateway Endpoint for cost optimization
