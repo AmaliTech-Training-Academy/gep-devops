@@ -1,30 +1,47 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.tfvars.json
 
-**/backend-config.hcl
-**/backend-config.tfvars
-**/.terraform-backend-config
-**/*.tfstate
-**/*.tfstate.*
-**/*.tfstate.backup
-**/*.auto.tfvars
-**/secrets.tfvars
-**/sensitive.tfvars
-**/.terraform/
-**/.terraform.lock.hcl
-**/crash.log
-**/crash.*.log
-**/override.tf
-**/override.tf.json
-**/*_override.tf
-**/*_override.tf.json
-**/*.tfplan
-**/plan.txt
-**/.terraformrc
-**/terraform.rc
-/ext
-scripts/terraform.tfvars
-final-confluence-upload.sh
+# LocalStack
+localstack-data/
+.localstack/
 
-# Ansible
-ansible/
-*.retry
-.ansible/
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Secrets
+secrets/
+*.pem
+*.key
+*.crt
+
+# Build artifacts
+target/
+build/
+dist/
+node_modules/
+
+# Backup files
+*.backup
+*.bak
