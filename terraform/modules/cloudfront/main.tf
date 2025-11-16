@@ -16,6 +16,7 @@
 # - SSL/TLS encryption (secure HTTPS connections)
 #
 # HOW IT WORKS:
+# HOW IT WORKS:
 # 1. User requests website (events.sankofagrid.com)
 # 2. CloudFront serves cached content from nearest edge location
 # 3. If not cached, CloudFront fetches from S3 origin and caches it
