@@ -1,15 +1,53 @@
 # terraform/modules/cloudfront/main.tf
 # ==============================================================================
-# CloudFront Module - Content Delivery Network
+# CloudFront Module - Global Content Delivery Network (CDN)
+# ==============================================================================
+# WHAT THIS MODULE DOES:
+# Creates a global content delivery network that caches and serves our Angular
+# frontend application from edge locations worldwide, making the website load
+# faster for users regardless of their geographic location.
+#
+# BUSINESS PURPOSE:
+# - Faster website loading (cached content served from nearest location)
+# - Reduced server costs (less traffic to origin S3 bucket)
+# - Better user experience (faster page loads = happier users)
+# - Global reach (serves users worldwide efficiently)
+# - DDoS protection (AWS Shield Standard included)
+# - SSL/TLS encryption (secure HTTPS connections)
+#
+# HOW IT WORKS:
+# HOW IT WORKS:
+# 1. User requests website (events.sankofagrid.com)
+# 2. CloudFront serves cached content from nearest edge location
+# 3. If not cached, CloudFront fetches from S3 origin and caches it
+# 4. Subsequent requests served instantly from cache
+#
+# COMPONENTS:
+# - Origin Access Control: Secure S3 access (only CloudFront can read files)
+# - Cache Policy: Controls what gets cached and for how long
+# - Security Headers: Protects against common web attacks
+# - Custom Error Pages: Handles 404/403 errors for Angular SPA routing
 # ==============================================================================
 
-# Origin Access Control for S3
+# ==============================================================================
+# Origin Access Control - Secure S3 Access
+# ==============================================================================
+# WHAT THIS CREATES:
+# Security mechanism that allows only CloudFront to access our S3 bucket.
+# Prevents direct public access to S3, forcing all traffic through CloudFront.
+#
+# SECURITY BENEFIT:
+# - S3 bucket remains private (no public access)
+# - Only CloudFront can read files (using AWS signatures)
+# - Prevents bandwidth theft and unauthorized access
+# - Enables access logging and monitoring
+
 resource "aws_cloudfront_origin_access_control" "s3_oac" {
   name                              = "${var.project_name}-${var.environment}-s3-oac"
-  description                       = "OAC for ${var.project_name} S3 bucket"
-  origin_access_control_origin_type = "s3"
-  signing_behavior                  = "always"
-  signing_protocol                  = "sigv4"
+  description                       = "Origin Access Control for ${var.project_name} S3 bucket - ensures only CloudFront can access frontend files"
+  origin_access_control_origin_type = "s3"       # Accessing S3 bucket
+  signing_behavior                  = "always"   # Always sign requests to S3
+  signing_protocol                  = "sigv4"    # Use AWS Signature Version 4
 }
 
 # Cache Policy
