@@ -40,13 +40,18 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "📊 Service Health - Task Count"
+          title = "📊 Service Health - CPU & Memory"
           metrics = [
-            ["AWS/ECS", "RunningTaskCount", "ServiceName", "auth-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Running Tasks" }]
+            ["AWS/ECS", "CPUUtilization", "ServiceName", "auth-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "CPU %", yAxis = "left" }],
+            ["AWS/ECS", "MemoryUtilization", "ServiceName", "auth-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Memory %", yAxis = "right" }]
           ]
-          view   = "singleValue"
+          view   = "timeSeries"
           region = var.aws_region
-          period = 300
+          period = 60
+          yAxis = {
+            left = { min = 0, max = 100, label = "Percent" }
+            right = { min = 0, max = 100, label = "Percent" }
+          }
         }
         x      = 0
         y      = 2
@@ -462,11 +467,18 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "metric"
         properties = {
-          title   = "📊 Service Health"
-          metrics = [["AWS/ECS", "RunningTaskCount", "ServiceName", "notification-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Running Tasks" }]]
-          view    = "singleValue"
-          region  = var.aws_region
-          period  = 300
+          title = "📊 Service Health - CPU & Memory"
+          metrics = [
+            ["AWS/ECS", "CPUUtilization", "ServiceName", "notification-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "CPU %", yAxis = "left" }],
+            ["AWS/ECS", "MemoryUtilization", "ServiceName", "notification-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Memory %", yAxis = "right" }]
+          ]
+          view   = "timeSeries"
+          region = var.aws_region
+          period = 60
+          yAxis = {
+            left = { min = 0, max = 100, label = "Percent" }
+            right = { min = 0, max = 100, label = "Percent" }
+          }
         }
         x      = 0
         y      = 2
@@ -1016,12 +1028,18 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       {
         type = "metric"
         properties = {
-          title     = "📊 Service Health"
-          metrics   = [["AWS/ECS", "RunningTaskCount", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Running Tasks" }]]
-          view      = "singleValue"
-          region    = var.aws_region
-          period    = 300
-          sparkline = true
+          title = "📊 Service Health - CPU & Memory"
+          metrics = [
+            ["AWS/ECS", "CPUUtilization", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "CPU %", yAxis = "left" }],
+            ["AWS/ECS", "MemoryUtilization", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Memory %", yAxis = "right" }]
+          ]
+          view   = "timeSeries"
+          region = var.aws_region
+          period = 60
+          yAxis = {
+            left = { min = 0, max = 100, label = "Percent" }
+            right = { min = 0, max = 100, label = "Percent" }
+          }
         }
         x      = 0
         y      = 2
@@ -1062,7 +1080,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
         type = "metric"
         properties = {
           title   = "📈 Request Rate"
-          metrics = var.event_target_group_arn_suffix != "" ? [["AWS/ApplicationELB", "RequestCount", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "Requests/min", color = "#1f77b4" }]] : [["AWS/ECS", "RunningTaskCount", "ServiceName", "event-service", { stat = "Average", label = "No ALB Data" }]]
+          metrics = [["AWS/ApplicationELB", "RequestCount", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "Requests/min", color = "#1f77b4" }]]
           view    = "timeSeries"
           stacked = false
           region  = var.aws_region
@@ -1078,14 +1096,10 @@ resource "aws_cloudwatch_dashboard" "event_service" {
         type = "metric"
         properties = {
           title = "🚦 HTTP Status Distribution"
-          metrics = var.event_target_group_arn_suffix != "" ? [
+          metrics = [
             ["AWS/ApplicationELB", "HTTPCode_Target_2XX_Count", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "2XX Success", color = "#2ca02c" }],
             [".", "HTTPCode_Target_4XX_Count", ".", ".", { stat = "Sum", label = "4XX Client Error", color = "#ff7f0e" }],
             [".", "HTTPCode_Target_5XX_Count", ".", ".", { stat = "Sum", label = "5XX Server Error", color = "#d62728" }]
-            ] : [
-            ["AWS/ECS", "CPUUtilization", "ServiceName", "event-service", { stat = "Average", label = "CPU", color = "#2ca02c" }],
-            [".", "MemoryUtilization", ".", ".", { stat = "Average", label = "Memory", color = "#ff7f0e" }],
-            [".", "RunningTaskCount", ".", ".", { stat = "Average", label = "Tasks", color = "#1f77b4" }]
           ]
           view   = "pie"
           region = var.aws_region
@@ -1100,16 +1114,11 @@ resource "aws_cloudwatch_dashboard" "event_service" {
         type = "metric"
         properties = {
           title = "⏱️ Response Time Analysis"
-          metrics = var.event_target_group_arn_suffix != "" ? [
+          metrics = [
             ["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Average", label = "Average", color = "#1f77b4" }],
             ["...", { stat = "p50", label = "P50", color = "#2ca02c" }],
             ["...", { stat = "p90", label = "P90", color = "#ff7f0e" }],
             ["...", { stat = "p99", label = "P99", color = "#d62728" }]
-            ] : [
-            ["AWS/ECS", "CPUUtilization", "ServiceName", "event-service", { stat = "Average", label = "CPU", color = "#1f77b4" }],
-            ["...", { stat = "p50", label = "Memory", color = "#2ca02c" }],
-            ["...", { stat = "p90", label = "Tasks", color = "#ff7f0e" }],
-            ["...", { stat = "p99", label = "Placeholder", color = "#d62728" }]
           ]
           view        = "timeSeries"
           stacked     = false
