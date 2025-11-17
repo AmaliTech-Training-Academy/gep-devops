@@ -49,6 +49,9 @@ This repository contains the complete Terraform infrastructure code for the Even
 - Secrets Manager for credential management
 
 **Network Architecture:**
+
+![Network Architecture](docs/diagrams/network-architecture.png)
+
 - Development: Single-AZ deployment (eu-west-1a) for cost optimization
 - Production: Multi-AZ deployment (2 AZs) - ready to deploy
 - Private subnets for application and data tiers
