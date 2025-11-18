@@ -2,7 +2,7 @@
 ## Part 5: Monitoring, Security, and Operations
 
 **Author:** DevOps Team  
-**Last Updated:** October 30, 2025  
+**Last Updated:** November 18, 2025  
 **Version:** 1.0.0
 
 ---
@@ -10,11 +10,8 @@
 ## Monitoring Architecture
 
 The Event Planner Platform implements **comprehensive monitoring** across infrastructure, applications, and business metrics using AWS CloudWatch, custom dashboards, and automated alerting.
-There are also monitoring dashboards built on Grafana accessible to non-engineering teams without AWS console access. 
+There are also monitoring dashboards built on Grafana accessible to non-engineering teams and engineers without the AWS console access. [Click here to Part II for details](./05-monitoring-security-operations-II.md).
 
-For Engineers who wants the technical documentation on the grafana dashboards. Refer to [Grafana Monitoring Plan](./GRAFANA-MONITORING-PLAN.md) and [Grafana Deployment Summary](./GRAFANA-DEPLOYMENT-SUMMARY.md)
-
-For Non-engineers, refer to the [Grafana Dashboard User Guide](./GRAFANA-DASHBOARD-USER-GUIDE.md), then [Click Here](https://api.sankofagrid.com/monitoring/) to access the dashboards.
 
 ### Monitoring Stack
 
@@ -24,7 +21,7 @@ Monitoring Layer:
 ├── CloudWatch Logs         # Centralized logging
 ├── CloudWatch Alarms       # Automated alerting
 ├── Custom Dashboards       # Service-specific visualizations
-├── X-Ray Tracing          # Distributed tracing (planned)
+├── X-Ray Tracing          # Distributed tracing (planned Not Implemented yet due to cost constraint)
 └── Container Insights      # ECS container monitoring
 ```
 
@@ -613,5 +610,5 @@ resource "aws_budgets_budget" "monthly" {
 
 This covers monitoring, security, and operations. Continue with:
 
-- **Part 6**: Cost Optimization and Best Practices
+- **Part 5 II**: Monitoring from outside AWS (For stakeholders without AWS console access)
 - **Part 7**: Troubleshooting and Runbooks
