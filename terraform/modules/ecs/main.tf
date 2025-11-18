@@ -52,17 +52,15 @@ locals {
       max_capacity  = 1
     }
 
-    # TEMPORARILY DISABLED: Payment service not yet ready
-    # Uncomment when developers are ready to deploy
-    # payment = {
-    #   name          = "payment-service"
-    #   port          = 8084
-    #   cpu           = var.environment == "dev" ? 256 : 512
-    #   memory        = var.environment == "dev" ? 512 : 1024
-    #   desired_count = var.environment == "dev" ? 1 : 2
-    #   min_capacity  = var.environment == "dev" ? 1 : 2
-    #   max_capacity  = var.environment == "dev" ? 2 : 4
-    # }
+    payment = {
+      name          = "payment-service"
+      port          = 8084
+      cpu           = var.environment == "dev" ? 256 : 512
+      memory        = var.environment == "dev" ? 512 : 1024
+      desired_count = var.environment == "dev" ? 1 : 2
+      min_capacity  = var.environment == "dev" ? 1 : 2
+      max_capacity  = var.environment == "dev" ? 2 : 4
+    }
     notification = {
       name          = "notification-service"
       port          = 8085
@@ -268,7 +266,7 @@ resource "aws_ecs_task_definition" "services" {
         },
         {
           name  = "FRONTEND_BASE_URL"
-          value = "https://events.sankofagrid.com/app"
+          value = "https://events.sankofagrid.com"
         },
         {
           name  = "AWS_S3_BUCKET"
@@ -451,8 +449,60 @@ resource "aws_ecs_task_definition" "services" {
             value = "https://sqs.${var.aws_region}.amazonaws.com"
           },
           {
-            name  = "PAYMENT_PROCESSED_QUEUE_NAME"
-            value = lookup(var.sqs_queue_names, "payment-processed", "")
+            name  = "PAYMENT_SERVICE_DB_SCHEMA"
+            value = "payment_schema"
+          },
+          {
+            name  = "SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA"
+            value = "payment_schema"
+          },
+          {
+            name  = "DATABASE_SCHEMA"
+            value = "payment_schema"
+          },
+          {
+            name  = "SPRING_DATASOURCE_SCHEMA_SEARCH_PATH"
+            value = "payment_schema,public"
+          },
+          {
+            name  = "SPRING_JPA_HIBERNATE_DDL_AUTO"
+            value = "update"
+          },
+          {
+            name  = "SPRING_JPA_SHOW_SQL"
+            value = "false"
+          },
+          {
+            name  = "SPRING_JPA_DATABASE_PLATFORM"
+            value = "org.hibernate.dialect.PostgreSQLDialect"
+          },
+          {
+            name  = "PAYMENT_PROCESSING_EVENT_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "payment_processing_event", "")
+          },
+          {
+            name  = "PAYMENT_PROCESSING_EVENT_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "payment_processing_event", "")
+          },
+          {
+            name  = "PAYMENT_COMPLETED_EVENT_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "payment_completed_event", "")
+          },
+          {
+            name  = "PAYMENT_COMPLETED_EVENT_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "payment_completed_event", "")
+          },
+          {
+            name  = "TICKET_PURCHASED_EVENT_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "ticket_purchased_event", "")
+          },
+          {
+            name  = "TICKET_PURCHASED_EVENT_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "ticket_purchased_event", "")
+          },
+          {
+            name  = "PAYMENT_SERVICE_URL"
+            value = "http://payment-service.${var.service_discovery_namespace}:8084"
           }
         ] : [],
         each.key == "notification" ? [
@@ -571,6 +621,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "USER_INVITATION_QUEUE"
             value = lookup(var.sqs_queue_urls, "user_invitation", "")
+          },
+          {
+            name  = "FRONTEND_BASE_URL"
+            value = "https://events.sankofagrid.com"
           }
         ] : []
       )
@@ -629,6 +683,32 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name      = "EVENT_SERVICE_DB_PASSWORD"
+            valueFrom = "${var.db_secret_arns["auth"]}:password::"
+          }
+        ] : [],
+        each.key == "payment" && lookup(var.db_secret_arns, "auth", null) != null ? [
+          {
+            name      = "SPRING_DATASOURCE_URL"
+            valueFrom = "${var.db_secret_arns["auth"]}:url::"
+          },
+          {
+            name      = "SPRING_DATASOURCE_USERNAME"
+            valueFrom = "${var.db_secret_arns["auth"]}:username::"
+          },
+          {
+            name      = "SPRING_DATASOURCE_PASSWORD"
+            valueFrom = "${var.db_secret_arns["auth"]}:password::"
+          },
+          {
+            name      = "PAYMENT_SERVICE_DB_URL"
+            valueFrom = "${var.db_secret_arns["auth"]}:url::"
+          },
+          {
+            name      = "PAYMENT_SERVICE_DB_USER"
+            valueFrom = "${var.db_secret_arns["auth"]}:username::"
+          },
+          {
+            name      = "PAYMENT_SERVICE_DB_PASSWORD"
             valueFrom = "${var.db_secret_arns["auth"]}:password::"
           }
         ] : [],

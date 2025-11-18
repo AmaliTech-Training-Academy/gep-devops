@@ -81,6 +81,13 @@ locals {
       health_check_path = "/actuator/health"               # Health monitoring endpoint
       priority          = 200                              # Second priority for routing
     }
+    payment = {
+      name              = "payment-service"                 # Payment processing
+      port              = 8084                             # Network port for payment operations
+      path_pattern      = "/api/v1/payments/*"             # URL pattern for payment requests
+      health_check_path = "/actuator/health"               # Service health check endpoint
+      priority          = 400                              # Fourth priority routing
+    }
     notification = {
       name              = "notification-service"            # Email and SMS notifications
       port              = 8085                             # Network port for notification operations
