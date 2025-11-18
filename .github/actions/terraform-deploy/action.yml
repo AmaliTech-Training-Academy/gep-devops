@@ -52,5 +52,7 @@ runs:
       working-directory: terraform/environments/${{ inputs.environment }}
       run: |
         echo "Resources in state:"
-        terraform state list | head -10
-        echo "Total resources: $(terraform state list | wc -l)"
+        terraform state list > state_list.txt
+        head -10 state_list.txt
+        echo "Total resources: $(wc -l < state_list.txt)"
+        rm -f state_list.txt
