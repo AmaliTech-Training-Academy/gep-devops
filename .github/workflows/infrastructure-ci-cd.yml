@@ -34,9 +34,9 @@ jobs:
   validate:
     runs-on: [self-hosted, infrastructure]
     steps:
-    - uses: ./.github/actions/workspace-cleanup
-    
     - uses: actions/checkout@v4
+    
+    - uses: ./.github/actions/workspace-cleanup
 
     - uses: ./.github/actions/setup-terraform
       with:
@@ -85,9 +85,9 @@ jobs:
     needs: validate
     runs-on: [self-hosted, infrastructure]
     steps:
-    - uses: ./.github/actions/workspace-cleanup
-    
     - uses: actions/checkout@v4
+    
+    - uses: ./.github/actions/workspace-cleanup
 
     - uses: ./.github/actions/terraform-security-scan
 
@@ -96,9 +96,9 @@ jobs:
     if: (inputs.action == 'plan' || github.event_name == 'pull_request' || (github.event_name == 'push' && inputs.action != 'apply'))
     runs-on: [self-hosted, infrastructure]
     steps:
-    - uses: ./.github/actions/workspace-cleanup
-    
     - uses: actions/checkout@v4
+    
+    - uses: ./.github/actions/workspace-cleanup
 
     - uses: ./.github/actions/setup-terraform
       with:
@@ -167,9 +167,9 @@ jobs:
     runs-on: [self-hosted, infrastructure]
     environment: ${{ (github.ref == 'refs/heads/main' || inputs.environment == 'prod') && 'production' || (github.ref == 'refs/heads/staging' || inputs.environment == 'staging') && 'staging' || 'development' }}
     steps:
-    - uses: ./.github/actions/workspace-cleanup
-    
     - uses: actions/checkout@v4
+    
+    - uses: ./.github/actions/workspace-cleanup
 
     - uses: ./.github/actions/setup-terraform
       with:
