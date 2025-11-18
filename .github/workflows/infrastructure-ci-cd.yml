@@ -35,8 +35,6 @@ jobs:
     runs-on: [self-hosted, infrastructure]
     steps:
     - uses: actions/checkout@v4
-    
-    - uses: ./.github/actions/workspace-cleanup
 
     - uses: ./.github/actions/setup-terraform
       with:
@@ -86,8 +84,6 @@ jobs:
     runs-on: [self-hosted, infrastructure]
     steps:
     - uses: actions/checkout@v4
-    
-    - uses: ./.github/actions/workspace-cleanup
 
     - uses: ./.github/actions/terraform-security-scan
 
@@ -97,8 +93,6 @@ jobs:
     runs-on: [self-hosted, infrastructure]
     steps:
     - uses: actions/checkout@v4
-    
-    - uses: ./.github/actions/workspace-cleanup
 
     - uses: ./.github/actions/setup-terraform
       with:
@@ -168,8 +162,6 @@ jobs:
     environment: ${{ (github.ref == 'refs/heads/main' || inputs.environment == 'prod') && 'production' || (github.ref == 'refs/heads/staging' || inputs.environment == 'staging') && 'staging' || 'development' }}
     steps:
     - uses: actions/checkout@v4
-    
-    - uses: ./.github/actions/workspace-cleanup
 
     - uses: ./.github/actions/setup-terraform
       with:
