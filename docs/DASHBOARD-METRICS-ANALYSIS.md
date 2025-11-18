@@ -1,318 +1,149 @@
-# CloudWatch Dashboard Metrics Analysis & Fix Report
+# CloudWatch Dashboard Metrics Analysis
 
-## Executive Summary
+## Summary
 
-**Date:** November 17, 2025  
-**Dashboard:** Auth Service Dashboard  
-**Status:** ✅ FIXED - All metrics now configured correctly
+All dashboards have been updated with:
+1. Removed all emojis from titles and headers
+2. Fixed Redis metrics to use correct CacheClusterId format (`${replication_group_id}-001`)
+3. Verified all metric names are correct
 
----
+## Metrics Status by Dashboard
 
-## Issues Identified & Resolutions
+### Auth Service Dashboard
 
-### 1. ✅ FIXED: Service Health - Task Count
+**Working Metrics (when service is running):**
+- ECS CPU Utilization
+- ECS Memory Utilization
+- RDS Database CPU
+- RDS Database Connections
+- RDS Database Latency
+- SQS Queue Messages (user-registration, user-login, password-reset)
+- SQS Message Age
 
-**Issue:** Metric `AWS/ECS RunningTaskCount` does not exist  
-**Root Cause:** AWS ECS does not publish `RunningTaskCount` metric by default  
-**Available ECS Metrics:** Only `CPUUtilization` and `MemoryUtilization`
+**Metrics Requiring Traffic:**
+- Request Volume (ALB RequestCount)
+- Response Time (ALB TargetResponseTime)
+- HTTP Status Codes (ALB HTTPCode_Target_2XX/4XX/5XX_Count)
 
-**Resolution:**
-- Replaced non-existent `RunningTaskCount` with dual-axis chart showing CPU & Memory
-- Changed from `singleValue` to `timeSeries` view
-- Now displays actual ECS performance metrics
+**Redis Metrics (when ElastiCache is running):**
+- Redis CPU (EngineCPUUtilization)
+- Redis Memory (DatabaseMemoryUsagePercentage)
+- Redis Connections (CurrConnections)
+- Redis Evictions
 
-**Current Data:**
-- CPU: 29.05% (working ✅)
-- Memory: Available (working ✅)
+### Notification Service Dashboard
 
----
+**Working Metrics (when service is running):**
+- ECS CPU/Memory Utilization
+- SQS Notifications Queue Messages
+- SQS Message Processing Time
+- SQS Dead Letter Queue
+- SQS Queue Throughput
+- SES Email Send Statistics (when emails are sent)
+- SES Email Delivery Rate
 
-### 2. ⚠️ ALB Metrics (Request Volume, Response Time, HTTP Status Codes)
+### Event Service Dashboard
 
-**Issue:** No data displayed  
-**Root Cause:** Requires actual API traffic to generate metrics
+**Working Metrics (when service is running):**
+- ECS CPU/Memory Utilization
+- SQS Event Queues (event-created, event-updated)
+- SQS Message Throughput
 
-**Metrics Affected:**
-- Request Volume (`RequestCount`)
-- Response Time (`TargetResponseTime`)
-- HTTP Status Codes (`HTTPCode_Target_2XX_Count`, `HTTPCode_Target_4XX_Count`, `HTTPCode_Target_5XX_Count`)
+**Metrics Requiring Traffic:**
+- Request Rate
+- HTTP Status Distribution
+- Response Time Analysis
 
-**Target Group:** `targetgroup/auth-s2025102115445388650000001d/914ae032dcf8b465`
+### Frontend CloudFront Dashboard
 
-**Resolution:**
-- Configuration is CORRECT ✅
-- Generated 20 API requests to populate metrics
-- Metrics will appear within 5-10 minutes
+**Working Metrics (always):**
+- CloudFront Requests
+- CloudFront Cache Hit Rate
+- CloudFront Bytes Downloaded
+- CloudFront Origin Latency
+- CloudFront Error Rates (4xx, 5xx)
+- S3 Bucket Size (daily metric)
+- S3 Object Count (daily metric)
 
-**Test Command:**
-```bash
-curl https://api.sankofagrid.com/api/v1/auth/health
-```
-
-**Status:** Metrics will populate with continued API usage
-
----
-
-### 3. ✅ Database CPU (RDS)
-
-**Issue:** Reported as not showing data  
-**Actual Status:** WORKING CORRECTLY
-
-**Current Data:**
-- RDS Instance: `event-planner-dev-auth-db`
-- CPU Utilization: 5.28%
-- Metric: `AWS/RDS CPUUtilization`
-
-**Verification:**
-```bash
-aws cloudwatch get-metric-statistics \
-  --namespace AWS/RDS \
-  --metric-name CPUUtilization \
-  --dimensions Name=DBInstanceIdentifier,Value=event-planner-dev-auth-db \
-  --start-time $(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%S) \
-  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
-  --period 300 \
-  --statistics Average \
-  --profile gtp-cletus \
-  --region eu-west-1
-```
-
-**Status:** ✅ Working - Data available
-
----
-
-### 4. ✅ Redis (ElastiCache) CPU
-
-**Issue:** Reported as not showing data  
-**Actual Status:** WORKING CORRECTLY
-
-**Current Data:**
-- Cache Cluster: `event-planner-dev-redis-001`
-- CPU Utilization: 2.28%
-- Metric: `AWS/ElastiCache CPUUtilization`
-
-**Status:** ✅ Working - Data available
-
----
-
-### 5. ✅ Redis Memory Usage
-
-**Issue:** Reported as not showing data  
-**Actual Status:** WORKING CORRECTLY
-
-**Metric:** `AWS/ElastiCache DatabaseMemoryUsagePercentage`  
-**Cache Cluster:** `event-planner-dev-redis-001`
-
-**Status:** ✅ Working - Data available
-
----
-
-### 6. ✅ Redis Connections and Evictions
-
-**Issue:** Reported as not showing data  
-**Actual Status:** WORKING CORRECTLY
-
-**Metrics:**
-- `CurrConnections`: Current active connections
-- `Evictions`: Number of evicted keys
-
-**Status:** ✅ Working - Data available
-
----
-
-### 7. ✅ Auth Service Queues (SQS)
-
-**Issue:** Reported as not showing data  
-**Actual Status:** WORKING CORRECTLY
-
-**Queues:**
-- `event-planner-dev-user-registration-queue` ✅
-- `event-planner-dev-user-login-queue` ✅
-- `event-planner-dev-password-reset-queue` ✅
-
-**Current Data:**
-- ApproximateNumberOfMessagesVisible: 0 (no pending messages)
-- Metric is working, just no messages in queue
-
-**Status:** ✅ Working - Shows 0 messages (expected when no activity)
-
----
-
-### 8. ✅ Message Age (Oldest)
-
-**Issue:** Reported as not showing data  
-**Actual Status:** WORKING CORRECTLY
-
-**Metric:** `AWS/SQS ApproximateAgeOfOldestMessage`
-
-**Status:** ✅ Working - No data because queues are empty (expected)
-
----
-
-## Summary of Fixes Applied
-
-### Terraform Changes
-
-**File:** `terraform/modules/cloudwatch-dashboards/main.tf`
-
-**Change 1: Service Health Widget**
-```hcl
-# BEFORE (Non-existent metric)
-metrics = [
-  ["AWS/ECS", "RunningTaskCount", "ServiceName", "auth-service", ...]
-]
-view = "singleValue"
-
-# AFTER (Real metrics)
-metrics = [
-  ["AWS/ECS", "CPUUtilization", "ServiceName", "auth-service", ...],
-  ["AWS/ECS", "MemoryUtilization", "ServiceName", "auth-service", ...]
-]
-view = "timeSeries"
-```
-
----
-
-## Metrics Status Summary
-
-| Metric Category | Status | Data Available | Action Required |
-|----------------|--------|----------------|-----------------|
-| ECS CPU/Memory | ✅ FIXED | Yes | None |
-| RDS CPU | ✅ Working | Yes | None |
-| RDS Connections | ✅ Working | Yes | None |
-| RDS Latency | ✅ Working | Yes | None |
-| ElastiCache CPU | ✅ Working | Yes | None |
-| ElastiCache Memory | ✅ Working | Yes | None |
-| ElastiCache Connections | ✅ Working | Yes | None |
-| SQS Messages | ✅ Working | Yes (0 messages) | None |
-| SQS Message Age | ✅ Working | N/A (empty queues) | None |
-| ALB Request Count | ⚠️ Pending | Generating | Wait 5-10 min |
-| ALB Response Time | ⚠️ Pending | Generating | Wait 5-10 min |
-| ALB HTTP Codes | ⚠️ Pending | Generating | Wait 5-10 min |
-
----
+**Metrics Requiring Traffic:**
+- S3 Requests (AllRequests, GetRequests, PutRequests)
+- S3 Errors (4xxErrors, 5xxErrors)
 
 ## Why Some Metrics Show "No Data"
 
-### 1. ALB Metrics
-- **Reason:** CloudWatch only publishes metrics when there's actual traffic
-- **Solution:** Generate API requests (done - 20 requests sent)
-- **Timeline:** Metrics appear within 5-10 minutes
+### 1. Services Scaled to Zero
+When ECS services are scaled to 0 tasks:
+- No ECS metrics (CPU, Memory)
+- No ALB target metrics (RequestCount, TargetResponseTime, HTTPCode_*)
+- No application logs
 
-### 2. SQS Metrics Showing Zero
-- **Reason:** No messages in queues (expected behavior)
-- **Solution:** None needed - this is correct
-- **To Test:** Send a message to queue to see metric change
+### 2. Infrastructure Stopped
+When RDS/ElastiCache are stopped:
+- No database metrics
+- No cache metrics
 
-### 3. S3 Metrics (Daily)
-- **Reason:** S3 metrics update once per day
-- **Solution:** Wait 24 hours for first data point
-- **Metrics:** BucketSizeBytes, NumberOfObjects
+### 3. No Traffic
+Even with running services, some metrics need actual requests:
+- ALB HTTP status codes only appear when requests are made
+- Response time metrics need actual responses
+- SES metrics need emails to be sent
 
----
+### 4. Metric Reporting Delays
+Some AWS metrics have delays:
+- S3 BucketSizeBytes: Updated daily
+- S3 NumberOfObjects: Updated daily
+- CloudWatch Logs: Near real-time but can have 1-2 minute delay
 
-## How to Verify Dashboard is Working
+## Current Infrastructure State
 
-### 1. Check ECS Metrics (Should work immediately)
-```bash
-aws cloudwatch get-metric-statistics \
-  --namespace AWS/ECS \
-  --metric-name CPUUtilization \
-  --dimensions Name=ServiceName,Value=auth-service Name=ClusterName,Value=event-planner-dev-cluster \
-  --start-time $(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%S) \
-  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
-  --period 60 \
-  --statistics Average \
-  --profile gtp-cletus \
-  --region eu-west-1
+Based on previous commands:
+- **ECS Services**: Scaled to 0 (auth, event, notification)
+- **RDS**: Stopped (event-planner-dev-auth-db)
+- **ElastiCache**: Running (event-planner-dev-redis)
+- **NAT Gateway**: Deleted
+- **CloudFront**: Active and serving traffic
+- **S3**: Active with static content
+
+## To See All Metrics Populated
+
+1. **Start RDS Instance**:
+   ```bash
+   aws rds start-db-instance --db-instance-identifier event-planner-dev-auth-db --region eu-west-1 --profile gtp-cletus
+   ```
+
+2. **Scale ECS Services**:
+   ```bash
+   aws ecs update-service --cluster event-planner-dev-cluster --service auth-service --desired-count 1 --region eu-west-1 --profile gtp-cletus
+   aws ecs update-service --cluster event-planner-dev-cluster --service notification-service --desired-count 1 --region eu-west-1 --profile gtp-cletus
+   aws ecs update-service --cluster event-planner-dev-cluster --service event-service --desired-count 1 --region eu-west-1 --profile gtp-cletus
+   ```
+
+3. **Generate Traffic**:
+   - Access frontend: https://events.sankofagrid.com
+   - Make API calls to: https://api.sankofagrid.com/api/v1/auth/health
+   - Trigger notifications, events, etc.
+
+4. **Wait 5-10 minutes** for metrics to populate in CloudWatch
+
+## Metrics Configuration Verification
+
+All metrics are correctly configured:
+- ✅ Correct namespace (AWS/ECS, AWS/RDS, AWS/ElastiCache, AWS/ApplicationELB, AWS/SQS, AWS/CloudFront, AWS/S3)
+- ✅ Correct metric names
+- ✅ Correct dimensions (ServiceName, ClusterName, DBInstanceIdentifier, CacheClusterId, TargetGroup, QueueName, DistributionId, BucketName)
+- ✅ Correct statistics (Average, Sum, Maximum, p50, p90, p99)
+- ✅ Appropriate periods (60s for real-time, 300s for aggregated)
+
+## Redis Metrics Fix
+
+Changed from:
+```hcl
+"CacheClusterId", var.elasticache_cluster_id
 ```
 
-### 2. Check RDS Metrics (Should work immediately)
-```bash
-aws cloudwatch get-metric-statistics \
-  --namespace AWS/RDS \
-  --metric-name CPUUtilization \
-  --dimensions Name=DBInstanceIdentifier,Value=event-planner-dev-auth-db \
-  --start-time $(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%S) \
-  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
-  --period 300 \
-  --statistics Average \
-  --profile gtp-cletus \
-  --region eu-west-1
+To:
+```hcl
+"CacheClusterId", "${var.elasticache_cluster_id}-001"
 ```
 
-### 3. Check ALB Metrics (Wait 5-10 minutes after traffic)
-```bash
-aws cloudwatch get-metric-statistics \
-  --namespace AWS/ApplicationELB \
-  --metric-name RequestCount \
-  --dimensions Name=TargetGroup,Value=targetgroup/auth-s2025102115445388650000001d/914ae032dcf8b465 \
-  --start-time $(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%S) \
-  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
-  --period 60 \
-  --statistics Sum \
-  --profile gtp-cletus \
-  --region eu-west-1
-```
-
----
-
-## Generate Test Traffic
-
-### API Traffic (ALB Metrics)
-```bash
-# Generate 50 requests
-for i in {1..50}; do
-  curl -s https://api.sankofagrid.com/api/v1/auth/health
-  sleep 1
-done
-```
-
-### SQS Traffic (Queue Metrics)
-```bash
-# Send test message
-aws sqs send-message \
-  --queue-url https://sqs.eu-west-1.amazonaws.com/904570587823/event-planner-dev-user-registration-queue \
-  --message-body '{"test": "message"}' \
-  --profile gtp-cletus \
-  --region eu-west-1
-```
-
----
-
-## Dashboard Access
-
-**AWS Console:**
-1. Navigate to CloudWatch in eu-west-1
-2. Go to Dashboards
-3. Select: `event-planner-dev-auth-service`
-
-**Direct Link:**
-```
-https://eu-west-1.console.aws.amazon.com/cloudwatch/home?region=eu-west-1#dashboards/dashboard/event-planner-dev-auth-service
-```
-
----
-
-## Conclusion
-
-✅ **All dashboard metrics are now correctly configured**
-
-**Working Immediately:**
-- ECS CPU & Memory (FIXED)
-- RDS CPU, Connections, Latency
-- ElastiCache CPU, Memory, Connections
-- SQS Queue metrics (showing 0 - correct)
-
-**Pending (5-10 minutes):**
-- ALB Request Count
-- ALB Response Time
-- ALB HTTP Status Codes
-
-**Action:** Wait 5-10 minutes and refresh dashboard to see ALB metrics populate.
-
----
-
-**Last Updated:** November 17, 2025  
-**Applied By:** Terraform  
-**Status:** ✅ COMPLETE
+This is because ElastiCache replication groups create individual cache nodes with `-001`, `-002` suffixes.

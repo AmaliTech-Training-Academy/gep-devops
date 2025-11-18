@@ -28,7 +28,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "text"
         properties = {
-          markdown = "# 🔐 Auth Service Dashboard\n## Real-time monitoring for authentication and user management\n**Environment:** ${upper(var.environment)} | **Region:** ${var.aws_region}"
+          markdown = "# Auth Service Dashboard\n## Real-time monitoring for authentication and user management\n**Environment:** ${upper(var.environment)} | **Region:** ${var.aws_region}"
         }
         x      = 0
         y      = 0
@@ -40,7 +40,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "📊 Service Health - CPU & Memory"
+          title = "Service Health - CPU & Memory"
           metrics = [
             ["AWS/ECS", "CPUUtilization", "ServiceName", "auth-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "CPU %", yAxis = "left" }],
             ["AWS/ECS", "MemoryUtilization", "ServiceName", "auth-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Memory %", yAxis = "right" }]
@@ -63,7 +63,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "💻 CPU Utilization"
+          title = "CPU Utilization"
           metrics = [
             ["AWS/ECS", "CPUUtilization", "ServiceName", "auth-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Average CPU" }],
             ["...", { stat = "Maximum", label = "Max CPU" }]
@@ -99,7 +99,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "🧠 Memory Utilization"
+          title = "Memory Utilization"
           metrics = [
             ["AWS/ECS", "MemoryUtilization", "ServiceName", "auth-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Average Memory" }],
             ["...", { stat = "Maximum", label = "Max Memory" }]
@@ -135,7 +135,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "📈 Request Volume"
+          title = "Request Volume"
           metrics = [
             ["AWS/ApplicationELB", "RequestCount", "TargetGroup", var.auth_target_group_arn_suffix, { stat = "Sum", label = "Total Requests" }]
           ]
@@ -154,7 +154,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "⏱️ Response Time"
+          title = "Response Time"
           metrics = [
             ["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", var.auth_target_group_arn_suffix, { stat = "Average", label = "Avg Response Time" }],
             ["...", { stat = "p99", label = "P99 Response Time" }]
@@ -189,7 +189,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "🚦 HTTP Status Codes"
+          title = "HTTP Status Codes"
           metrics = [
             ["AWS/ApplicationELB", "HTTPCode_Target_2XX_Count", "TargetGroup", var.auth_target_group_arn_suffix, { stat = "Sum", label = "2XX Success" }],
             [".", "HTTPCode_Target_4XX_Count", ".", ".", { stat = "Sum", label = "4XX Client Error" }],
@@ -210,7 +210,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "text"
         properties = {
-          markdown = "## 🗄️ Database Performance (Auth DB)"
+          markdown = "## Database Performance (Auth DB)"
         }
         x      = 0
         y      = 14
@@ -222,7 +222,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "💾 Database CPU"
+          title = "Database CPU"
           metrics = [
             ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", var.auth_db_instance_id, { stat = "Average", label = "DB CPU Usage" }]
           ]
@@ -247,7 +247,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "🔌 Database Connections"
+          title = "Database Connections"
           metrics = [
             ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", var.auth_db_instance_id, { stat = "Average", label = "Active Connections" }]
           ]
@@ -266,7 +266,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "⚡ Database Latency"
+          title = "Database Latency"
           metrics = [
             ["AWS/RDS", "ReadLatency", "DBInstanceIdentifier", var.auth_db_instance_id, { stat = "Average", label = "Read Latency" }],
             [".", "WriteLatency", ".", ".", { stat = "Average", label = "Write Latency" }]
@@ -291,7 +291,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "text"
         properties = {
-          markdown = "## ⚡ Redis Cache Performance"
+          markdown = "## Redis Cache Performance"
         }
         x      = 0
         y      = 20
@@ -303,14 +303,20 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "🔴 Redis CPU"
+          title = "Redis CPU"
           metrics = [
-            ["AWS/ElastiCache", "CPUUtilization", "CacheClusterId", var.elasticache_cluster_id, { stat = "Average", label = "Cache CPU" }]
+            ["AWS/ElastiCache", "EngineCPUUtilization", "CacheClusterId", "${var.elasticache_cluster_id}-001", { stat = "Average", label = "Engine CPU" }]
           ]
           view    = "timeSeries"
           stacked = false
           region  = var.aws_region
           period  = 300
+          yAxis = {
+            left = {
+              min = 0
+              max = 100
+            }
+          }
         }
         x      = 0
         y      = 21
@@ -322,9 +328,9 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "💾 Redis Memory Usage"
+          title = "Redis Memory Usage"
           metrics = [
-            ["AWS/ElastiCache", "DatabaseMemoryUsagePercentage", "CacheClusterId", var.elasticache_cluster_id, { stat = "Average", label = "Memory Usage %" }]
+            ["AWS/ElastiCache", "DatabaseMemoryUsagePercentage", "CacheClusterId", "${var.elasticache_cluster_id}-001", { stat = "Average", label = "Memory Usage %" }]
           ]
           view    = "timeSeries"
           stacked = false
@@ -347,9 +353,9 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "🔗 Redis Connections & Evictions"
+          title = "Redis Connections & Evictions"
           metrics = [
-            ["AWS/ElastiCache", "CurrConnections", "CacheClusterId", var.elasticache_cluster_id, { stat = "Average", label = "Connections", yAxis = "left" }],
+            ["AWS/ElastiCache", "CurrConnections", "CacheClusterId", "${var.elasticache_cluster_id}-001", { stat = "Average", label = "Connections", yAxis = "left" }],
             [".", "Evictions", ".", ".", { stat = "Sum", label = "Evictions", yAxis = "right" }]
           ]
           view    = "timeSeries"
@@ -367,7 +373,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "text"
         properties = {
-          markdown = "## 📬 Message Queue Metrics"
+          markdown = "## Message Queue Metrics"
         }
         x      = 0
         y      = 26
@@ -379,7 +385,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "📨 Auth Service Queues"
+          title = "Auth Service Queues"
           metrics = [
             ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${var.project_name}-${var.environment}-user-registration-queue", { stat = "Average", label = "User Registration", color = "#1f77b4" }],
             [".", ".", ".", "${var.project_name}-${var.environment}-user-login-queue", { stat = "Average", label = "User Login", color = "#2ca02c" }],
@@ -400,7 +406,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "metric"
         properties = {
-          title = "⏳ Message Age (Oldest)"
+          title = "Message Age (Oldest)"
           metrics = [
             ["AWS/SQS", "ApproximateAgeOfOldestMessage", "QueueName", "${var.project_name}-${var.environment}-user-registration-queue", { stat = "Maximum", label = "Registration", color = "#1f77b4" }],
             [".", ".", ".", "${var.project_name}-${var.environment}-user-login-queue", { stat = "Maximum", label = "Login", color = "#2ca02c" }],
@@ -426,7 +432,7 @@ resource "aws_cloudwatch_dashboard" "auth_service" {
       {
         type = "log"
         properties = {
-          title  = "📋 Recent Error Logs"
+          title  = "Recent Error Logs"
           region = var.aws_region
           query  = <<-EOQ
             SOURCE '/ecs/${var.project_name}/${var.environment}/auth-service'
@@ -457,7 +463,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "text"
         properties = {
-          markdown = "# 📧 Notification Service Dashboard\n## Email, SMS, and OTP delivery monitoring\n**Environment:** ${upper(var.environment)} | **Region:** ${var.aws_region}"
+          markdown = "# Notification Service Dashboard\n## Email, SMS, and OTP delivery monitoring\n**Environment:** ${upper(var.environment)} | **Region:** ${var.aws_region}"
         }
         x      = 0
         y      = 0
@@ -467,7 +473,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "metric"
         properties = {
-          title = "📊 Service Health - CPU & Memory"
+          title = "Service Health - CPU & Memory"
           metrics = [
             ["AWS/ECS", "CPUUtilization", "ServiceName", "notification-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "CPU %", yAxis = "left" }],
             ["AWS/ECS", "MemoryUtilization", "ServiceName", "notification-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Memory %", yAxis = "right" }]
@@ -488,7 +494,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "metric"
         properties = {
-          title = "💻 CPU Utilization"
+          title = "CPU Utilization"
           metrics = [
             ["AWS/ECS", "CPUUtilization", "ServiceName", "notification-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", color = "#1f77b4" }],
             ["...", { stat = "Maximum", color = "#ff7f0e" }]
@@ -507,7 +513,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "metric"
         properties = {
-          title = "🧠 Memory Utilization"
+          title = "Memory Utilization"
           metrics = [
             ["AWS/ECS", "MemoryUtilization", "ServiceName", "notification-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", color = "#2ca02c" }],
             ["...", { stat = "Maximum", color = "#d62728" }]
@@ -525,7 +531,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       },
       {
         type       = "text"
-        properties = { markdown = "## 📬 Message Queue Performance" }
+        properties = { markdown = "## Message Queue Performance" }
         x          = 0
         y          = 8
         width      = 24
@@ -534,7 +540,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "metric"
         properties = {
-          title = "📨 Notifications Queue Messages"
+          title = "Notifications Queue Messages"
           metrics = [
             ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${var.project_name}-${var.environment}-notifications-queue", { stat = "Average", label = "Visible", color = "#1f77b4" }],
             [".", "ApproximateNumberOfMessagesNotVisible", ".", ".", { stat = "Average", label = "In Flight", color = "#ff7f0e" }],
@@ -553,7 +559,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "metric"
         properties = {
-          title = "⏳ Message Processing Time"
+          title = "Message Processing Time"
           metrics = [
             ["AWS/SQS", "ApproximateAgeOfOldestMessage", "QueueName", "${var.project_name}-${var.environment}-notifications-queue", { stat = "Maximum", label = "Oldest Message Age", color = "#d62728" }]
           ]
@@ -571,7 +577,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "metric"
         properties = {
-          title = "🚨 Dead Letter Queue"
+          title = "Dead Letter Queue"
           metrics = [
             ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${var.project_name}-${var.environment}-notifications-queue-dlq", { stat = "Sum", label = "Failed Messages", color = "#d62728" }]
           ]
@@ -587,7 +593,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "metric"
         properties = {
-          title = "📊 Queue Throughput"
+          title = "Queue Throughput"
           metrics = [
             ["AWS/SQS", "NumberOfMessagesSent", "QueueName", "${var.project_name}-${var.environment}-notifications-queue", { stat = "Sum", label = "Sent", color = "#2ca02c" }],
             [".", "NumberOfMessagesDeleted", ".", ".", { stat = "Sum", label = "Processed", color = "#1f77b4" }]
@@ -603,7 +609,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       },
       {
         type       = "text"
-        properties = { markdown = "## 📧 Email Delivery Metrics (SES)" }
+        properties = { markdown = "## Email Delivery Metrics (SES)" }
         x          = 0
         y          = 20
         width      = 24
@@ -612,7 +618,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "metric"
         properties = {
-          title = "✉️ Email Send Statistics"
+          title = "Email Send Statistics"
           metrics = [
             ["AWS/SES", "Send", { stat = "Sum", label = "Total Sent", color = "#2ca02c" }],
             [".", "Delivery", { stat = "Sum", label = "Delivered", color = "#1f77b4" }],
@@ -631,7 +637,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "metric"
         properties = {
-          title = "📈 Email Delivery Rate"
+          title = "Email Delivery Rate"
           metrics = [
             [{ expression = "(m2/m1)*100", label = "Delivery Rate %", color = "#2ca02c" }],
             ["AWS/SES", "Send", { id = "m1", visible = false }],
@@ -650,7 +656,7 @@ resource "aws_cloudwatch_dashboard" "notification_service" {
       {
         type = "log"
         properties = {
-          title  = "📋 Recent Notification Logs"
+          title  = "Recent Notification Logs"
           region = var.aws_region
           query  = <<-EOQ
             SOURCE '/ecs/${var.project_name}/${var.environment}/notification-service'
@@ -681,7 +687,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "text"
         properties = {
-          markdown = "# 🌐 Frontend Application Dashboard\n## Angular App Performance - CloudFront CDN + S3 Static Hosting\n**Environment:** ${upper(var.environment)} | **Distribution:** ${var.cloudfront_distribution_id} | **S3 Bucket:** ${var.s3_bucket_name}\n**Frontend URL:** https://events.sankofagrid.com"
+          markdown = "# Frontend Application Dashboard\n## Angular App Performance - CloudFront CDN + S3 Static Hosting\n**Environment:** ${upper(var.environment)} | **Distribution:** ${var.cloudfront_distribution_id} | **S3 Bucket:** ${var.s3_bucket_name}\n**Frontend URL:** https://events.sankofagrid.com"
         }
         x      = 0
         y      = 0
@@ -691,7 +697,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "text"
         properties = {
-          markdown = "## 📊 Frontend Performance Metrics - User Experience Monitoring"
+          markdown = "## Frontend Performance Metrics - User Experience Monitoring"
         }
         x      = 0
         y      = 2
@@ -701,7 +707,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title   = "🔥 Page Views (5 min)"
+          title   = "Page Views (5 min)"
           metrics = [["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Views", color = "#FF6B6B" }]]
           view    = "singleValue"
           region  = "us-east-1"
@@ -715,7 +721,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title   = "⚡ CDN Cache Efficiency"
+          title   = "CDN Cache Efficiency"
           metrics = [["AWS/CloudFront", "CacheHitRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "Hit %", color = "#4ECDC4" }]]
           view    = "singleValue"
           region  = "us-east-1"
@@ -729,7 +735,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title   = "🌍 Frontend Assets Served"
+          title   = "Frontend Assets Served"
           metrics = [["AWS/CloudFront", "BytesDownloaded", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Bytes", color = "#95E1D3" }]]
           view    = "singleValue"
           region  = "us-east-1"
@@ -743,7 +749,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title   = "⏱️ Page Load Time (ms)"
+          title   = "Page Load Time (ms)"
           metrics = [["AWS/CloudFront", "OriginLatency", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "Latency", color = "#F38181" }]]
           view    = "singleValue"
           region  = "us-east-1"
@@ -757,7 +763,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title   = "⚠️ Frontend Error Rate"
+          title   = "Frontend Error Rate"
           metrics = [
             [{ expression = "(m1+m2)*100", label = "Errors %", color = "#E74C3C" }],
             ["AWS/CloudFront", "4xxErrorRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { id = "m1", visible = false }],
@@ -775,7 +781,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title   = "👥 Active Users"
+          title   = "Active Users"
           metrics = [["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "SampleCount", label = "Users", color = "#3498DB" }]]
           view    = "singleValue"
           region  = "us-east-1"
@@ -789,7 +795,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "text"
         properties = {
-          markdown = "## 📈 User Traffic & CDN Performance"
+          markdown = "## User Traffic & CDN Performance"
         }
         x      = 0
         y      = 6
@@ -799,7 +805,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title = "🔥 Frontend Traffic Volume"
+          title = "Frontend Traffic Volume"
           metrics = [["AWS/CloudFront", "Requests", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Page Requests", color = "#FF6B6B" }]]
           view    = "timeSeries"
           region  = "us-east-1"
@@ -814,7 +820,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title = "⚡ Static Asset Caching Efficiency"
+          title = "Static Asset Caching Efficiency"
           metrics = [
             ["AWS/CloudFront", "CacheHitRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "Cache Hit %", color = "#4ECDC4", yAxis = "left" }],
             [".", "Requests", ".", ".", ".", ".", { stat = "Sum", label = "Asset Requests", color = "#95E1D3", yAxis = "right" }]
@@ -833,7 +839,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "text"
         properties = {
-          markdown = "## 🌍 Global CDN Performance & User Experience"
+          markdown = "## Global CDN Performance & User Experience"
         }
         x      = 0
         y      = 13
@@ -843,7 +849,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title = "📥 Frontend Assets Bandwidth"
+          title = "Frontend Assets Bandwidth"
           metrics = [
             ["AWS/CloudFront", "BytesDownloaded", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Sum", label = "Assets Downloaded (JS/CSS/HTML)", color = "#3498DB" }],
             [".", "BytesUploaded", ".", ".", ".", ".", { stat = "Sum", label = "User Uploads", color = "#E67E22" }]
@@ -861,7 +867,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title = "🚦 Frontend Error Monitoring"
+          title = "Frontend Error Monitoring"
           metrics = [
             ["AWS/CloudFront", "4xxErrorRate", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "4xx (Page Not Found)", color = "#F39C12" }],
             [".", "5xxErrorRate", ".", ".", ".", ".", { stat = "Average", label = "5xx (S3 Origin Errors)", color = "#E74C3C" }],
@@ -881,7 +887,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "text"
         properties = {
-          markdown = "## ⏱️ Latency & Response Time Analysis"
+          markdown = "## Latency & Response Time Analysis"
         }
         x      = 0
         y      = 20
@@ -891,7 +897,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title = "⏱️ Origin Response Time (Real-time)"
+          title = "Origin Response Time (Real-time)"
           metrics = [
             ["AWS/CloudFront", "OriginLatency", "DistributionId", var.cloudfront_distribution_id, "Region", "Global", { stat = "Average", label = "Avg Latency", color = "#9B59B6" }],
             ["...", { stat = "p50", label = "P50", color = "#3498DB" }],
@@ -912,7 +918,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title = "🔥 Request Distribution by Status"
+          title = "Request Distribution by Status"
           metrics = [
             [{ expression = "m1*m2/100", label = "4xx Errors", color = "#F39C12", id = "e1" }],
             [{ expression = "m1*m3/100", label = "5xx Errors", color = "#E74C3C", id = "e2" }],
@@ -933,7 +939,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
 
       {
         type       = "text"
-        properties = { markdown = "## 🪣 S3 Origin Metrics" }
+        properties = { markdown = "## S3 Origin Metrics" }
         x          = 0
         y          = 27
         width      = 24
@@ -942,7 +948,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title   = "📦 Bucket Size"
+          title   = "Bucket Size"
           metrics = [["AWS/S3", "BucketSizeBytes", "BucketName", var.s3_bucket_name, "StorageType", "StandardStorage", { stat = "Average", label = "Size (Bytes)", color = "#1f77b4" }]]
           view    = "timeSeries"
           region  = var.aws_region
@@ -957,7 +963,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title   = "📄 Object Count"
+          title   = "Object Count"
           metrics = [["AWS/S3", "NumberOfObjects", "BucketName", var.s3_bucket_name, "StorageType", "AllStorageTypes", { stat = "Average", label = "Total Objects", color = "#2ca02c" }]]
           view    = "timeSeries"
           region  = var.aws_region
@@ -971,7 +977,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title = "🔄 S3 Requests"
+          title = "S3 Requests"
           metrics = [
             ["AWS/S3", "AllRequests", "BucketName", var.s3_bucket_name, { stat = "Sum", label = "All Requests", color = "#1f77b4" }],
             [".", "GetRequests", ".", ".", { stat = "Sum", label = "GET", color = "#2ca02c" }],
@@ -989,7 +995,7 @@ resource "aws_cloudwatch_dashboard" "frontend_cloudfront" {
       {
         type = "metric"
         properties = {
-          title = "⚠️ S3 Errors"
+          title = "S3 Errors"
           metrics = [
             ["AWS/S3", "4xxErrors", "BucketName", var.s3_bucket_name, { stat = "Sum", label = "4xx Errors", color = "#ff7f0e" }],
             [".", "5xxErrors", ".", ".", { stat = "Sum", label = "5xx Errors", color = "#d62728" }]
@@ -1018,7 +1024,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       {
         type = "text"
         properties = {
-          markdown = "# 🎯 Event Service Dashboard\n## Event management and lifecycle monitoring\n**Environment:** ${upper(var.environment)} | **Region:** ${var.aws_region}"
+          markdown = "# Event Service Dashboard\n## Event management and lifecycle monitoring\n**Environment:** ${upper(var.environment)} | **Region:** ${var.aws_region}"
         }
         x      = 0
         y      = 0
@@ -1028,7 +1034,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       {
         type = "metric"
         properties = {
-          title = "📊 Service Health - CPU & Memory"
+          title = "Service Health - CPU & Memory"
           metrics = [
             ["AWS/ECS", "CPUUtilization", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "CPU %", yAxis = "left" }],
             ["AWS/ECS", "MemoryUtilization", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average", label = "Memory %", yAxis = "right" }]
@@ -1049,7 +1055,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       {
         type = "metric"
         properties = {
-          title     = "💻 CPU Usage"
+          title     = "CPU Usage"
           metrics   = [["AWS/ECS", "CPUUtilization", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average" }]]
           view      = "singleValue"
           region    = var.aws_region
@@ -1064,7 +1070,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       {
         type = "metric"
         properties = {
-          title     = "🧠 Memory Usage"
+          title     = "Memory Usage"
           metrics   = [["AWS/ECS", "MemoryUtilization", "ServiceName", "event-service", "ClusterName", var.ecs_cluster_name, { stat = "Average" }]]
           view      = "singleValue"
           region    = var.aws_region
@@ -1079,7 +1085,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       {
         type = "metric"
         properties = {
-          title   = "📈 Request Rate"
+          title   = "Request Rate"
           metrics = [["AWS/ApplicationELB", "RequestCount", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "Requests/min", color = "#1f77b4" }]]
           view    = "timeSeries"
           stacked = false
@@ -1095,7 +1101,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       {
         type = "metric"
         properties = {
-          title = "🚦 HTTP Status Distribution"
+          title = "HTTP Status Distribution"
           metrics = [
             ["AWS/ApplicationELB", "HTTPCode_Target_2XX_Count", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Sum", label = "2XX Success", color = "#2ca02c" }],
             [".", "HTTPCode_Target_4XX_Count", ".", ".", { stat = "Sum", label = "4XX Client Error", color = "#ff7f0e" }],
@@ -1113,7 +1119,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       {
         type = "metric"
         properties = {
-          title = "⏱️ Response Time Analysis"
+          title = "Response Time Analysis"
           metrics = [
             ["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", var.event_target_group_arn_suffix, { stat = "Average", label = "Average", color = "#1f77b4" }],
             ["...", { stat = "p50", label = "P50", color = "#2ca02c" }],
@@ -1134,7 +1140,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       },
       {
         type       = "text"
-        properties = { markdown = "## 📬 Event Message Queues" }
+        properties = { markdown = "## Event Message Queues" }
         x          = 0
         y          = 12
         width      = 24
@@ -1143,7 +1149,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       {
         type = "metric"
         properties = {
-          title = "📨 Queue Messages"
+          title = "Queue Messages"
           metrics = [
             ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${var.project_name}-${var.environment}-event-created-queue", { stat = "Average", label = "Event Created" }],
             [".", ".", ".", "${var.project_name}-${var.environment}-event-updated-queue", { stat = "Average", label = "Event Updated" }]
@@ -1160,7 +1166,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       {
         type = "metric"
         properties = {
-          title = "📊 Message Throughput"
+          title = "Message Throughput"
           metrics = [
             ["AWS/SQS", "NumberOfMessagesSent", "QueueName", "${var.project_name}-${var.environment}-event-created-queue", { stat = "Sum", label = "Created - Sent", color = "#1f77b4" }],
             [".", "NumberOfMessagesReceived", ".", ".", { stat = "Sum", label = "Created - Received", color = "#2ca02c" }],
@@ -1180,7 +1186,7 @@ resource "aws_cloudwatch_dashboard" "event_service" {
       {
         type = "log"
         properties = {
-          title  = "📋 Recent Event Service Logs"
+          title  = "Recent Event Service Logs"
           region = var.aws_region
           query  = "SOURCE '/ecs/${var.project_name}/${var.environment}/event-service'\n| fields @timestamp, @message\n| filter @message like /ERROR/ or @message like /event/ or @message like /Event/\n| sort @timestamp desc\n| limit 25"
         }
