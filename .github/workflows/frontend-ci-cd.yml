@@ -15,7 +15,7 @@ on:
 env:
   ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
   FRONTEND_REPO: ${{ github.event.client_payload.repository || 'AmaliTech-Training-Academy/event-planner-frontend' }}
-  COMMIT_SHA: ${{ github.event.client_payload.sha || github.sha }}
+  COMMIT_SHA: ${{ github.event.client_payload.sha || 'dev' }}
 
 jobs:
   security-scan:
