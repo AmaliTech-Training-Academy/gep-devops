@@ -165,7 +165,7 @@ jobs:
     needs: [validate, security-scan]
     if: env.ACTION == 'apply' && github.event_name != 'pull_request'
     runs-on: [self-hosted, infrastructure]
-    environment: ${{ env.ENVIRONMENT == 'prod' && 'production' || env.ENVIRONMENT == 'staging' && 'staging' || 'development' }}
+    environment: ${{ (github.ref == 'refs/heads/main' || inputs.environment == 'prod') && 'production' || (github.ref == 'refs/heads/staging' || inputs.environment == 'staging') && 'staging' || 'development' }}
     steps:
     - uses: ./.github/actions/workspace-cleanup
     
