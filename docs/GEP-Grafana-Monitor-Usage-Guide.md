@@ -1,5 +1,11 @@
 
-# Grafana Monitoring Usage Guidelines
+# Event Planner Platform - DevOps Infrastructure Documentation
+
+## Grafana Monitoring Usage Guidelines
+
+**Author:** DevOps Team  
+**Last Updated:** November 18, 2025  
+**Version:** 1.0.0
 
 This document provides practical guidance for using Grafana dashboards across different roles and responsibilities. Whether you're a DevOps engineer, developer, product manager, or business stakeholder, this guide helps you understand and interpret the available metrics.
 
