@@ -1,0 +1,30 @@
+name: 'Terraform Init'
+description: 'Initialize Terraform with S3 backend configuration'
+
+inputs:
+  environment:
+    description: 'Environment name (dev/staging/prod)'
+    required: true
+  state-bucket:
+    description: 'S3 bucket for Terraform state'
+    required: true
+  state-dynamodb-table:
+    description: 'DynamoDB table for state locking'
+    required: true
+  aws-region:
+    description: 'AWS region'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Terraform Init
+      shell: bash
+      working-directory: terraform/environments/${{ inputs.environment }}
+      run: |
+        terraform init \
+          -backend-config="bucket=${{ inputs.state-bucket }}" \
+          -backend-config="key=${{ inputs.environment }}/terraform.tfstate" \
+          -backend-config="region=${{ inputs.aws-region }}" \
+          -backend-config="dynamodb_table=${{ inputs.state-dynamodb-table }}" \
+          -backend-config="encrypt=true"

@@ -9,7 +9,10 @@ inputs:
     required: false
     default: 'frontend'
   api-url:
-    description: 'API URL for production'
+    description: 'API URL'
+    required: false
+  google-maps-key:
+    description: 'Google Maps API Key'
     required: false
 runs:
   using: 'composite'
@@ -24,4 +27,6 @@ runs:
           npm run build
         fi
       env:
+        NG_APP_DEV_API: ${{ inputs.api-url }}
         NG_APP_PROD_API: ${{ inputs.api-url }}
+        NG_APP_GOOGLE_MAPS_KEY: ${{ inputs.google-maps-key }}

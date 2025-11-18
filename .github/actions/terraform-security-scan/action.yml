@@ -1,0 +1,33 @@
+name: 'Terraform Security Scan'
+description: 'Run security scans on Terraform code using Checkov and TFSec'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run Checkov
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: terraform/
+        framework: terraform
+        output_format: sarif
+        output_file_path: checkov-report.sarif
+        soft_fail: true
+
+    - name: Upload Checkov Results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: checkov-report.sarif
+
+    - name: Run TFSec
+      uses: aquasecurity/tfsec-action@v1.0.3
+      with:
+        working_directory: terraform/
+        format: sarif
+        soft_fail: true
+
+    - name: Cleanup Reports
+      shell: bash
+      if: always()
+      run: |
+        sudo rm -rf checkov-report.sarif tfsec-report.sarif results.sarif || true

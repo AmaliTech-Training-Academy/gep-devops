@@ -15,7 +15,7 @@ on:
 env:
   ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
   FRONTEND_REPO: ${{ github.event.client_payload.repository || 'AmaliTech-Training-Academy/event-planner-frontend' }}
-  COMMIT_SHA: ${{ github.event.client_payload.sha || github.sha }}
+  COMMIT_SHA: ${{ github.event.client_payload.sha || 'dev' }}
 
 jobs:
   security-scan:
@@ -106,10 +106,20 @@ jobs:
 
     - uses: ./.github/actions/setup-node
 
+    - name: Set API URL
+      id: api-config
+      run: |
+        case "${{ env.ENVIRONMENT }}" in
+          dev) echo "api_url=${{ secrets.NG_APP_DEV_API }}" >> $GITHUB_OUTPUT ;;
+          staging) echo "api_url=${{ secrets.NG_APP_DEV_API }}" >> $GITHUB_OUTPUT ;;
+          prod) echo "api_url=${{ secrets.NG_APP_PROD_API }}" >> $GITHUB_OUTPUT ;;
+        esac
+
     - uses: ./.github/actions/frontend-build
       with:
         environment: ${{ env.ENVIRONMENT }}
-        api-url: ${{ secrets.NG_APP_PROD_API }}
+        api-url: ${{ steps.api-config.outputs.api_url }}
+        google-maps-key: ${{ secrets.NG_APP_GOOGLE_MAPS_KEY }}
 
     - name: Upload Build Artifacts
       if: success()

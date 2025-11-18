@@ -1,0 +1,16 @@
+name: 'Workspace Cleanup'
+description: 'Clean workspace and temporary files'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Clean Workspace
+      shell: bash
+      run: |
+        echo "Cleaning workspace..."
+        sudo rm -rf ${{ github.workspace }}/* || true
+        sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
+        sudo rm -rf $HOME/.terraform.d/plugin-cache || true
+        sudo rm -rf /tmp/* || true
+        sudo apt-get clean || true
+        df -h

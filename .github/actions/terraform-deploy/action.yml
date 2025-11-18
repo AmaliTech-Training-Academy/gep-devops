@@ -1,0 +1,56 @@
+name: 'Terraform Deploy'
+description: 'Plan and apply Terraform configuration'
+
+inputs:
+  environment:
+    description: 'Environment name (dev/staging/prod)'
+    required: true
+  action:
+    description: 'Action to perform (plan/apply)'
+    required: true
+    default: 'plan'
+  state-bucket:
+    description: 'S3 bucket for state backup'
+    required: true
+  aws-region:
+    description: 'AWS region'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Terraform Plan
+      shell: bash
+      working-directory: terraform/environments/${{ inputs.environment }}
+      run: |
+        if [ "${{ inputs.action }}" = "plan" ]; then
+          terraform plan -no-color -out=tfplan | tee plan.txt
+        else
+          terraform plan -out=tfplan
+        fi
+
+    - name: Terraform Apply
+      if: inputs.action == 'apply'
+      shell: bash
+      working-directory: terraform/environments/${{ inputs.environment }}
+      run: terraform apply -auto-approve tfplan
+
+    - name: Create State Backup
+      if: inputs.action == 'apply'
+      shell: bash
+      working-directory: terraform/environments/${{ inputs.environment }}
+      run: |
+        terraform state pull > terraform.tfstate.backup
+        aws s3 cp terraform.tfstate.backup \
+          s3://${{ inputs.state-bucket }}/backups/${{ inputs.environment }}/terraform.tfstate.$(date +%Y%m%d-%H%M%S) \
+          --region ${{ inputs.aws-region }}
+      continue-on-error: true
+
+    - name: Verify Deployment
+      if: inputs.action == 'apply'
+      shell: bash
+      working-directory: terraform/environments/${{ inputs.environment }}
+      run: |
+        echo "Resources in state:"
+        terraform state list | head -10
+        echo "Total resources: $(terraform state list | wc -l)"

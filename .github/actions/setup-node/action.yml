@@ -1,5 +1,5 @@
 name: 'Setup Node.js'
-description: 'Setup Node.js and install dependencies'
+description: 'Setup Node.js and install dependencies with legacy peer deps support'
 inputs:
   working-directory:
     description: 'Working directory'
@@ -12,12 +12,14 @@ runs:
       with:
         node-version: '18'
 
-    - name: Install Dependencies
+    - name: Clean npm cache
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        if [ -f "package-lock.json" ]; then
-          npm ci
-        else
-          npm install
-        fi
+        rm -rf node_modules package-lock.json
+        npm cache clean --force
+
+    - name: Install Dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm install --legacy-peer-deps

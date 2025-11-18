@@ -159,6 +159,86 @@ on:
 
 ---
 
+## Infrastructure CI/CD Pipeline
+
+### Pipeline Overview
+
+The infrastructure pipeline (`infrastructure-ci-cd.yml`) handles Terraform deployments with security scanning, validation, and state management.
+
+### Reusable Actions
+
+#### setup-terraform
+Sets up Terraform with AWS CLI and dependencies.
+
+**Inputs:**
+- `terraform-version`: Terraform version (default: '1.13.4')
+- `terraform-wrapper`: Enable wrapper (default: 'true')
+
+#### terraform-init
+Initializes Terraform with S3 backend configuration.
+
+**Inputs:**
+- `environment`: Environment name (dev/staging/prod)
+- `state-bucket`: S3 bucket for state
+- `state-dynamodb-table`: DynamoDB table for locking
+- `aws-region`: AWS region
+
+#### terraform-security-scan
+Runs Checkov and TFSec security scans on Terraform code.
+
+#### terraform-deploy
+Plans and applies Terraform configuration with state backup.
+
+**Inputs:**
+- `environment`: Environment name
+- `action`: Action to perform (plan/apply)
+- `state-bucket`: S3 bucket for backup
+- `aws-region`: AWS region
+
+#### workspace-cleanup
+Cleans workspace and temporary files.
+
+### Key Pipeline Jobs
+
+#### 1. Validate Job
+```yaml
+- uses: ./.github/actions/setup-terraform
+- name: Terraform Format Check
+- uses: ./.github/actions/terraform-init
+- name: Terraform Validate
+- name: TFLint
+```
+
+#### 2. Security Scan Job
+```yaml
+- uses: ./.github/actions/terraform-security-scan
+```
+
+#### 3. Plan Job (PRs)
+```yaml
+- uses: ./.github/actions/terraform-deploy
+  with:
+    action: plan
+- name: Comment PR with Plan
+```
+
+#### 4. Deploy Job (Push to branches)
+```yaml
+- uses: ./.github/actions/terraform-deploy
+  with:
+    action: apply
+- name: Upload State Backup
+```
+
+### Smart Environment Detection
+```yaml
+env:
+  ENVIRONMENT: ${{ github.ref == 'refs/heads/dev' && 'dev' || github.ref == 'refs/heads/staging' && 'staging' || github.ref == 'refs/heads/main' && 'prod' || inputs.environment }}
+  ACTION: ${{ inputs.action || (github.event_name == 'pull_request' && 'plan' || 'apply') }}
+```
+
+---
+
 ## Frontend CI/CD Pipeline
 
 ### Pipeline Overview
