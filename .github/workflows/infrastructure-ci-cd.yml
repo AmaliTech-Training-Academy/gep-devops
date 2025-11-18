@@ -93,7 +93,7 @@ jobs:
 
   plan:
     needs: [validate, security-scan]
-    if: env.ACTION == 'plan' || github.event_name == 'pull_request'
+    if: (inputs.action == 'plan' || github.event_name == 'pull_request' || (github.event_name == 'push' && inputs.action != 'apply'))
     runs-on: [self-hosted, infrastructure]
     steps:
     - uses: ./.github/actions/workspace-cleanup
@@ -163,7 +163,7 @@ jobs:
 
   deploy:
     needs: [validate, security-scan]
-    if: env.ACTION == 'apply' && github.event_name != 'pull_request'
+    if: (inputs.action == 'apply' || (github.event_name == 'push' && inputs.action != 'plan')) && github.event_name != 'pull_request'
     runs-on: [self-hosted, infrastructure]
     environment: ${{ (github.ref == 'refs/heads/main' || inputs.environment == 'prod') && 'production' || (github.ref == 'refs/heads/staging' || inputs.environment == 'staging') && 'staging' || 'development' }}
     steps:
@@ -222,12 +222,12 @@ jobs:
         status: custom
         custom_payload: |
           {
-            "text": "Infrastructure ${{ env.ACTION == 'plan' && 'Plan' || 'Deployment' }} ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Succeeded ✅' }}",
+            "text": "Infrastructure ${{ (inputs.action == 'plan' || github.event_name == 'pull_request') && 'Plan' || 'Deployment' }} ${{ contains(needs.*.result, 'failure') && 'Failed ❌' || 'Succeeded ✅' }}",
             "attachments": [{
               "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
               "fields": [
                 {"title": "Environment", "value": "${{ env.ENVIRONMENT }}", "short": true},
-                {"title": "Action", "value": "${{ env.ACTION }}", "short": true},
+                {"title": "Action", "value": "${{ inputs.action || (github.event_name == 'pull_request' && 'plan' || 'apply') }}", "short": true},
                 {"title": "Triggered By", "value": "${{ github.actor }}", "short": true}
               ]
             }]
