@@ -417,7 +417,7 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "VIRTUAL_TICKET_VERIFICATION_URL"
-            value = "http://${var.alb_dns_name}/api/v1/tickets/verifyVirtualTicket/join"
+            value = "https://api.sankofagrid.com/api/v1/tickets/verifyVirtualTicket/join"
           },
           {
             name  = "CORS_RESOURCE_ENDPOINT"
