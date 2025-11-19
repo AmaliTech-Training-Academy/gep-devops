@@ -15,8 +15,8 @@ on:
 env:
   ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
   FRONTEND_REPO: ${{ github.event.client_payload.repository || 'AmaliTech-Training-Academy/event-planner-frontend' }}
-  COMMIT_SHA: ${{ github.event.client_payload.sha || github.event.client_payload.branch || 'dev' }}
-  # temporal-deploy branch will be treated as 'dev' environment but uses temporal-deploy code
+  COMMIT_SHA: ${{ github.event.client_payload.sha || github.event.client_payload.branch || 'temporal-deploy' }}
+  # Use temporal-deploy branch for testing, fallback to dev if not specified
 
 jobs:
   security-scan:
