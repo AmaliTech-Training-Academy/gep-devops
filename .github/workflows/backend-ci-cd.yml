@@ -17,7 +17,7 @@ on:
       services:
         description: 'Services to deploy (JSON array)'
         required: false
-        default: '["auth-service", "event-service", "notification-service"]'
+        default: '["auth-service", "event-service", "notification-service", "payment-service"]'
         type: string
 
 env:
@@ -54,15 +54,15 @@ jobs:
       - name: Determine Services
         id: services
         run: |
-          SERVICES='${{ github.event.client_payload.services || inputs.services || '["auth-service", "event-service", "notification-service"]' }}'
-          ENABLED=("auth-service" "event-service" "notification-service")
+          SERVICES='${{ github.event.client_payload.services || inputs.services || '["auth-service", "event-service", "notification-service", "payment-service"]' }}'
+          ENABLED=("auth-service" "event-service" "notification-service" "payment-service")
           FILTERED=()
           
           for service in $(echo $SERVICES | jq -r '.[]'); do
             [[ " ${ENABLED[*]} " =~ " $service " ]] && FILTERED+=("\"$service\"")
           done
           
-          [ ${#FILTERED[@]} -eq 0 ] && FILTERED=("\"auth-service\"" "\"event-service\"" "\"notification-service\"")
+          [ ${#FILTERED[@]} -eq 0 ] && FILTERED=("\"auth-service\"" "\"event-service\"" "\"notification-service\"" "\"payment-service\"")
           
           echo "matrix=[$(IFS=,; echo "${FILTERED[*]}")]" >> "$GITHUB_OUTPUT"
 
