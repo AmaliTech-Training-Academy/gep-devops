@@ -143,6 +143,24 @@ locals {
       visibility_timeout = 30
       message_retention  = 259200
     }
+
+    # Event creation queue for event service
+    event_creation_event = {
+      name               = "${var.project_name}-${var.environment}-event-creation-event-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["event.creation"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
+
+    # Event creation queue for notification service
+    event_creation_notification = {
+      name               = "${var.project_name}-${var.environment}-event-creation-notification-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["event.creation"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
   }
 
   common_tags = merge(

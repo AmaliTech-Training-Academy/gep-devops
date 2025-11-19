@@ -426,8 +426,19 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "AUTH_SERVICE_URL"
             value = "https://api.sankofagrid.com"
+          },
+          {
+            name  = "EVENT_CREATION_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "event_creation_event", "")
+          },
+          {
+            name  = "EVENT_CREATION_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "event_creation_event", "")
+          },
+          {
+            name  = "EVENT_CREATION_QUEUE"
+            value = lookup(var.sqs_queue_urls, "event_creation_event", "")
           }
-          
 
         ] : [],
 
@@ -596,7 +607,7 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "VIRTUAL_TICKET_VERIFICATION_URL"
-            value = "http://${var.alb_dns_name}/api/v1/tickets/verifyVirtualTicket/join"
+            value = "https://api.sankofagrid.com/api/v1/tickets/verifyVirtualTicket/join"
           },
           {
             name  = "EVENT_INVITATION_QUEUE_URL"
@@ -625,6 +636,18 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "FRONTEND_BASE_URL"
             value = "https://events.sankofagrid.com"
+          },
+          {
+            name  = "EVENT_CREATION_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "event_creation_notification", "")
+          },
+          {
+            name  = "EVENT_CREATION_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "event_creation_notification", "")
+          },
+          {
+            name  = "EVENT_CREATION_QUEUE"
+            value = lookup(var.sqs_queue_urls, "event_creation_notification", "")
           }
         ] : []
       )
