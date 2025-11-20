@@ -11,6 +11,7 @@ on:
         default: dev
         type: choice
         options:
+          - testing
           - dev
           - staging
           - prod
@@ -37,11 +38,11 @@ jobs:
         id: check
         run: |
           BRANCH="${{ github.event.client_payload.ref || 'dev' }}"
-          if [[ "$BRANCH" == "refs/heads/dev" || "$BRANCH" == "dev" ]]; then
+          if [[ "$BRANCH" == "refs/heads/dev" || "$BRANCH" == "dev" || "$BRANCH" == "refs/heads/testing" || "$BRANCH" == "testing" ]]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️ Skipping deployment - branch '$BRANCH' is not 'dev'"
+            echo "⚠️ Skipping deployment - branch '$BRANCH' is not allowed"
           fi
 
   prepare:
