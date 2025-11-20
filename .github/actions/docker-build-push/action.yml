@@ -33,3 +33,5 @@ runs:
         
         docker tag "${{ inputs.ecr-registry }}/$REPO_NAME:$IMAGE_TAG" "${{ inputs.ecr-registry }}/$REPO_NAME:latest"
         docker push "${{ inputs.ecr-registry }}/$REPO_NAME:latest"
+        
+        docker rmi "${{ inputs.ecr-registry }}/$REPO_NAME:$IMAGE_TAG" "${{ inputs.ecr-registry }}/$REPO_NAME:latest" || true

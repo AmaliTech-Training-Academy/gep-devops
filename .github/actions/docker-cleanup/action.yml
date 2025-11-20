@@ -1,0 +1,12 @@
+name: 'Docker Cleanup'
+description: 'Clean Docker resources to free disk space'
+runs:
+  using: 'composite'
+  steps:
+    - name: Clean Docker Resources
+      shell: bash
+      run: |
+        echo "🧹 Cleaning Docker resources..."
+        docker system prune -af --volumes || true
+        echo "📊 Disk space after cleanup:"
+        df -h
