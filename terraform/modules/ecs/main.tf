@@ -929,10 +929,10 @@ resource "aws_ecs_task_definition" "services" {
       # Health check - Extended grace periods for payment service
       healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/actuator/health || wget --no-verbose --tries=1 --spider http://localhost:${each.value.port}/actuator/health || exit 1"]
-        interval    = each.key == "payment" ? 90 : 30
-        timeout     = each.key == "payment" ? 45 : 15
-        retries     = each.key == "payment" ? 10 : 3
-        startPeriod = each.key == "payment" ? 600 : 180
+        interval    = each.key == "payment" ? 60 : 30
+        timeout     = each.key == "payment" ? 30 : 15
+        retries     = each.key == "payment" ? 5 : 3
+        startPeriod = each.key == "payment" ? 300 : 180
       }
 
       logConfiguration = {
