@@ -68,7 +68,7 @@ locals {
   microservice_ports = {
     auth_service         = 8081  # User authentication and management
     event_service        = 8082  # Event creation and management
-    payment_service      = 8084  # Payment processing
+    payment_service      = 8088  # Payment processing
     notification_service = 8085  # Email and SMS notifications
   }
 }

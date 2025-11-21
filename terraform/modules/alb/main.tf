@@ -235,7 +235,7 @@ resource "aws_lb_target_group" "services" {
   vpc_id      = var.vpc_id
   target_type = "ip" # Required for Fargate
 
-  # Health check configuration
+  # Health check configuration - Very permissive for payment service
   health_check {
     enabled             = true
     path                = each.value.health_check_path
@@ -243,8 +243,8 @@ resource "aws_lb_target_group" "services" {
     port                = "traffic-port"
     healthy_threshold   = var.health_check_healthy_threshold
     unhealthy_threshold = var.health_check_unhealthy_threshold
-    timeout             = var.health_check_timeout
-    interval            = var.health_check_interval
+    timeout             = each.key == "payment" ? 30 : var.health_check_timeout
+    interval            = each.key == "payment" ? 60 : var.health_check_interval
     matcher             = "200-299"
   }
 

@@ -479,6 +479,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "EVENT_CREATION_QUEUE"
             value = lookup(var.sqs_queue_urls, "event_creation_event", "")
+          },
+          {
+            name  = "PAYMENT_SERVICE_URL"
+            value = "http://payment-service.${var.service_discovery_namespace}:8088"
           }
 
         ] : [],
@@ -670,11 +674,11 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "MANAGEMENT_HEALTH_REDIS_ENABLED"
-            value = "true"
+            value = "false"
           },
           {
             name  = "MANAGEMENT_HEALTH_DB_ENABLED"
-            value = "true"
+            value = "false"
           },
 
           {
@@ -935,13 +939,13 @@ resource "aws_ecs_task_definition" "services" {
 
       )
 
-      # Health check - Extended grace periods for payment service
-      healthCheck = {
+      # Health check - Disabled for payment service to prevent restart loops
+      healthCheck = each.key == "payment" ? null : {
         command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/actuator/health || wget --no-verbose --tries=1 --spider http://localhost:${each.value.port}/actuator/health || exit 1"]
-        interval    = each.key == "payment" ? 60 : 30
-        timeout     = each.key == "payment" ? 30 : 15
-        retries     = each.key == "payment" ? 5 : 3
-        startPeriod = each.key == "payment" ? 300 : 180
+        interval    = 30
+        timeout     = 15
+        retries     = 3
+        startPeriod = 180
       }
 
       logConfiguration = {
@@ -1043,7 +1047,7 @@ resource "aws_ecs_service" "services" {
   enable_ecs_managed_tags = true
   propagate_tags          = "SERVICE"
 
-  # Health check grace period (reduced for faster deployment)
+  # Health check grace period - Extended for payment service
   health_check_grace_period_seconds = each.key == "payment" ? 600 : 300
 
   tags = merge(
