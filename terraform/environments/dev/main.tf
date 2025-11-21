@@ -654,5 +654,7 @@ module "ecs" {
   scale_in_cooldown   = 300
   scale_out_cooldown  = 60
 
+  payment_service_url = var.payment_service_url
+
   tags = local.common_tags
 }

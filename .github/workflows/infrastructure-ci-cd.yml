@@ -113,6 +113,7 @@ jobs:
       env:
         TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        TF_VAR_payment_service_url: ${{ secrets.PAYMENT_SERVICE_URL }}
 
     - uses: ./.github/actions/terraform-deploy
       with:
@@ -123,6 +124,7 @@ jobs:
       env:
         TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        TF_VAR_payment_service_url: ${{ secrets.PAYMENT_SERVICE_URL }}
 
     - name: Comment PR with Plan
       if: github.event_name == 'pull_request'
@@ -183,6 +185,7 @@ jobs:
       env:
         TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        TF_VAR_payment_service_url: ${{ secrets.PAYMENT_SERVICE_URL }}
 
     - uses: ./.github/actions/terraform-deploy
       with:
@@ -193,6 +196,7 @@ jobs:
       env:
         TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        TF_VAR_payment_service_url: ${{ secrets.PAYMENT_SERVICE_URL }}
 
     - name: Upload State Backup
       uses: actions/upload-artifact@v4

@@ -346,6 +346,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "AWS_ENDPOINT"
             value = "https://s3.${var.aws_region}.amazonaws.com"
+          },
+          {
+            name  = "PAYMENT_SERVICE_URL"
+            value = var.payment_service_url
           }
         ] : [],
         # SQS configuration - only for services that need it

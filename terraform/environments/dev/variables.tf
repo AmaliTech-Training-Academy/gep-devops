@@ -156,6 +156,12 @@ variable "tags" {
   }
 }
 
+variable "payment_service_url" {
+  description = "Payment service URL for event service"
+  type        = string
+  default     = "https://api.sankofagrid.com"
+}
+
 
 
 
