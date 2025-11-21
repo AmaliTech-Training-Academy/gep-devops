@@ -10,7 +10,7 @@ The payment service has been uncommented and fully configured in the infrastruct
 **File:** `terraform/modules/ecs/main.tf`
 
 - **Service Name:** payment-service
-- **Port:** 8084
+- **Port:** 8088
 - **CPU:** 256 (dev) / 512 (prod)
 - **Memory:** 512MB (dev) / 1024MB (prod)
 - **Desired Count:** 1 (dev) / 2 (prod)
@@ -57,11 +57,11 @@ TICKET_PURCHASED_EVENT_QUEUE_URL
 ```
 
 ### 4. Service Discovery
-**DNS Name:** `payment-service.eventplanner.local:8084`
+**DNS Name:** `payment-service.eventplanner.local:8088`
 
 **Environment Variable:**
 ```
-PAYMENT_SERVICE_URL=http://payment-service.eventplanner.local:8084
+PAYMENT_SERVICE_URL=http://payment-service.eventplanner.local:8088
 ```
 
 ### 5. ALB Configuration

@@ -54,12 +54,12 @@ locals {
 
     payment = {
       name          = "payment-service"
-      port          = 8084
+      port          = 8088
       cpu           = var.environment == "dev" ? 256 : 512
       memory        = var.environment == "dev" ? 512 : 1024
       desired_count = var.environment == "dev" ? 1 : 2
       min_capacity  = var.environment == "dev" ? 1 : 2
-      max_capacity  = var.environment == "dev" ? 2 : 4
+      max_capacity  = var.environment == "dev" ? 1 : 4
     }
     notification = {
       name          = "notification-service"
@@ -217,17 +217,54 @@ resource "aws_ecs_task_definition" "services" {
           value = var.aws_region
         },
         {
+          name  = "AWS_DEFAULT_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "AWS_SDK_LOAD_CONFIG"
+          value = "true"
+        },
+        {
+          name  = "AWS_EC2_METADATA_DISABLED"
+          value = "false"
+        },
+        {
           name  = "SPRING_DATA_REDIS_HOST"
-          value = var.redis_endpoint
+          value = split(":", var.redis_endpoint)[0]
         },
         {
           name  = "SPRING_DATA_REDIS_PORT"
-          value = "6379"
+          value = length(split(":", var.redis_endpoint)) > 1 ? split(":", var.redis_endpoint)[1] : "6379"
         },
         {
           name  = "SPRING_DATA_REDIS_SSL_ENABLED"
           value = "true"
         },
+        {
+          name  = "SPRING_DATA_REDIS_TIMEOUT"
+          value = "10000"
+        },
+        {
+          name  = "REDIS_HOST"
+          value = split(":", var.redis_endpoint)[0]
+        },
+        {
+          name  = "REDIS_PORT"
+          value = length(split(":", var.redis_endpoint)) > 1 ? split(":", var.redis_endpoint)[1] : "6379"
+        },
+        {
+          name  = "REDIS_SSL"
+          value = "true"
+        },
+        {
+          name  = "REDIS_TIMEOUT"
+          value = "60000"
+        },
+        {
+          name  = "REDIS_CACHE_TTL_MINUTES"
+          value = "10"
+        },
+
         {
           name  = "SPRING_DATA_REDIS_TIMEOUT"
           value = "10000"
@@ -460,15 +497,7 @@ resource "aws_ecs_task_definition" "services" {
             value = "https://sqs.${var.aws_region}.amazonaws.com"
           },
           {
-            name  = "PAYMENT_SERVICE_DB_SCHEMA"
-            value = "payment_schema"
-          },
-          {
             name  = "SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA"
-            value = "payment_schema"
-          },
-          {
-            name  = "DATABASE_SCHEMA"
             value = "payment_schema"
           },
           {
@@ -488,6 +517,42 @@ resource "aws_ecs_task_definition" "services" {
             value = "org.hibernate.dialect.PostgreSQLDialect"
           },
           {
+            name  = "REDIS_HOST"
+            value = split(":", var.redis_endpoint)[0]
+          },
+          {
+            name  = "REDIS_PORT"
+            value = "6379"
+          },
+          {
+            name  = "REDIS_SSL"
+            value = "true"
+          },
+          {
+            name  = "REDIS_TIMEOUT"
+            value = "60000"
+          },
+          {
+            name  = "REDIS_CACHE_TTL_MINUTES"
+            value = "10"
+          },
+          {
+            name  = "SPRING_DATA_REDIS_TIMEOUT"
+            value = "10000"
+          },
+          {
+            name  = "SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE"
+            value = "8"
+          },
+          {
+            name  = "SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE"
+            value = "8"
+          },
+          {
+            name  = "SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE"
+            value = "2"
+          },
+          {
             name  = "PAYMENT_PROCESSING_EVENT_QUEUE_NAME"
             value = lookup(var.sqs_queue_names, "payment_processing_event", "")
           },
@@ -504,6 +569,10 @@ resource "aws_ecs_task_definition" "services" {
             value = lookup(var.sqs_queue_urls, "payment_completed_event", "")
           },
           {
+            name  = "PAYMENT_COMPLETED_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "payment_completed_event", "")
+          },
+          {
             name  = "TICKET_PURCHASED_EVENT_QUEUE_NAME"
             value = lookup(var.sqs_queue_names, "ticket_purchased_event", "")
           },
@@ -513,7 +582,115 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "PAYMENT_SERVICE_URL"
-            value = "http://payment-service.${var.service_discovery_namespace}:8084"
+            value = "https://api.sankofagrid.com"
+          },
+          {
+            name  = "PAYSTACK_URL"
+            value = "https://api.paystack.co/transaction/initialize"
+          },
+          {
+            name  = "EVENT_SERVICE_URL"
+            value = "http://event-service.${var.service_discovery_namespace}:8082"
+          },
+          {
+            name  = "AUTH_SERVICE_URL"
+            value = "http://auth-service.${var.service_discovery_namespace}:8081"
+          },
+          {
+            name  = "NOTIFICATION_SERVICE_URL"
+            value = "http://notification-service.${var.service_discovery_namespace}:8085"
+          },
+          {
+            name  = "CORS_RESOURCE_ENDPOINT"
+            value = "http://localhost:3000,http://localhost:8080,http://localhost:4200,https://events.sankofagrid.com"
+          },
+          {
+            name  = "SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT"
+            value = "org.hibernate.dialect.PostgreSQLDialect"
+          },
+          {
+            name  = "SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL"
+            value = "false"
+          },
+          {
+            name  = "SPRING_JPA_PROPERTIES_HIBERNATE_USE_SQL_COMMENTS"
+            value = "false"
+          },
+          {
+            name  = "SPRING_DATASOURCE_DRIVER_CLASS_NAME"
+            value = "org.postgresql.Driver"
+          },
+          {
+            name  = "SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT"
+            value = "30000"
+          },
+          {
+            name  = "SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT"
+            value = "600000"
+          },
+          {
+            name  = "SPRING_DATASOURCE_HIKARI_MAX_LIFETIME"
+            value = "1800000"
+          },
+          {
+            name  = "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE"
+            value = "10"
+          },
+          {
+            name  = "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE"
+            value = "2"
+          },
+          {
+            name  = "LOGGING_LEVEL_COM_ZAXXER_HIKARI"
+            value = "WARN"
+          },
+          {
+            name  = "LOGGING_LEVEL_ORG_HIBERNATE"
+            value = "WARN"
+          },
+          {
+            name  = "LOGGING_LEVEL_ORG_SPRINGFRAMEWORK"
+            value = "INFO"
+          },
+          {
+            name  = "MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE"
+            value = "health,info"
+          },
+          {
+            name  = "MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS"
+            value = "always"
+          },
+          {
+            name  = "MANAGEMENT_HEALTH_REDIS_ENABLED"
+            value = "true"
+          },
+          {
+            name  = "MANAGEMENT_HEALTH_DB_ENABLED"
+            value = "true"
+          },
+          {
+            name  = "SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT"
+            value = "60000"
+          },
+          {
+            name  = "SPRING_DATASOURCE_HIKARI_VALIDATION_TIMEOUT"
+            value = "5000"
+          },
+          {
+            name  = "SPRING_DATASOURCE_HIKARI_LEAK_DETECTION_THRESHOLD"
+            value = "60000"
+          },
+          {
+            name  = "SPRING_JPA_DEFER_DATASOURCE_INITIALIZATION"
+            value = "true"
+          },
+          {
+            name  = "SPRING_SQL_INIT_MODE"
+            value = "never"
+          },
+          {
+            name  = "SPRING_JPA_OPEN_IN_VIEW"
+            value = "false"
           }
         ] : [],
         each.key == "notification" ? [
@@ -534,24 +711,16 @@ resource "aws_ecs_task_definition" "services" {
             value = "https://sqs.${var.aws_region}.amazonaws.com"
           },
           {
-            name  = "AWS_REGION"
-            value = var.aws_region
-          },
-          {
-            name  = "AWS_SDK_LOAD_CONFIG"
-            value = "true"
-          },
-          {
-            name  = "AWS_EC2_METADATA_DISABLED"
-            value = "false"
-          },
-          {
             name  = "SPRING_CLOUD_AWS_CREDENTIALS_USE_DEFAULT_AWS_CREDENTIALS_CHAIN"
             value = "true"
           },
           {
-            name  = "SPRING_CLOUD_AWS_CREDENTIALS_PROVIDER"
-            value = "default"
+            name  = "SPRING_CLOUD_AWS_REGION_STATIC"
+            value = var.aws_region
+          },
+          {
+            name  = "SPRING_CLOUD_AWS_REGION_AUTO"
+            value = "false"
           },
           {
             name  = "USER_REGISTRATION_QUEUE_NAME"
@@ -653,21 +822,7 @@ resource "aws_ecs_task_definition" "services" {
       )
 
       secrets = concat(
-        # AWS Credentials from Secrets Manager - for all services as fallback
-        var.aws_credentials_secret_arn != null ? [
-          {
-            name      = "AWS_ACCESS_KEY_ID"
-            valueFrom = "${var.aws_credentials_secret_arn}:access_key::"
-          },
-          {
-            name      = "AWS_SECRET_ACCESS_KEY"
-            valueFrom = "${var.aws_credentials_secret_arn}:secret_key::"
-          },
-          {
-            name      = "AWS_SECRET_KEY"
-            valueFrom = "${var.aws_credentials_secret_arn}:secret_key::"
-          }
-        ] : [],
+        # AWS credentials removed - services use IAM roles for AWS access
         # Service-specific database credentials - use each.key (auth, event) not each.value.name (auth-service)
         each.key == "auth" && lookup(var.db_secret_arns, each.key, null) != null ? [
           {
@@ -721,25 +876,32 @@ resource "aws_ecs_task_definition" "services" {
           {
             name      = "SPRING_DATASOURCE_PASSWORD"
             valueFrom = "${var.db_secret_arns["auth"]}:password::"
-          },
-          {
-            name      = "PAYMENT_SERVICE_DB_URL"
-            valueFrom = "${var.db_secret_arns["auth"]}:url::"
-          },
-          {
-            name      = "PAYMENT_SERVICE_DB_USER"
-            valueFrom = "${var.db_secret_arns["auth"]}:username::"
-          },
-          {
-            name      = "PAYMENT_SERVICE_DB_PASSWORD"
-            valueFrom = "${var.db_secret_arns["auth"]}:password::"
           }
         ] : [],
+        # Paystack credentials for payment service
+        each.key == "payment" && var.paystack_credentials_secret_arn != null ? [
+          {
+            name      = "PAYSTACK_SECRET"
+            valueFrom = "${var.paystack_credentials_secret_arn}:PAYSTACK_SECRET::"
+          }
+        ] : [],
+
         # JWT secret for all services that need JWT validation
         (each.key == "auth" || each.key == "event" || each.key == "notification" || each.key == "payment") && var.jwt_secret_arn != null ? [
           {
             name      = "JWT_SECRET"
             valueFrom = "${var.jwt_secret_arn}:JWT_SECRET::"
+          }
+        ] : [],
+        # Redis auth token for all services that use Redis
+        var.redis_credentials_secret_arn != null ? [
+          {
+            name      = "SPRING_DATA_REDIS_PASSWORD"
+            valueFrom = "${var.redis_credentials_secret_arn}:REDIS_AUTH_TOKEN::"
+          },
+          {
+            name      = "REDIS_PASSWORD"
+            valueFrom = "${var.redis_credentials_secret_arn}:REDIS_AUTH_TOKEN::"
           }
         ] : [],
         # Google credentials for notification service
@@ -764,13 +926,13 @@ resource "aws_ecs_task_definition" "services" {
 
       )
 
-      # Health check
+      # Health check - Extended grace periods for payment service
       healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/actuator/health || wget --no-verbose --tries=1 --spider http://localhost:${each.value.port}/actuator/health || exit 1"]
-        interval    = 30
-        timeout     = 10
-        retries     = 3
-        startPeriod = 120
+        interval    = each.key == "payment" ? 90 : 30
+        timeout     = each.key == "payment" ? 45 : 15
+        retries     = each.key == "payment" ? 10 : 3
+        startPeriod = each.key == "payment" ? 600 : 180
       }
 
       logConfiguration = {
@@ -872,8 +1034,8 @@ resource "aws_ecs_service" "services" {
   enable_ecs_managed_tags = true
   propagate_tags          = "SERVICE"
 
-  # Health check grace period (allow time for Spring Boot startup)
-  health_check_grace_period_seconds = 300
+  # Health check grace period (maximum for payment service)
+  health_check_grace_period_seconds = each.key == "payment" ? 2400 : 300
 
   tags = merge(
     local.common_tags,

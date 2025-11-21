@@ -67,7 +67,7 @@ variable "health_check_unhealthy_threshold" {
 variable "health_check_timeout" {
   description = "Health check timeout in seconds"
   type        = number
-  default     = 5
+  default     = 10
 
   validation {
     condition     = var.health_check_timeout >= 2 && var.health_check_timeout <= 120

@@ -161,6 +161,15 @@ locals {
       visibility_timeout = 30
       message_retention  = 259200
     }
+
+    # Payment completed queue for payment service
+    payment_completed = {
+      name               = "${var.project_name}-${var.environment}-payment-completed-queue"
+      topic              = "payment"
+      filter_policy      = { event_type = ["payment.completed"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
   }
 
   common_tags = merge(

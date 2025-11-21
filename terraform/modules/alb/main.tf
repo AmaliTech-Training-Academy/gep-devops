@@ -83,7 +83,7 @@ locals {
     }
     payment = {
       name              = "payment-service"                 # Payment processing
-      port              = 8084                             # Network port for payment operations
+      port              = 8088                             # Network port for payment operations
       path_pattern      = "/api/v1/payments/*"             # URL pattern for payment requests
       health_check_path = "/actuator/health"               # Service health check endpoint
       priority          = 400                              # Fourth priority routing
@@ -243,8 +243,8 @@ resource "aws_lb_target_group" "services" {
     port                = "traffic-port"
     healthy_threshold   = var.health_check_healthy_threshold
     unhealthy_threshold = var.health_check_unhealthy_threshold
-    timeout             = var.health_check_timeout
-    interval            = var.health_check_interval
+    timeout             = each.key == "payment" ? 30 : var.health_check_timeout
+    interval            = each.key == "payment" ? 60 : var.health_check_interval
     matcher             = "200-299"
   }
 

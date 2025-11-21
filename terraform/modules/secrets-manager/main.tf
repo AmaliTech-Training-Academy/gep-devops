@@ -55,36 +55,7 @@ resource "aws_secretsmanager_secret_version" "jwt_secret" {
   })
 }
 
-# ==============================================================================
-# AWS Credentials Secret (for services to access AWS resources)
-# ==============================================================================
-
-resource "aws_secretsmanager_secret" "aws_credentials" {
-  name                    = "${var.project_name}/${var.environment}/aws-credentials"
-  description             = "AWS credentials for ECS services to access AWS resources"
-  recovery_window_in_days = var.recovery_window_in_days
-
-  tags = merge(
-    var.tags,
-    {
-      Name = "${var.project_name}-${var.environment}-aws-credentials"
-    }
-  )
-}
-
-# AWS credentials secret version - managed externally
-# The secret already exists with proper credentials
-resource "aws_secretsmanager_secret_version" "aws_credentials" {
-  secret_id = aws_secretsmanager_secret.aws_credentials.id
-  secret_string = jsonencode({
-    access_key = "PLACEHOLDER_ACCESS_KEY"
-    secret_key = "PLACEHOLDER_SECRET_KEY"
-  })
-
-  lifecycle {
-    ignore_changes = [secret_string]
-  }
-}
+# AWS credentials removed - services use IAM roles for AWS access
 
 # ==============================================================================
 # Google Email Credentials Secret (for notification service)
@@ -116,4 +87,64 @@ resource "aws_secretsmanager_secret_version" "google_credentials" {
   lifecycle {
     ignore_changes = [secret_string]
   }
+}
+
+# ==============================================================================
+# Paystack Credentials Secret (for payment service)
+# ==============================================================================
+
+resource "aws_secretsmanager_secret" "paystack_credentials" {
+  name                    = "${var.project_name}/${var.environment}/paystack-credentials"
+  description             = "Paystack API credentials for payment service"
+  recovery_window_in_days = var.recovery_window_in_days
+
+  tags = merge(
+    var.tags,
+    {
+      Name    = "${var.project_name}-${var.environment}-paystack-credentials"
+      Service = "payment-service"
+    }
+  )
+}
+
+# Paystack secret version - managed externally for security
+# The secret must be manually populated with actual credentials
+resource "aws_secretsmanager_secret_version" "paystack_credentials" {
+  secret_id = aws_secretsmanager_secret.paystack_credentials.id
+  secret_string = jsonencode({
+    PAYSTACK_SECRET = "PLACEHOLDER_PAYSTACK_SECRET"
+  })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
+
+# ==============================================================================
+# Redis Auth Token Secret (for ElastiCache authentication)
+# ==============================================================================
+
+resource "random_password" "redis_auth_token" {
+  length  = 32
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "redis_credentials" {
+  name                    = "${var.project_name}/${var.environment}/redis-credentials"
+  description             = "Redis authentication token for ElastiCache"
+  recovery_window_in_days = var.recovery_window_in_days
+
+  tags = merge(
+    var.tags,
+    {
+      Name = "${var.project_name}-${var.environment}-redis-credentials"
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "redis_credentials" {
+  secret_id = aws_secretsmanager_secret.redis_credentials.id
+  secret_string = jsonencode({
+    REDIS_AUTH_TOKEN = random_password.redis_auth_token.result
+  })
 }
