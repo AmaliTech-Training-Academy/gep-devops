@@ -668,18 +668,7 @@ resource "aws_ecs_task_definition" "services" {
             name  = "MANAGEMENT_HEALTH_DB_ENABLED"
             value = "true"
           },
-          {
-            name  = "SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT"
-            value = "60000"
-          },
-          {
-            name  = "SPRING_DATASOURCE_HIKARI_VALIDATION_TIMEOUT"
-            value = "5000"
-          },
-          {
-            name  = "SPRING_DATASOURCE_HIKARI_LEAK_DETECTION_THRESHOLD"
-            value = "60000"
-          },
+
           {
             name  = "SPRING_JPA_DEFER_DATASOURCE_INITIALIZATION"
             value = "true"
