@@ -349,7 +349,7 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "PAYMENT_SERVICE_URL"
-            value = var.payment_service_url
+            value = "https://api.sankofagrid.com"
           }
         ] : [],
         # SQS configuration - only for services that need it
