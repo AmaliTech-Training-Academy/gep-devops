@@ -152,6 +152,16 @@ locals {
       path_pattern = "/api/v1/timezones*"
       priority     = 98
     }
+    payment_webhook = {
+      service_key  = "payment"
+      path_pattern = "/webhook*"
+      priority     = 50
+    }
+    payment_api = {
+      service_key  = "payment"
+      path_pattern = "/api/v1/payment*"
+      priority     = 51
+    }
   }
 
 
