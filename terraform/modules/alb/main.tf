@@ -83,7 +83,7 @@ locals {
     }
     payment = {
       name              = "payment-service"                 # Payment processing
-      port              = 8084                             # Network port for payment operations
+      port              = 8088                             # Network port for payment operations
       path_pattern      = "/api/v1/payments/*"             # URL pattern for payment requests
       health_check_path = "/actuator/health"               # Service health check endpoint
       priority          = 400                              # Fourth priority routing
@@ -152,23 +152,23 @@ locals {
       path_pattern = "/api/v1/timezones*"
       priority     = 98
     }
+    payment_webhook = {
+      service_key  = "payment"
+      path_pattern = "/webhook*"
+      priority     = 50
+    }
+    payment_api = {
+      service_key  = "payment"
+      path_pattern = "/api/v1/payment*"
+      priority     = 51
+    }
+    payment_actuator = {
+      service_key  = "payment"
+      path_pattern = "/actuator/*"
+      priority     = 52
+    }
   }
 
-
-  # payment = {
-  #   name              = "payment-service"
-  #   port              = 8084
-  #   path_pattern      = "/api/v1/payments/*"
-  #   health_check_path = "/actuator/health"
-  #   priority          = 400
-  # }
-  # notification = {
-  #   name              = "notification-service"
-  #   port              = 8085
-  #   path_pattern      = "/api/v1/notifications/*"
-  #   health_check_path = "/actuator/health"
-  #   priority          = 500
-  # }
 
   common_tags = merge(
     var.tags,
@@ -332,39 +332,10 @@ resource "aws_lb_listener_rule" "service_routing" {
 }
 
 # ==============================================================================
-# HTTPS Listener Rules - Event Specific Routes (Highest Priority)
+# HTTPS Listener Rules - Additional Service Routes (Highest Priority)
 # ==============================================================================
 
-resource "aws_lb_listener_rule" "event_specific_routing" {
-  for_each = var.certificate_arn != "" ? local.event_specific_routes : {}
-
-  listener_arn = aws_lb_listener.https[0].arn
-  priority     = each.value.priority
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.services[each.value.service_key].arn
-  }
-
-  condition {
-    path_pattern {
-      values = [each.value.path_pattern]
-    }
-  }
-
-  tags = merge(
-    local.common_tags,
-    {
-      Name = "${var.project_name}-${var.environment}-${each.key}-event-rule"
-    }
-  )
-}
-
-# ==============================================================================
-# HTTPS Listener Rules - Swagger Documentation Routes
-# ==============================================================================
-
-resource "aws_lb_listener_rule" "swagger_routing" {
+resource "aws_lb_listener_rule" "additional_service_routing" {
   for_each = var.certificate_arn != "" ? local.swagger_routes : {}
 
   listener_arn = aws_lb_listener.https[0].arn
@@ -384,10 +355,12 @@ resource "aws_lb_listener_rule" "swagger_routing" {
   tags = merge(
     local.common_tags,
     {
-      Name = "${var.project_name}-${var.environment}-${each.key}-swagger-rule"
+      Name = "${var.project_name}-${var.environment}-${each.key}-additional-rule"
     }
   )
 }
+
+
 
 # ==============================================================================
 # HTTP Listener (Port 80) - Redirect to HTTPS
@@ -454,34 +427,8 @@ resource "aws_lb_listener_rule" "http_service_routing" {
   )
 }
 
-# HTTP Listener Rules - Event Specific Routes (when no HTTPS)
-resource "aws_lb_listener_rule" "http_event_specific_routing" {
-  for_each = var.certificate_arn == "" ? local.event_specific_routes : {}
-
-  listener_arn = aws_lb_listener.http.arn
-  priority     = each.value.priority
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.services[each.value.service_key].arn
-  }
-
-  condition {
-    path_pattern {
-      values = [each.value.path_pattern]
-    }
-  }
-
-  tags = merge(
-    local.common_tags,
-    {
-      Name = "${var.project_name}-${var.environment}-${each.key}-http-event-rule"
-    }
-  )
-}
-
-# HTTP Listener Rules - Swagger Documentation Routes (when no HTTPS)
-resource "aws_lb_listener_rule" "http_swagger_routing" {
+# HTTP Listener Rules - Additional Service Routes (when no HTTPS)
+resource "aws_lb_listener_rule" "http_additional_service_routing" {
   for_each = var.certificate_arn == "" ? local.swagger_routes : {}
 
   listener_arn = aws_lb_listener.http.arn
@@ -501,10 +448,12 @@ resource "aws_lb_listener_rule" "http_swagger_routing" {
   tags = merge(
     local.common_tags,
     {
-      Name = "${var.project_name}-${var.environment}-${each.key}-http-swagger-rule"
+      Name = "${var.project_name}-${var.environment}-${each.key}-http-additional-rule"
     }
   )
 }
+
+
 
 # ==============================================================================
 # CloudWatch Alarms

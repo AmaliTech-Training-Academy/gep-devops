@@ -114,8 +114,9 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
           var.db_secrets_arns,
           var.jwt_secret_arn != null ? [var.jwt_secret_arn] : [],
           [
-            "arn:aws:secretsmanager:*:*:secret:event-planner/*/aws-credentials-*",
-            "arn:aws:secretsmanager:*:*:secret:event-planner/*/google-credentials-*"
+            "arn:aws:secretsmanager:*:*:secret:event-planner/*/google-credentials-*",
+            "arn:aws:secretsmanager:*:*:secret:event-planner/*/paystack-credentials-*",
+            "arn:aws:secretsmanager:*:*:secret:event-planner/*/redis-credentials-*"
           ]
         )
       }

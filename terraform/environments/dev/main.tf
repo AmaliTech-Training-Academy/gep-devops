@@ -526,7 +526,7 @@ module "elasticache" {
 
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
-  auth_token                 = null
+  auth_token                 = module.secrets_manager.redis_auth_token
 
   maxmemory_policy = "allkeys-lru"
   timeout          = "300"
@@ -630,8 +630,9 @@ module "ecs" {
   jwt_access_expiration  = var.jwt_access_expiration
   jwt_refresh_expiration = var.jwt_refresh_expiration
 
-  aws_credentials_secret_arn = module.secrets_manager.aws_credentials_secret_arn
   google_credentials_secret_arn = module.secrets_manager.google_credentials_secret_arn
+  paystack_credentials_secret_arn = module.secrets_manager.paystack_credentials_secret_arn
+  redis_credentials_secret_arn = module.secrets_manager.redis_credentials_secret_arn
 
   sqs_queue_urls  = module.sqs-sns.queue_urls
   sqs_queue_names = module.sqs-sns.queue_names
