@@ -482,7 +482,7 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "PAYMENT_SERVICE_URL"
-            value = "http://payment-service.${var.service_discovery_namespace}:8088"
+            value = "https://api.sankofagrid.com"
           }
 
         ] : [],
