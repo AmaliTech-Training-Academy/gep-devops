@@ -239,7 +239,7 @@ resource "aws_lb_target_group" "services" {
   health_check {
     enabled             = true
     path                = each.value.health_check_path
-    protocol            = var.certificate_arn != "" ? "HTTPS" : "HTTP"
+    protocol            = "HTTP"
     port                = "traffic-port"
     healthy_threshold   = var.health_check_healthy_threshold
     unhealthy_threshold = var.health_check_unhealthy_threshold
