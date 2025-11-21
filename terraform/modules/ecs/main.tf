@@ -1023,8 +1023,8 @@ resource "aws_ecs_service" "services" {
   enable_ecs_managed_tags = true
   propagate_tags          = "SERVICE"
 
-  # Health check grace period (maximum for payment service)
-  health_check_grace_period_seconds = each.key == "payment" ? 2400 : 300
+  # Health check grace period (reduced for faster deployment)
+  health_check_grace_period_seconds = each.key == "payment" ? 600 : 300
 
   tags = merge(
     local.common_tags,
