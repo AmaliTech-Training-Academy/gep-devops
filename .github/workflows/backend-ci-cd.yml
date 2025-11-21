@@ -55,11 +55,16 @@ jobs:
       - name: Determine Services
         id: services
         run: |
-          SERVICES='${{ github.event.client_payload.services || inputs.services || '["auth-service", "event-service", "notification-service", "payment-service"]' }}'
+          SERVICES='${{ github.event.client_payload.services || inputs.services }}'
+          
+          if [ -z "$SERVICES" ] || ! echo "$SERVICES" | jq empty 2>/dev/null; then
+            SERVICES='["auth-service", "event-service", "notification-service", "payment-service"]'
+          fi
+          
           ENABLED=("auth-service" "event-service" "notification-service" "payment-service")
           FILTERED=()
           
-          for service in $(echo $SERVICES | jq -r '.[]'); do
+          for service in $(echo "$SERVICES" | jq -r '.[]'); do
             [[ " ${ENABLED[*]} " =~ " $service " ]] && FILTERED+=("\"$service\"")
           done
           
@@ -114,12 +119,12 @@ jobs:
 
       - uses: ./.github/actions/setup-maven
 
+      - name: Clean Trivy Cache
+        run: rm -rf $HOME/.cache/trivy $HOME/.local/bin/trivy-bin || true
+
       - uses: ./.github/actions/build-maven
         with:
           service: ${{ matrix.service }}
-
-      - name: Clean Trivy Cache
-        run: rm -rf $HOME/.cache/trivy || true
 
       - name: Security Scan
         uses: aquasecurity/trivy-action@master
