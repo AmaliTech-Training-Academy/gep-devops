@@ -165,21 +165,6 @@ locals {
   }
 
 
-  # payment = {
-  #   name              = "payment-service"
-  #   port              = 8084
-  #   path_pattern      = "/api/v1/payments/*"
-  #   health_check_path = "/actuator/health"
-  #   priority          = 400
-  # }
-  # notification = {
-  #   name              = "notification-service"
-  #   port              = 8085
-  #   path_pattern      = "/api/v1/notifications/*"
-  #   health_check_path = "/actuator/health"
-  #   priority          = 500
-  # }
-
   common_tags = merge(
     var.tags,
     {
@@ -253,8 +238,8 @@ resource "aws_lb_target_group" "services" {
     port                = "traffic-port"
     healthy_threshold   = var.health_check_healthy_threshold
     unhealthy_threshold = var.health_check_unhealthy_threshold
-    timeout             = each.key == "payment" ? 45 : var.health_check_timeout
-    interval            = each.key == "payment" ? 90 : var.health_check_interval
+    timeout             = var.health_check_timeout
+    interval            = var.health_check_interval
     matcher             = "200-299"
   }
 
