@@ -167,6 +167,11 @@ locals {
       path_pattern = "/actuator/*"
       priority     = 52
     }
+    event_graph = {
+      service_key  = "event"
+      path_pattern = "/api/v1/event-graph/*"
+      priority     = 53
+    }
   }
 
 
