@@ -497,6 +497,10 @@ resource "aws_ecs_task_definition" "services" {
             value = "https://sqs.${var.aws_region}.amazonaws.com"
           },
           {
+            name  = "PAYMENT_SERVICE_DB_SCHEMA"
+            value = "payment_schema"
+          },
+          {
             name  = "SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA"
             value = "payment_schema"
           },
@@ -854,6 +858,18 @@ resource "aws_ecs_task_definition" "services" {
           }
         ] : [],
         each.key == "payment" && lookup(var.db_secret_arns, "auth", null) != null ? [
+          {
+            name      = "DATABASE_URL"
+            valueFrom = "${var.db_secret_arns["auth"]}:url::"
+          },
+          {
+            name      = "DB_USERNAME"
+            valueFrom = "${var.db_secret_arns["auth"]}:username::"
+          },
+          {
+            name      = "DB_PASSWORD"
+            valueFrom = "${var.db_secret_arns["auth"]}:password::"
+          },
           {
             name      = "SPRING_DATASOURCE_URL"
             valueFrom = "${var.db_secret_arns["auth"]}:url::"
