@@ -87,7 +87,17 @@ jobs:
 
       - uses: ./.github/actions/setup-maven
 
+      - name: Check Maven Cache
+        id: cache
+        run: |
+          if [ -d "$HOME/.m2/repository/com/eventplanner/common-libraries" ]; then
+            echo "cache_hit=true" >> $GITHUB_OUTPUT
+          else
+            echo "cache_hit=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build Common
+        if: steps.cache.outputs.cache_hit != 'true'
         working-directory: backend
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
@@ -208,6 +218,7 @@ jobs:
                 "fields": [
                   {"title": "Status", "value": "${{ contains(needs.*.result, 'failure') && 'Failed' || 'Succeeded' }}", "short": true},
                   {"title": "Environment", "value": "${{ env.ENVIRONMENT }}", "short": true},
+                  {"title": "Services", "value": "${{ needs.prepare.outputs.services }}", "short": true},
                   {"title": "Commit SHA", "value": "${{ env.COMMIT_SHA }}", "short": true}
                 ]
               }]
