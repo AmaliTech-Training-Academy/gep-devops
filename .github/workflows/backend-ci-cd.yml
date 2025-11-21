@@ -118,6 +118,9 @@ jobs:
         with:
           service: ${{ matrix.service }}
 
+      - name: Clean Trivy Cache
+        run: rm -rf $HOME/.cache/trivy || true
+
       - name: Security Scan
         uses: aquasecurity/trivy-action@master
         with:
