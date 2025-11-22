@@ -188,6 +188,15 @@ locals {
       visibility_timeout = 30
       message_retention  = 259200
     }
+
+    # Webhook event queue
+    webhook_event = {
+      name               = "${var.project_name}-${var.environment}-webhook-event-queue"
+      topic              = "payment"
+      filter_policy      = { event_type = ["webhook.event"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
   }
 
   common_tags = merge(

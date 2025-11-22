@@ -720,6 +720,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "PAYMENT_STATUS_QUEUE"
             value = lookup(var.sqs_queue_urls, "payment_status", "")
+          },
+          {
+            name  = "WEBHOOK_EVENT_QUEUE"
+            value = lookup(var.sqs_queue_urls, "webhook_event", "")
           }
         ] : [],
         each.key == "notification" ? [
