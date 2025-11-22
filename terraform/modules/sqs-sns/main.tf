@@ -179,6 +179,15 @@ locals {
       visibility_timeout = 30
       message_retention  = 259200
     }
+
+    # Withdrawal notification queue
+    withdrawal_notification = {
+      name               = "${var.project_name}-${var.environment}-withdrawal-notification-queue"
+      topic              = "event"
+      filter_policy      = { event_type = ["withdrawal.notification"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
   }
 
   common_tags = merge(

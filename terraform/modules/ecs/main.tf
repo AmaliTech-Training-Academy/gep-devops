@@ -483,6 +483,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "PAYMENT_SERVICE_URL"
             value = "https://api.sankofagrid.com"
+          },
+          {
+            name  = "WITHDRAWAL_NOTIFICATION_QUEUE"
+            value = lookup(var.sqs_queue_urls, "withdrawal_notification", "")
           }
 
         ] : [],
@@ -858,6 +862,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "PAYMENT_STATUS_QUEUE"
             value = lookup(var.sqs_queue_urls, "payment_status", "")
+          },
+          {
+            name  = "WITHDRAWAL_NOTIFICATION_QUEUE"
+            value = lookup(var.sqs_queue_urls, "withdrawal_notification", "")
           }
         ] : []
       )
