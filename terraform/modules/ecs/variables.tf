@@ -296,3 +296,9 @@ variable "payment_service_url" {
   type        = string
   default     = "https://api.sankofagrid.com"
 }
+
+variable "sns_topic_arns" {
+  description = "Map of SNS topic ARNs for event publishing"
+  type        = map(string)
+  default     = {}
+}

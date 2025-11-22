@@ -505,6 +505,18 @@ resource "aws_ecs_task_definition" "services" {
             value = "https://sqs.${var.aws_region}.amazonaws.com"
           },
           {
+            name  = "SNS_ENDPOINT"
+            value = "https://sns.${var.aws_region}.amazonaws.com"
+          },
+          {
+            name  = "PAYMENT_TOPIC_ARN"
+            value = lookup(var.sns_topic_arns, "payment", "")
+          },
+          {
+            name  = "EVENT_TOPIC_ARN"
+            value = lookup(var.sns_topic_arns, "event", "")
+          },
+          {
             name  = "PAYMENT_SERVICE_DB_SCHEMA"
             value = "payment_schema"
           },
@@ -718,6 +730,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "SQS_ENDPOINT"
             value = "https://sqs.${var.aws_region}.amazonaws.com"
+          },
+          {
+            name  = "SNS_ENDPOINT"
+            value = "https://sns.${var.aws_region}.amazonaws.com"
           },
           {
             name  = "SPRING_CLOUD_AWS_CREDENTIALS_USE_DEFAULT_AWS_CREDENTIALS_CHAIN"

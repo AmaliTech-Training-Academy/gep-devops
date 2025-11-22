@@ -420,24 +420,9 @@ resource "aws_iam_role_policy" "notification_service_task" {
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes",
           "sqs:GetQueueUrl",
-          "sqs:ChangeMessageVisibility",
-          "sqs:CreateQueue",
-          "sqs:ListQueues",
-          "sqs:SetQueueAttributes",
-          "sqs:PurgeQueue"
+          "sqs:ChangeMessageVisibility"
         ]
-        Resource = [
-          "arn:aws:sqs:*:*:event-planner-*",
-          "arn:aws:sqs:*:*:*event-planner*"
-        ]
-      },
-      {
-        Sid    = "SQSListAllQueues"
-        Effect = "Allow"
-        Action = [
-          "sqs:ListQueues"
-        ]
-        Resource = "*"
+        Resource = "arn:aws:sqs:*:*:event-planner-*"
       },
       {
         Sid    = "CloudWatchLogsPermissions"
