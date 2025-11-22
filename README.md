@@ -1,23 +1,20 @@
 # Event Planner - Infrastructure as Code
 
-## Centralized DevOps Infrastructure & Database Layer
+## Centralized DevOps Infrastructure
 
-This repository contains the complete Terraform infrastructure code for the Event Planner Platform, implementing a centralized DevOps approach with cost-optimized, production-ready infrastructure.
+This repository contains the complete Terraform infrastructure code for the Event Planner Platform, implementing a centralized DevOps approach with automated CI/CD pipelines.
 
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
-2. [Centralized DevOps Structure](#centralized-devops-structure)
+2. [Active Services](#active-services)
 3. [Repository Structure](#repository-structure)
 4. [Prerequisites](#prerequisites)
 5. [Quick Start](#quick-start)
-6. [Module Documentation](#module-documentation)
-7. [Environment Configuration](#environment-configuration)
+6. [CI/CD Pipeline](#cicd-pipeline)
+7. [Infrastructure Modules](#infrastructure-modules)
 8. [Secrets Management](#secrets-management)
-9. [Deployment Workflow](#deployment-workflow)
-10. [Cost Optimization](#cost-optimization)
-11. [Disaster Recovery](#disaster-recovery)
-12. [Troubleshooting](#troubleshooting)
+9. [Cost Optimization](#cost-optimization)
 
 ## Architecture Overview
 
@@ -29,967 +26,368 @@ This repository contains the complete Terraform infrastructure code for the Even
 
 ![Backend Architecture](docs/diagrams/backend-architecture.png)
 
-### Infrastructure Components
-
-**Frontend Infrastructure:**
-- S3 bucket for Angular application hosting
-- CloudFront distribution for global content delivery (events.sankofagrid.com)
-- External DNS configuration (sankofagrid.com - not Route53)
-- ACM SSL/TLS certificates for ALB
-- Manual SSL certificate for CloudFront
-
-**Backend Infrastructure:**
-- VPC with public and private subnets (single-AZ for dev cost optimization)
-- ECS Fargate cluster for microservices (2 active, 3 ready to deploy)
-- Application Load Balancer (ALB) with HTTPS (api.sankofagrid.com)
-- AWS Cloud Map for service discovery (eventplanner.local)
-- RDS PostgreSQL with multi-schema approach (cost-optimized)
-- JSONB audit logs in PostgreSQL (replaces DocumentDB)
-- ElastiCache Redis for caching and sessions
-- Secrets Manager for credential management
-
-**Network Architecture:**
+### Network Architecture
 
 ![Network Architecture](docs/diagrams/network-architecture.png)
 
-- Development: Single-AZ deployment (eu-west-1a) for cost optimization
-- Production: Multi-AZ deployment (2 AZs) - ready to deploy
-- Private subnets for application and data tiers
-- Public subnets for ALB and NAT Gateway
-- VPC endpoints for AWS services (saves ~$15/month on NAT costs)
+### Infrastructure Components
 
-## Centralized DevOps Structure
+**Frontend:**
+- S3 bucket for Angular application hosting
+- CloudFront distribution (events.sankofagrid.com)
+- ACM SSL/TLS certificates
 
-[View Centralized DevOps Structure](docs/centralized-devops-structure.md)
+**Backend:**
+- VPC with public/private subnets (single-AZ dev, multi-AZ prod)
+- ECS Fargate cluster for microservices
+- Application Load Balancer with HTTPS (api.sankofagrid.com)
+- AWS Cloud Map service discovery (eventplanner.local)
+- RDS PostgreSQL with multi-schema approach
+- ElastiCache Redis for caching
+- SNS/SQS for event-driven messaging
 
-This repository implements a centralized DevOps approach where:
-- **Single repository** controls all infrastructure deployments
-- **External repositories** (backend/frontend) trigger deployments via repository dispatch
-- **Centralized CI/CD** pipelines handle all environments
-- **Unified monitoring** and security across all services
+**Network:**
+- Development: Single-AZ (eu-west-1a) for cost optimization
+- Production: Multi-AZ (2 AZs) for high availability
+- NAT Gateway for external connectivity
+- VPC endpoints for AWS services
 
-### Current Service Status
+## Active Services
 
-**Active Services (Currently Running):**
-- **Auth Service**: Port 8081, 256 CPU, 512MB memory
-- **Notification Service**: Port 8085, 256 CPU, 512MB memory
+**Currently Running:**
+- **Auth Service**: Port 8081 - User authentication and management
+- **Event Service**: Port 8082 - Event creation and management
+- **Payment Service**: Port 8088 - Payment processing (Paystack integration)
+- **Notification Service**: Port 8085 - Email and SMS notifications
 
-**Ready to Deploy (Commented in code):**
-- **Event Service**: Port 8082 (uncomment when ready)
-- **Booking Service**: Port 8083 (uncomment when ready)
-- **Payment Service**: Port 8084 (uncomment when ready)
+**Service Discovery:**
+- auth-service.eventplanner.local:8081
+- event-service.eventplanner.local:8082
+- payment-service.eventplanner.local:8088
+- notification-service.eventplanner.local:8085
 
-### Environments
+**Database Schemas:**
+- auth_schema - User authentication
+- event_schema - Event management
+- payment_schema - Payment transactions
+- Shared PostgreSQL instance with multi-schema design
 
-**Development Environment (Current):**
-- Single AZ deployment (eu-west-1a)
-- Cost-optimized resource allocation
-- Single PostgreSQL with multi-schema (auth_db, event_db, booking_db, payment_db)
-- JSONB audit logs (replaces DocumentDB)
-- 2 active ECS services, 3 ready to deploy
-- Estimated cost: ~$248/month (24/7) or ~$75-95/month (weekday-only)
-
-**Production Environment (Ready to Deploy):**
-- Multi-AZ deployment (2 AZs)
-- High availability configuration
-- RDS with Multi-AZ and read replicas
-- Auto-scaling enabled
-- All 5 microservices active
-- Estimated cost: ~$2,500-3,000/month
+**Message Queues (SQS/SNS):**
+- User registration/login queues
+- Event creation/invitation queues
+- Payment processing/status queues
+- Notification queues
+- Withdrawal notification queue
+- Webhook event queue
 
 ## Repository Structure
 
 ```
-gep_devops/
+get-devops/
+├── .github/
+│   ├── workflows/
+│   │   └── infrastructure-ci-cd.yml    # Main CI/CD pipeline
+│   └── actions/                        # Reusable GitHub Actions
 ├── terraform/
-│   ├── bootstrap/                     # S3 backend setup (run once)
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── README.md
 │   ├── modules/
-│   │   ├── vpc/                       # VPC, subnets, route tables, NAT gateways
-│   │   ├── security-groups/           # Security group definitions
-│   │   ├── iam/                       # IAM roles and policies
-│   │   ├── rds/                       # RDS PostgreSQL multi-schema
-│   │   ├── elasticache/               # ElastiCache Redis
-│   │   ├── ecs/                       # ECS cluster and capacity providers
-│   │   ├── alb/                       # Application Load Balancer
-│   │   ├── s3/                        # S3 buckets (frontend hosting, logs)
-│   │   ├── cloudfront/                # CloudFront distribution
-│   │   ├── route53/                   # DNS records (external domain)
-│   │   ├── acm/                       # SSL/TLS certificates
-│   │   ├── secrets-manager/           # Secrets management
-│   │   ├── sqs-sns/                   # Message queuing and pub/sub
-│   │   ├── ecr/                       # Container registry
-│   │   ├── cloudwatch/                # Monitoring and logging
-│   │   ├── cloudwatch-dashboards/     # Custom dashboards
-│   │   └── waf/                       # Web Application Firewall
+│   │   ├── vpc/                        # Network infrastructure
+│   │   ├── security-groups/            # Security rules
+│   │   ├── iam/                        # IAM roles and policies
+│   │   ├── rds/                        # PostgreSQL database
+│   │   ├── elasticache/                # Redis cache
+│   │   ├── ecs/                        # ECS Fargate cluster
+│   │   ├── alb/                        # Application Load Balancer
+│   │   ├── s3/                         # S3 buckets
+│   │   ├── cloudfront/                 # CDN distribution
+│   │   ├── acm/                        # SSL certificates
+│   │   ├── secrets-manager/            # Secrets management
+│   │   ├── sqs-sns/                    # Message queuing
+│   │   ├── ecr/                        # Container registry
+│   │   └── cloudwatch/                 # Monitoring and logging
 │   └── environments/
-│       ├── dev/                       # Development environment
-│       │   ├── main.tf
-│       │   ├── variables.tf
-│       │   ├── terraform.tfvars
-│       │   ├── backend.tf
-│       │   └── outputs.tf
-│       └── prod/                      # Production environment
-│           ├── main.tf
-│           ├── variables.tf
-│           ├── terraform.tfvars
-│           ├── backend.tf
-│           └── outputs.tf
-├── scripts/
-│   └── terraform/
-│       ├── init-backend.sh            # Initialize S3 backend
-│       ├── deploy-env.sh              # Deploy environment
-│       ├── plan-env.sh                # Plan infrastructure changes
-│       ├── destroy-env.sh             # Destroy environment
-│       └── validate-all.sh            # Validate all Terraform code
-└── README.md                          # This file
+│       ├── dev/                        # Development environment
+│       └── prod/                       # Production environment
+└── docs/                               # Documentation and diagrams
 ```
 
 ## Prerequisites
 
-### Required Tools
+**Required Tools:**
+- Terraform >= 1.5.0
+- AWS CLI >= 2.0
+- GitHub account with Actions enabled
 
-1. **Terraform** (>= 1.5.0)
-   ```bash
-   # Install via Homebrew (macOS)
-   brew install terraform
-   
-   # Or download from https://www.terraform.io/downloads
-   ```
+**AWS Permissions:**
+- VPC, EC2, ECS, ALB
+- RDS, ElastiCache
+- S3, CloudFront, ACM
+- Secrets Manager, ECR
+- SQS, SNS
+- IAM, CloudWatch
 
-2. **AWS CLI** (>= 2.0)
-   ```bash
-   # Install via Homebrew (macOS)
-   brew install awscli
-   
-   # Configure AWS credentials
-   aws configure
-   ```
-
-3. **jq** (for JSON processing in scripts)
-   ```bash
-   brew install jq
-   ```
-
-### AWS Account Requirements
-
-- AWS account with appropriate permissions
-- IAM user or role with the following permissions:
-  - VPC management
-  - EC2 (including ECS, ALB)
-  - RDS
-  - ElastiCache
-  - S3
-  - CloudFront
-  - ACM
-  - Secrets Manager
-  - ECR
-  - SQS/SNS
-  - IAM (for role creation)
-  - CloudWatch
-  - Systems Manager
-
-### Domain Requirements
-
-- Domain name registered (sankofagrid.com)
-- Access to external DNS management (not Route53)
-- Ability to create DNS records:
-  - events.sankofagrid.com → CloudFront
-  - api.sankofagrid.com → ALB
+**Domain:**
+- sankofagrid.com (external DNS)
+- events.sankofagrid.com → CloudFront
+- api.sankofagrid.com → ALB
 
 ## Quick Start
 
-### Step 1: Initialize Terraform Backend
-
-The Terraform state is stored in S3 with DynamoDB locking for team collaboration.
+### 1. Configure AWS Credentials
 
 ```bash
-# Navigate to bootstrap directory
-cd terraform/bootstrap
-
-# Initialize and apply bootstrap configuration
-terraform init
-terraform plan
-terraform apply
-
-# Note the S3 bucket and DynamoDB table names from outputs
+aws configure
+# Enter AWS Access Key ID
+# Enter AWS Secret Access Key
+# Default region: eu-west-1
 ```
 
-### Step 2: Configure Environment Variables
+### 2. Set GitHub Secrets
 
-Create a `.env` file (not committed to git) with sensitive values:
+Configure in GitHub repository settings → Secrets and variables → Actions:
+
+```
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_REGION
+TF_STATE_BUCKET
+TF_STATE_DYNAMODB_TABLE
+PAYMENT_SERVICE_URL
+SLACK_WEBHOOK_URL (optional)
+```
+
+### 3. Deploy Infrastructure
 
 ```bash
-# Create .env file
-cat > terraform/environments/dev/.env << 'EOF'
-export TF_VAR_db_master_password="YourSecurePassword123!"
-export TF_VAR_docdb_master_password="YourSecureDocDBPassword123!"
-export AWS_PROFILE="your-aws-profile"
-export AWS_REGION="us-east-1"
-EOF
+# Push to main branch triggers deployment
+git push origin main
 
-# Load environment variables
-source terraform/environments/dev/.env
+# Or manually trigger via GitHub Actions
+# Go to Actions → Infrastructure CI/CD Pipeline → Run workflow
 ```
 
-### Step 3: Deploy Development Environment
+### 4. Verify Deployment
 
 ```bash
-# Navigate to dev environment
-cd terraform/environments/dev
+# Check ECS services
+aws ecs list-services --cluster event-planner-dev-cluster
 
-# Initialize Terraform with S3 backend
-terraform init \
-  -backend-config="bucket=YOUR_BUCKET_NAME" \
-  -backend-config="key=dev/terraform.tfstate" \
-  -backend-config="region=us-east-1" \
-  -backend-config="dynamodb_table=YOUR_DYNAMODB_TABLE"
+# Check ALB health
+curl https://api.sankofagrid.com/actuator/health
 
-# Review planned changes
-terraform plan -out=tfplan
-
-# Apply infrastructure
-terraform apply tfplan
+# View CloudWatch logs
+aws logs tail /ecs/event-planner/dev/payment-service --follow
 ```
 
-### Step 4: Verify Deployment
+## CI/CD Pipeline
 
-```bash
-# Check outputs
-terraform output
+### CI/CD Architecture
 
-# Verify resources in AWS Console
-# - VPC and subnets created
-# - RDS databases running
-# - ECS cluster created
-# - S3 bucket for frontend
-# - CloudFront distribution created
-```
+![CI/CD Architecture](docs/diagrams/ci-cd%20architecture-draft.png)
 
-## Module Documentation
+### Pipeline Stages
+
+The infrastructure deployment follows this sequence:
+
+1. **Validate** - Terraform format check, syntax validation, TFLint
+2. **Security Scan** - Terraform security scanning (Checkov/tfsec)
+3. **Plan** - Generate and review infrastructure changes
+4. **Deploy** - Apply infrastructure changes (main branch only)
+5. **Notify** - Send deployment status to Slack
+
+### Workflow Triggers
+
+- **Push to main/dev/staging** - Automatic deployment
+- **Pull Request** - Plan only (no deployment)
+- **Manual Trigger** - Via GitHub Actions UI
+
+### Environment Protection
+
+- **Development** - No approval required
+- **Staging** - Optional approval
+- **Production** - Required approval from designated reviewers
+
+## Infrastructure Modules
 
 ### VPC Module
-
-Creates VPC infrastructure with public and private subnets, NAT gateways, Internet Gateway, and VPC endpoints.
-
-**Inputs:**
-- `environment`: Environment name (dev/prod)
-- `vpc_cidr`: VPC CIDR block (default: 10.0.0.0/16)
-- `availability_zones`: List of AZs to use
-- `enable_nat_gateway`: Enable NAT Gateway (true/false)
-- `single_nat_gateway`: Use single NAT Gateway for cost optimization
-
-**Outputs:**
-- `vpc_id`: VPC ID
-- `public_subnet_ids`: Public subnet IDs
-- `private_app_subnet_ids`: Private application subnet IDs
-- `private_data_subnet_ids`: Private data subnet IDs
-- `nat_gateway_ids`: NAT Gateway IDs
-
-### Security Groups Module
-
-Manages security groups for all infrastructure components with least privilege access.
-
-**Security Groups Created:**
-- ALB Security Group (HTTPS/HTTP from internet)
-- ECS Security Group (ports 8081-8085 from ALB)
-- RDS Security Group (port 5432 from ECS)
-- DocumentDB Security Group (port 27017 from ECS)
-- ElastiCache Security Group (port 6379 from ECS)
-
-### IAM Module
-
-Creates IAM roles and policies for ECS tasks, following least privilege principles.
-
-**Roles Created:**
-- ECS Task Execution Role (pull images, write logs, read secrets)
-- ECS Task Roles per microservice (service-specific permissions)
-
-### RDS Module
-
-Deploys single PostgreSQL instance with multi-schema approach for cost optimization.
-
-**Features:**
-- Multi-schema design (auth_db, event_db, booking_db, payment_db)
-- JSONB audit logs (replaces DocumentDB)
-- Automated backups with 3-day retention (dev)
-- KMS encryption at rest
-- SSL/TLS encryption in transit
-- Cost-optimized: Single instance vs multiple databases
-- Ready for Multi-AZ and read replicas (production)
-
-**Current Schema:**
-- **auth_db**: User authentication and management
-- **event_db**: Event management (ready for event service)
-- **booking_db**: Booking management (ready for booking service)
-- **payment_db**: Payment transactions (ready for payment service)
-- **audit_logs**: JSONB audit trail for all services
-
-### Audit Logging
-
-Audit logs are stored in PostgreSQL using JSONB for cost optimization.
-
-**Features:**
-- JSONB storage in main PostgreSQL instance
-- Better performance than separate DocumentDB
-- Cost savings: ~$60/month vs DocumentDB
-- Full-text search capabilities
-- Integrated with main database backups
-
-### ElastiCache Module
-
-Deploys Redis cluster for caching and session management.
-
-**Features:**
-- Cluster mode enabled (production)
-- Multi-AZ with automatic failover
-- Encryption at rest and in transit
-- Automated backups
+- Creates VPC with public/private subnets
+- NAT Gateway for external connectivity
+- VPC endpoints for AWS services
 
 ### ECS Module
+- Fargate cluster with 4 active services
+- Auto-scaling based on CPU/memory
+- Service discovery via AWS Cloud Map
+- Environment variables for all services
 
-Creates ECS cluster with Fargate capacity providers.
-
-**Features:**
-- Fargate capacity provider (serverless)
-- Fargate Spot support (production, cost optimization)
-- Auto-scaling configuration
-- Container Insights enabled
-
-### S3 Module
-
-Creates S3 buckets for frontend hosting and logs.
-
-**Buckets:**
-- Frontend hosting bucket (Angular application)
-- CloudFront logs bucket
-- ALB logs bucket
-
-**Features:**
-- Versioning enabled
-- Server-side encryption
-- Bucket policies for CloudFront OAI access
-- CORS configuration for frontend
-
-### CloudFront Module
-
-Deploys CloudFront distribution for global content delivery.
-
-**Features:**
-- Custom SSL certificate (ACM)
-- HTTPS only (redirect HTTP to HTTPS)
-- Gzip compression enabled
-- Custom error pages
-- WAF integration (optional)
-- Cache behaviors optimized for Angular SPA
+### RDS Module
+- Single PostgreSQL instance with multi-schema
+- Schemas: auth_schema, event_schema, payment_schema
+- Automated backups (3-day retention dev, 7-day prod)
+- Encryption at rest and in transit
 
 ### SQS/SNS Module
+- Event-driven messaging architecture
+- SNS topics: event, payment
+- SQS queues with dead letter queues
+- Message filtering by event type
 
-Manages message queuing and pub/sub for microservices communication.
+### ALB Module
+- HTTPS listener with ACM certificate
+- Path-based routing to services
+- Health checks for all services
+- Access logs to S3
 
-**Active Queues:**
-- user-registration (auth service)
-- user-login (auth service)
-- password-reset (auth service)
-- notifications (notification service)
-- event-created-notification (notification service)
+### Security Groups Module
+- ALB: HTTPS from internet
+- ECS: Service ports from ALB
+- RDS: PostgreSQL from ECS
+- ElastiCache: Redis from ECS
 
-**Features:**
-- Event-driven architecture with message filtering
-- Dead letter queues for failed messages
-- Long polling (20s) for cost optimization
-- KMS encryption
-- SNS topics with SQS subscriptions
-
-### Route53 Module
-
-Configures external DNS records (not managed by Route53).
-
-**External DNS Records:**
-- events.sankofagrid.com → CloudFront
-- api.sankofagrid.com → ALB
-- Manual SSL certificate management for CloudFront
-
-### ACM Module
-
-Manages SSL/TLS certificates for ALB.
-
-**Certificates:**
-- api.sankofagrid.com (ALB certificate via ACM)
-- events.sankofagrid.com (CloudFront manual certificate)
-- Automatic DNS validation for ALB certificate
-
-### Secrets Manager Module
-
-Manages application secrets securely.
-
-**Secrets Stored:**
-- Database credentials (with auto-rotation)
-- JWT signing keys
-- Third-party API keys
-- Redis passwords
-
-### CloudMap Module
-
-Configures AWS Cloud Map for service discovery.
-
-**Features:**
-- Private DNS namespace (eventplanner.local)
-- Automatic service registration/deregistration
-- Health checks integrated with ECS
-
-**Active Service Discovery:**
-- auth-service.eventplanner.local:8081
-- notification-service.eventplanner.local:8085
-
-**Ready for Deployment:**
-- event-service.eventplanner.local:8082
-- booking-service.eventplanner.local:8083
-- payment-service.eventplanner.local:8084
-
-## Environment Configuration
-
-### Development Environment (terraform/environments/dev/terraform.tfvars)
-
-```hcl
-# Environment configuration
-environment = "dev"
-project_name = "event-planner"
-
-# Network configuration
-vpc_cidr = "10.0.0.0/16"
-availability_zones = ["us-east-1a"]
-single_nat_gateway = true
-
-# Database configuration (cost-optimized)
-rds_instance_class = "db.t4g.micro"
-rds_allocated_storage = 20
-rds_multi_az = false
-rds_read_replicas = 0
-
-# DocumentDB configuration
-docdb_instance_class = "db.t3.medium"
-docdb_instance_count = 1
-
-# ElastiCache configuration
-elasticache_node_type = "cache.t3.micro"
-elasticache_num_cache_nodes = 1
-
-# ECS configuration
-ecs_task_cpu = "256"
-ecs_task_memory = "512"
-ecs_min_capacity = 1
-ecs_max_capacity = 2
-
-# Domain configuration
-domain_name = "sankofagrid.com"
-frontend_domain = "www.sankofagrid.com"
-backend_domain = "api.sankofagrid.com"
-
-# Feature flags
-enable_waf = false
-enable_x_ray = false
-enable_enhanced_monitoring = false
-```
-
-### Production Environment (terraform/environments/prod/terraform.tfvars)
-
-```hcl
-# Environment configuration
-environment = "prod"
-project_name = "event-planner"
-
-# Network configuration
-vpc_cidr = "10.0.0.0/16"
-availability_zones = ["us-east-1a", "us-east-1b"]
-single_nat_gateway = false
-
-# Database configuration (high availability)
-rds_instance_class = "db.t4g.medium"
-rds_allocated_storage = 100
-rds_multi_az = true
-rds_read_replicas = 2
-
-# DocumentDB configuration
-docdb_instance_class = "db.t4g.medium"
-docdb_instance_count = 3
-
-# ElastiCache configuration
-elasticache_node_type = "cache.t4g.medium"
-elasticache_num_cache_clusters = 3
-elasticache_replicas_per_shard = 2
-
-# ECS configuration
-ecs_task_cpu = "512"
-ecs_task_memory = "1024"
-ecs_min_capacity = 2
-ecs_max_capacity = 10
-
-# Domain configuration
-domain_name = "sankofagrid.com"
-frontend_domain = "www.sankofagrid.com"
-backend_domain = "api.sankofagrid.com"
-
-# Feature flags
-enable_waf = true
-enable_x_ray = true
-enable_enhanced_monitoring = true
-```
+### IAM Module
+- ECS task execution role
+- Service-specific task roles
+- SNS/SQS permissions for messaging
+- Secrets Manager access
 
 ## Secrets Management
 
-### Manual Secrets Setup
+### Required Secrets (AWS Secrets Manager)
 
-Some secrets must be manually created in AWS Secrets Manager before deployment:
-
-#### 1. Database Master Passwords
+Create these secrets before deployment:
 
 ```bash
-# Auth Database Password
+# JWT Secret
 aws secretsmanager create-secret \
-  --name event-planner/dev/rds/auth-db/master-password \
-  --description "Auth database master password" \
-  --secret-string "YourSecurePassword123!" \
-  --region us-east-1
+  --name event-planner/dev/jwt-secret \
+  --secret-string '{"JWT_SECRET":"your-secret-key"}'
 
-# Event Database Password
+# Google Credentials (for notification service)
 aws secretsmanager create-secret \
-  --name event-planner/dev/rds/event-db/master-password \
-  --description "Event database master password" \
-  --secret-string "YourSecurePassword123!" \
-  --region us-east-1
+  --name event-planner/dev/google-credentials \
+  --secret-string '{"GOOGLE_USER":"email","GOOGLE_PASSWORD":"password"}'
 
-# Booking Database Password
+# Paystack Credentials (for payment service)
 aws secretsmanager create-secret \
-  --name event-planner/dev/rds/booking-db/master-password \
-  --description "Booking database master password" \
-  --secret-string "YourSecurePassword123!" \
-  --region us-east-1
+  --name event-planner/dev/paystack-credentials \
+  --secret-string '{"PAYSTACK_SECRET":"your-paystack-key"}'
 
-# Payment Database Password
+# Redis Auth Token
 aws secretsmanager create-secret \
-  --name event-planner/dev/rds/payment-db/master-password \
-  --description "Payment database master password" \
-  --secret-string "YourSecurePassword123!" \
-  --region us-east-1
+  --name event-planner/dev/redis-credentials \
+  --secret-string '{"REDIS_AUTH_TOKEN":"your-redis-token"}'
 ```
 
-#### 2. DocumentDB Master Password
+### Secrets Access
 
-```bash
-aws secretsmanager create-secret \
-  --name event-planner/dev/documentdb/master-password \
-  --description "DocumentDB master password" \
-  --secret-string "YourSecureDocDBPassword123!" \
-  --region us-east-1
-```
-
-#### 3. JWT Signing Keys
-
-```bash
-# Generate a secure random key
-JWT_SECRET=$(openssl rand -base64 64)
-
-aws secretsmanager create-secret \
-  --name event-planner/dev/jwt/signing-key \
-  --description "JWT signing key for authentication" \
-  --secret-string "{\"secret\":\"$JWT_SECRET\"}" \
-  --region us-east-1
-```
-
-#### 4. ElastiCache Auth Token (Production only)
-
-```bash
-# Generate a secure auth token (16+ characters)
-REDIS_AUTH_TOKEN=$(openssl rand -base64 32)
-
-aws secretsmanager create-secret \
-  --name event-planner/prod/elasticache/auth-token \
-  --description "ElastiCache Redis auth token" \
-  --secret-string "{\"auth_token\":\"$REDIS_AUTH_TOKEN\"}" \
-  --region us-east-1
-```
-
-### Automatic Secrets Rotation
-
-Database passwords can be automatically rotated using AWS Secrets Manager rotation:
-
-```bash
-# Enable rotation for RDS password (30-day rotation)
-aws secretsmanager rotate-secret \
-  --secret-id event-planner/prod/rds/auth-db/master-password \
-  --rotation-lambda-arn arn:aws:lambda:us-east-1:123456789012:function:SecretsManagerRDSPostgreSQLRotation \
-  --rotation-rules AutomaticallyAfterDays=30
-```
-
-### Runtime Secrets Access
-
-ECS tasks retrieve secrets at runtime via environment variables:
-
-```json
-{
-  "secrets": [
-    {
-      "name": "DB_PASSWORD",
-      "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:event-planner/dev/rds/auth-db/master-password"
-    },
-    {
-      "name": "JWT_SECRET",
-      "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:event-planner/dev/jwt/signing-key:secret::"
-    }
-  ]
-}
-```
-
-## Deployment Workflow
-
-### Using Helper Scripts
-
-#### 1. Deploy a New Environment
-
-```bash
-# Deploy development environment
-./scripts/terraform/deploy-env.sh dev
-
-# Deploy production environment
-./scripts/terraform/deploy-env.sh prod
-```
-
-#### 2. Plan Infrastructure Changes
-
-```bash
-# Plan changes for development
-./scripts/terraform/plan-env.sh dev
-
-# Plan changes for production
-./scripts/terraform/plan-env.sh prod
-```
-
-#### 3. Destroy Environment
-
-```bash
-# Destroy development environment (with confirmation)
-./scripts/terraform/destroy-env.sh dev
-
-# Destroy production environment (with confirmation)
-./scripts/terraform/destroy-env.sh prod
-```
-
-#### 4. Validate All Terraform Code
-
-```bash
-# Validate syntax and configuration
-./scripts/terraform/validate-all.sh
-```
-
-### Manual Deployment Steps
-
-#### 1. Initialize Backend
-
-```bash
-cd terraform/environments/dev
-
-terraform init \
-  -backend-config="bucket=event-planner-terraform-state-dev" \
-  -backend-config="key=dev/terraform.tfstate" \
-  -backend-config="region=us-east-1" \
-  -backend-config="dynamodb_table=event-planner-terraform-locks"
-```
-
-#### 2. Plan Changes
-
-```bash
-terraform plan \
-  -var-file="terraform.tfvars" \
-  -out=tfplan
-```
-
-#### 3. Apply Changes
-
-```bash
-terraform apply tfplan
-```
-
-#### 4. Verify Outputs
-
-```bash
-terraform output
-```
-
-### CI/CD Integration
-
-The infrastructure deployment is triggered via GitHub Actions:
-
-```yaml
-# .github/workflows/terraform-deploy.yml
-name: Deploy Infrastructure
-
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'terraform/**'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'terraform/**'
-
-jobs:
-  terraform:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.0
-      
-      - name: Terraform Init
-        run: |
-          cd terraform/environments/${{ github.event.inputs.environment }}
-          terraform init
-      
-      - name: Terraform Plan
-        run: |
-          cd terraform/environments/${{ github.event.inputs.environment }}
-          terraform plan -out=tfplan
-      
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
-        run: |
-          cd terraform/environments/${{ github.event.inputs.environment }}
-          terraform apply -auto-approve tfplan
-```
+ECS tasks automatically retrieve secrets at runtime via IAM roles. No manual configuration needed in application code.
 
 ## Cost Optimization
 
-### Development Environment Optimization
+### Development Environment
 
-1. **Single-AZ Deployment**
-   - Saves ~50% on NAT Gateway costs
-   - Eliminates cross-AZ data transfer charges
+**Current Monthly Cost: ~$150-200**
 
-2. **Minimal Instance Sizes**
-   - RDS: db.t4g.micro/small (Graviton2 - 20% cheaper)
-   - DocumentDB: db.t3.medium
-   - ElastiCache: cache.t3.micro
+- Single-AZ deployment
+- Minimal instance sizes (t3.micro/t4g.micro)
+- No read replicas
+- Single NAT Gateway
+- VPC endpoints for AWS services
 
-3. **No Read Replicas**
-   - Saves database replication costs
+**Cost Breakdown:**
+- ECS Fargate: ~$50-70
+- RDS PostgreSQL: ~$30-40
+- ElastiCache Redis: ~$15-20
+- NAT Gateway: ~$30-35
+- ALB: ~$20-25
+- Other services: ~$10-15
 
-4. **Fargate Cost Optimization**
-   - Minimal CPU/memory allocation (0.25 vCPU, 512 MB)
-   - 1 task per service
+### Production Environment
 
-5. **Weekday-Only Usage**
-   ```bash
-   # Stop non-production environments during off-hours
-   # Use AWS Lambda or scheduled scripts
-   ./scripts/utilities/stop-dev-environment.sh
-   ```
+**Estimated Monthly Cost: ~$800-1200**
 
-### Production Environment Optimization
+- Multi-AZ deployment (2 AZs)
+- Larger instance sizes
+- RDS read replicas
+- Multiple NAT Gateways
+- Auto-scaling enabled
 
-1. **Reserved Instances / Savings Plans**
-   - 1-year commitment saves ~40% on RDS
-   - Fargate Savings Plans save ~50%
+### Cost Saving Tips
 
-2. **Fargate Spot**
-   - Use 30% Fargate Spot for non-critical services
-   - Saves up to 70% on compute costs
+1. Stop dev environment during off-hours
+2. Use Fargate Spot for non-critical workloads (prod)
+3. Enable S3 lifecycle policies for logs
+4. Use Reserved Instances for RDS (prod)
+5. Optimize CloudFront cache hit ratio
 
-3. **S3 Lifecycle Policies**
-   - Transition logs to Glacier after 90 days
-   - Delete old logs after 1 year
+## Monitoring and Logging
 
-4. **CloudFront Cache Optimization**
-   - Maximize cache hit ratio
-   - Reduce origin requests
+### CloudWatch Dashboards
 
-5. **VPC Endpoints**
-   - Eliminates NAT Gateway charges for AWS service traffic
-   - Saves ~$0.045/GB on data transfer
+- ECS service metrics (CPU, memory, task count)
+- ALB metrics (request count, latency, errors)
+- RDS metrics (connections, CPU, storage)
+- ElastiCache metrics (CPU, memory, evictions)
 
-### Cost Monitoring
+### Log Groups
 
-```bash
-# Enable AWS Cost Explorer tags
-terraform apply -var="enable_cost_allocation_tags=true"
+- `/ecs/event-planner/dev/auth-service`
+- `/ecs/event-planner/dev/event-service`
+- `/ecs/event-planner/dev/payment-service`
+- `/ecs/event-planner/dev/notification-service`
 
-# Tag resources for cost tracking
-tags = {
-  Environment = "dev"
-  Project     = "event-planner"
-  ManagedBy   = "terraform"
-  CostCenter  = "engineering"
-}
-```
+### Alarms
 
-## Disaster Recovery
-
-### Backup Strategy
-
-#### RDS Automated Backups
-
-```hcl
-# Configured in RDS module
-backup_retention_period = 7
-backup_window           = "03:00-04:00"
-maintenance_window      = "sun:04:00-sun:05:00"
-
-# Enable point-in-time recovery
-enabled_cloudwatch_logs_exports = ["postgresql"]
-```
-
-#### Cross-Region Backup
-
-```bash
-# Manual cross-region snapshot copy
-aws rds copy-db-snapshot \
-  --source-db-snapshot-identifier arn:aws:rds:us-east-1:123456789012:snapshot:auth-db-snapshot-2024-01-01 \
-  --target-db-snapshot-identifier auth-db-snapshot-2024-01-01-dr \
-  --region us-west-2 \
-  --kms-key-id arn:aws:kms:us-west-2:123456789012:key/dr-key-id
-```
-
-### DR Testing
-
-Quarterly DR drills are recommended:
-
-```bash
-# 1. Deploy DR infrastructure in secondary region
-cd terraform/environments/prod-dr
-terraform apply
-
-# 2. Restore RDS from latest snapshot
-aws rds restore-db-instance-from-db-snapshot \
-  --db-instance-identifier event-planner-auth-db-dr \
-  --db-snapshot-identifier arn:aws:rds:us-west-2:123456789012:snapshot:auth-db-snapshot-latest \
-  --db-instance-class db.t4g.medium
-
-# 3. Update Route53 health checks to point to DR region
-aws route53 change-resource-record-sets \
-  --hosted-zone-id Z1234567890ABC \
-  --change-batch file://dr-failover-config.json
-
-# 4. Verify application functionality
-curl https://api.sankofagrid.com/health
-
-# 5. Document lessons learned and update runbooks
-```
+- ECS high CPU/memory usage
+- ALB 5xx errors
+- RDS connection count
+- SQS dead letter queue messages
 
 ## Troubleshooting
 
-### Common Issues
+### ECS Service Not Starting
 
-#### Issue: Terraform State Lock
-
-**Symptom:** "Error acquiring the state lock"
-
-**Solution:**
 ```bash
-# List DynamoDB locks
-aws dynamodb scan \
-  --table-name event-planner-terraform-locks \
-  --region us-east-1
+# Check service events
+aws ecs describe-services \
+  --cluster event-planner-dev-cluster \
+  --services payment-service
 
-# Force unlock (use with caution)
+# View task logs
+aws logs tail /ecs/event-planner/dev/payment-service --follow
+```
+
+### Database Connection Issues
+
+```bash
+# Verify security group rules
+aws ec2 describe-security-groups --group-ids <RDS_SG_ID>
+
+# Test connectivity from ECS task
+aws ecs execute-command \
+  --cluster event-planner-dev-cluster \
+  --task <TASK_ID> \
+  --command "nc -zv <RDS_ENDPOINT> 5432"
+```
+
+### Deployment Failures
+
+```bash
+# Check GitHub Actions logs
+# Go to Actions → Failed workflow → View logs
+
+# Force unlock Terraform state (if locked)
 terraform force-unlock <LOCK_ID>
 ```
 
-#### Issue: Database Connection Timeout
-
-**Symptom:** ECS tasks cannot connect to RDS
-
-**Solution:**
-```bash
-# 1. Verify security group rules
-aws ec2 describe-security-groups \
-  --group-ids <RDS_SG_ID>
-
-# 2. Check VPC endpoint connectivity
-aws ec2 describe-vpc-endpoints
-
-# 3. Verify ECS task role has necessary permissions
-aws iam get-role-policy \
-  --role-name event-planner-ecs-task-role \
-  --policy-name database-access
-```
-
-#### Issue: CloudFront Distribution Not Updating
-
-**Symptom:** Changes to S3 bucket not reflected in CloudFront
-
-**Solution:**
-```bash
-# Create invalidation
-aws cloudfront create-invalidation \
-  --distribution-id <DISTRIBUTION_ID> \
-  --paths "/*"
-
-# Check invalidation status
-aws cloudfront get-invalidation \
-  --distribution-id <DISTRIBUTION_ID> \
-  --id <INVALIDATION_ID>
-```
-
-#### Issue: ECS Tasks Failing to Start
-
-**Symptom:** "CannotPullContainerError" or "ResourceInitializationError"
-
-**Solution:**
-```bash
-# 1. Verify ECR permissions in task execution role
-aws iam get-role-policy \
-  --role-name event-planner-ecs-execution-role \
-  --policy-name ecr-access
-
-# 2. Check VPC endpoints for ECR
-aws ec2 describe-vpc-endpoints \
-  --filters "Name=service-name,Values=com.amazonaws.us-east-1.ecr.dkr"
-
-# 3. Verify task definition secrets are accessible
-aws secretsmanager get-secret-value \
-  --secret-id event-planner/dev/rds/auth-db/master-password
-```
-
-### Debugging Commands
-
-```bash
-# View Terraform state
-terraform show
-
-# List all resources
-terraform state list
-
-# Inspect specific resource
-terraform state show module.vpc.aws_vpc.main
-
-# View logs
-terraform output -raw cloudwatch_log_group_name | xargs -I {} \
-  aws logs tail {} --follow
-
-# Check resource dependencies
-terraform graph | dot -Tsvg > graph.svg
-```
-
-
 ## Additional Resources
 
+- [Centralized DevOps Structure](docs/centralized-devops-structure.md)
 - [AWS Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/)
-- [Terraform Best Practices](https://www.terraform.io/docs/cloud/guides/recommended-practices/index.html)
-- [ECS Best Practices](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/intro.html)
-- [RDS Best Practices](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_BestPractices.html)
+- [Terraform Best Practices](https://www.terraform.io/docs/cloud/guides/recommended-practices/)
+- [ECS Best Practices](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/)
 
 ---
 
-**Last Updated:** October 2025  
-**Maintained By:** DevOps Team 
-**Version:** 1.0.0
+**Last Updated:** November 2025  
+**Maintained By:** DevOps Team  
+**Version:** 2.0.0
