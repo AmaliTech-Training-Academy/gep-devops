@@ -2,32 +2,31 @@
 
 ## Centralized DevOps Infrastructure
 
-This repository contains the complete Terraform infrastructure code for the Event Planner Platform, implementing a centralized DevOps approach with automated CI/CD pipelines.
+Complete Terraform infrastructure for the Event Planner Platform with automated CI/CD pipelines, monitoring, and security.
 
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
 2. [Active Services](#active-services)
-3. [Repository Structure](#repository-structure)
+3. [Project Structure](#project-structure)
 4. [Prerequisites](#prerequisites)
 5. [Quick Start](#quick-start)
-6. [CI/CD Pipeline](#cicd-pipeline)
+6. [CI/CD Pipelines](#cicd-pipelines)
 7. [Infrastructure Modules](#infrastructure-modules)
-8. [Secrets Management](#secrets-management)
-9. [Cost Optimization](#cost-optimization)
+8. [Monitoring & Logging](#monitoring--logging)
+9. [Secrets Management](#secrets-management)
+10. [Cost Optimization](#cost-optimization)
+11. [Documentation](#documentation)
 
 ## Architecture Overview
 
 ### Frontend Architecture
-
 ![Frontend Architecture](docs/diagrams/frontend-architecture.png)
 
 ### Backend Architecture
-
 ![Backend Architecture](docs/diagrams/backend-architecture.png)
 
 ### Network Architecture
-
 ![Network Architecture](docs/diagrams/network-architecture.png)
 
 ### Infrastructure Components
@@ -36,6 +35,7 @@ This repository contains the complete Terraform infrastructure code for the Even
 - S3 bucket for Angular application hosting
 - CloudFront distribution (events.sankofagrid.com)
 - ACM SSL/TLS certificates
+- External DNS managed by Cloudflare
 
 **Backend:**
 - VPC with public/private subnets (single-AZ dev, multi-AZ prod)
@@ -80,34 +80,81 @@ This repository contains the complete Terraform infrastructure code for the Even
 - Withdrawal notification queue
 - Webhook event queue
 
-## Repository Structure
+## Project Structure
 
 ```
 get-devops/
 ├── .github/
 │   ├── workflows/
-│   │   └── infrastructure-ci-cd.yml    # Main CI/CD pipeline
-│   └── actions/                        # Reusable GitHub Actions
+│   │   ├── infrastructure-ci-cd.yml       # Infrastructure deployment pipeline
+│   │   ├── backend-ci-cd.yml              # Backend services deployment
+│   │   ├── frontend-ci-cd.yml             # Frontend deployment
+│   │   ├── backend-prod-blue-green.yml    # Production blue-green deployment
+│   │   ├── frontend-prod-blue-green.yml   # Frontend blue-green deployment
+│   │   └── master-pipeline.yml            # Orchestrates all pipelines
+│   └── actions/                           # Reusable GitHub Actions
+│       ├── aws-configure/                 # AWS credentials setup
+│       ├── terraform-init/                # Terraform initialization
+│       ├── terraform-deploy/              # Terraform deployment
+│       ├── terraform-security-scan/       # Security scanning
+│       ├── docker-build-push/             # Docker image build & push
+│       ├── ecs-deploy/                    # ECS service deployment
+│       ├── frontend-build/                # Angular build
+│       ├── s3-deploy/                     # S3 deployment
+│       └── setup-*/                       # Tool setup actions
 ├── terraform/
 │   ├── modules/
-│   │   ├── vpc/                        # Network infrastructure
-│   │   ├── security-groups/            # Security rules
-│   │   ├── iam/                        # IAM roles and policies
-│   │   ├── rds/                        # PostgreSQL database
-│   │   ├── elasticache/                # Redis cache
-│   │   ├── ecs/                        # ECS Fargate cluster
-│   │   ├── alb/                        # Application Load Balancer
-│   │   ├── s3/                         # S3 buckets
-│   │   ├── cloudfront/                 # CDN distribution
-│   │   ├── acm/                        # SSL certificates
-│   │   ├── secrets-manager/            # Secrets management
-│   │   ├── sqs-sns/                    # Message queuing
-│   │   ├── ecr/                        # Container registry
-│   │   └── cloudwatch/                 # Monitoring and logging
+│   │   ├── vpc/                           # Network infrastructure
+│   │   ├── security-groups/               # Security rules
+│   │   ├── iam/                           # IAM roles and policies
+│   │   ├── rds/                           # PostgreSQL database
+│   │   ├── elasticache/                   # Redis cache
+│   │   ├── ecs/                           # ECS Fargate cluster
+│   │   ├── alb/                           # Application Load Balancer
+│   │   ├── s3/                            # S3 buckets
+│   │   ├── cloudfront/                    # CDN distribution
+│   │   ├── acm/                           # SSL certificates
+│   │   ├── secrets-manager/               # Secrets management
+│   │   ├── sqs-sns/                       # Message queuing
+│   │   ├── ecr/                           # Container registry
+│   │   ├── cloudwatch/                    # Monitoring and logging
+│   │   ├── cloudwatch-dashboards/         # Service-specific dashboards
+│   │   └── waf/                           # Web Application Firewall
 │   └── environments/
-│       ├── dev/                        # Development environment
-│       └── prod/                       # Production environment
-└── docs/                               # Documentation and diagrams
+│       ├── dev/                           # Development environment
+│       │   ├── main.tf
+│       │   ├── variables.tf
+│       │   ├── terraform.tfvars
+│       │   └── backend.tf
+│       └── prod/                          # Production environment
+│           ├── main.tf
+│           ├── variables.tf
+│           ├── terraform.tfvars
+│           └── backend.tf
+├── docs/
+│   ├── architecture/                      # Architecture documentation
+│   │   ├── AWS_INFRASTRUCTURE_ARCHITECTURE-DEV.md
+│   │   └── AWS_INFRASTRUCTURE_ARCHITECTURE-PROD.md
+│   ├── diagrams/                          # Architecture diagrams
+│   │   ├── frontend-architecture.png
+│   │   ├── backend-architecture.png
+│   │   ├── network-architecture.png
+│   │   ├── ci-cd-architecture-draft.png
+│   │   ├── grafana-architecture.png
+│   │   └── security-architecture.png
+│   ├── 01-project-overview.md             # Project overview
+│   ├── 02-terraform-infrastructure.md     # Infrastructure details
+│   ├── 03-cicd-pipeline-implementation.md # CI/CD implementation
+│   ├── 04-deployment-workflows.md         # Deployment procedures
+│   ├── 05-monitoring-security-operations-I.md  # Monitoring setup
+│   ├── 05-monitoring-security-operations-II.md # Security operations
+│   ├── 06-cost-optimization-best-practices.md  # Cost optimization
+│   ├── 07-troubleshooting-runbooks.md     # Troubleshooting guides
+│   ├── centralized-devops-structure.md    # DevOps structure
+│   ├── GRAFANA-MONITORING-PLAN.md         # Grafana setup
+│   ├── GRAFANA-DEPLOYMENT-SUMMARY.md      # Grafana deployment
+│   └── GEP-Grafana-Monitor-Usage-Guide.md # Grafana usage guide
+└── README.md                              # This file
 ```
 
 ## Prerequisites
@@ -125,10 +172,11 @@ get-devops/
 - SQS, SNS
 - IAM, CloudWatch
 
-**Domain:**
-- sankofagrid.com (external DNS)
-- events.sankofagrid.com → CloudFront
-- api.sankofagrid.com → ALB
+**Domain Configuration:**
+- Domain: sankofagrid.com
+- DNS Provider: Cloudflare
+- Frontend: events.sankofagrid.com → CloudFront
+- Backend API: api.sankofagrid.com → ALB
 
 ## Quick Start
 
@@ -178,21 +226,58 @@ curl https://api.sankofagrid.com/actuator/health
 aws logs tail /ecs/event-planner/dev/payment-service --follow
 ```
 
-## CI/CD Pipeline
+## CI/CD Pipelines
 
 ### CI/CD Architecture
 
-![CI/CD Architecture](docs/diagrams/ci-cd%20architecture-draft.png)
+![CI/CD Architecture](docs/diagrams/ci-cd-architecture-draft.png)
+
+### Pipeline Overview
+
+**Infrastructure Pipeline** (`infrastructure-ci-cd.yml`)
+- Validates Terraform code
+- Runs security scans
+- Plans infrastructure changes
+- Deploys to AWS
+- Sends notifications
+
+**Backend Pipeline** (`backend-ci-cd.yml`)
+- Builds Java/Spring Boot services
+- Runs unit tests
+- Builds Docker images
+- Pushes to ECR
+- Deploys to ECS Fargate
+
+**Frontend Pipeline** (`frontend-ci-cd.yml`)
+- Builds Angular application
+- Runs tests and linting
+- Deploys to S3
+- Invalidates CloudFront cache
+
+**Master Pipeline** (`master-pipeline.yml`)
+- Orchestrates all pipelines
+- Manages deployment order
+- Handles cross-pipeline dependencies
 
 ### Pipeline Stages
 
-The infrastructure deployment follows this sequence:
-
+**Infrastructure Deployment:**
 1. **Validate** - Terraform format check, syntax validation, TFLint
 2. **Security Scan** - Terraform security scanning (Checkov/tfsec)
 3. **Plan** - Generate and review infrastructure changes
 4. **Deploy** - Apply infrastructure changes (main branch only)
 5. **Notify** - Send deployment status to Slack
+
+**Backend Deployment:**
+1. **Build** - Maven build and test
+2. **Docker** - Build and push images to ECR
+3. **Deploy** - Update ECS services
+4. **Verify** - Health check validation
+
+**Frontend Deployment:**
+1. **Build** - Angular production build
+2. **Deploy** - Upload to S3
+3. **Invalidate** - CloudFront cache invalidation
 
 ### Workflow Triggers
 
@@ -209,7 +294,7 @@ The infrastructure deployment follows this sequence:
 ## Infrastructure Modules
 
 ### VPC Module
-- Creates VPC with public/private subnets
+- VPC with public/private subnets
 - NAT Gateway for external connectivity
 - VPC endpoints for AWS services
 
@@ -248,6 +333,59 @@ The infrastructure deployment follows this sequence:
 - Service-specific task roles
 - SNS/SQS permissions for messaging
 - Secrets Manager access
+
+## Monitoring & Logging
+
+### CloudWatch Dashboards
+
+**Service-Specific Dashboards:**
+- Auth Service Dashboard - Authentication metrics
+- Event Service Dashboard - Event management metrics
+- Payment Service Dashboard - Payment transaction metrics
+- Notification Service Dashboard - Email/SMS delivery metrics
+
+**Infrastructure Dashboards:**
+- ECS service metrics (CPU, memory, task count)
+- ALB metrics (request count, latency, errors)
+- RDS metrics (connections, CPU, storage)
+- ElastiCache metrics (CPU, memory, evictions)
+
+### Grafana Monitoring
+
+**Grafana Dashboard** (Accessible at: `https://api.sankofagrid.com/monitoring/`)
+
+**Data Sources:**
+- CloudWatch - Infrastructure and application metrics
+- PostgreSQL - Database queries and audit logs
+- Audit Logs - JSONB-based audit trail
+
+**Dashboard Categories:**
+1. **Executive Dashboard** - Business metrics and KPIs
+2. **Infrastructure Dashboard** - System health and performance
+3. **Performance Dashboard** - API latency and response times
+4. **Security Dashboard** - Authentication failures and security events
+
+**Features:**
+- Real-time monitoring and alerting
+- Log aggregation from CloudWatch
+- Database query performance analysis
+- Audit log visualization
+- Custom alerts and notifications
+
+### Log Groups
+
+- `/ecs/event-planner/dev/auth-service`
+- `/ecs/event-planner/dev/event-service`
+- `/ecs/event-planner/dev/payment-service`
+- `/ecs/event-planner/dev/notification-service`
+
+### Alarms
+
+- ECS high CPU/memory usage
+- ALB 5xx errors
+- RDS connection count
+- SQS dead letter queue messages
+- Custom application-specific alerts
 
 ## Secrets Management
 
@@ -319,69 +457,33 @@ ECS tasks automatically retrieve secrets at runtime via IAM roles. No manual con
 4. Use Reserved Instances for RDS (prod)
 5. Optimize CloudFront cache hit ratio
 
-## Monitoring and Logging
+## Documentation
 
-### CloudWatch Dashboards
+### Project Documentation
 
-- ECS service metrics (CPU, memory, task count)
-- ALB metrics (request count, latency, errors)
-- RDS metrics (connections, CPU, storage)
-- ElastiCache metrics (CPU, memory, evictions)
+- **[Project Overview](docs/01-project-overview.md)** - Complete project overview and objectives
+- **[Terraform Infrastructure](docs/02-terraform-infrastructure.md)** - Detailed infrastructure documentation
+- **[CI/CD Pipeline Implementation](docs/03-cicd-pipeline-implementation.md)** - CI/CD setup and configuration
+- **[Deployment Workflows](docs/04-deployment-workflows.md)** - Step-by-step deployment procedures
+- **[Monitoring & Security Operations I](docs/05-monitoring-security-operations-I.md)** - Monitoring setup and configuration
+- **[Monitoring & Security Operations II](docs/05-monitoring-security-operations-II.md)** - Security operations and best practices
+- **[Cost Optimization Best Practices](docs/06-cost-optimization-best-practices.md)** - Cost optimization strategies
+- **[Troubleshooting Runbooks](docs/07-troubleshooting-runbooks.md)** - Common issues and solutions
 
-### Log Groups
+### Architecture Documentation
 
-- `/ecs/event-planner/dev/auth-service`
-- `/ecs/event-planner/dev/event-service`
-- `/ecs/event-planner/dev/payment-service`
-- `/ecs/event-planner/dev/notification-service`
+- **[Development Architecture](docs/architecture/AWS_INFRASTRUCTURE_ARCHITECTURE-DEV.md)** - Development environment architecture
+- **[Production Architecture](docs/architecture/AWS_INFRASTRUCTURE_ARCHITECTURE-PROD.md)** - Production environment architecture
+- **[Centralized DevOps Structure](docs/centralized-devops-structure.md)** - DevOps organization and structure
 
-### Alarms
+### Monitoring Documentation
 
-- ECS high CPU/memory usage
-- ALB 5xx errors
-- RDS connection count
-- SQS dead letter queue messages
+- **[Grafana Monitoring Plan](docs/GRAFANA-MONITORING-PLAN.md)** - Grafana setup and configuration
+- **[Grafana Deployment Summary](docs/GRAFANA-DEPLOYMENT-SUMMARY.md)** - Grafana deployment details
+- **[Grafana Usage Guide](docs/GEP-Grafana-Monitor-Usage-Guide.md)** - How to use Grafana dashboards
 
-## Troubleshooting
+### External Resources
 
-### ECS Service Not Starting
-
-```bash
-# Check service events
-aws ecs describe-services \
-  --cluster event-planner-dev-cluster \
-  --services payment-service
-
-# View task logs
-aws logs tail /ecs/event-planner/dev/payment-service --follow
-```
-
-### Database Connection Issues
-
-```bash
-# Verify security group rules
-aws ec2 describe-security-groups --group-ids <RDS_SG_ID>
-
-# Test connectivity from ECS task
-aws ecs execute-command \
-  --cluster event-planner-dev-cluster \
-  --task <TASK_ID> \
-  --command "nc -zv <RDS_ENDPOINT> 5432"
-```
-
-### Deployment Failures
-
-```bash
-# Check GitHub Actions logs
-# Go to Actions → Failed workflow → View logs
-
-# Force unlock Terraform state (if locked)
-terraform force-unlock <LOCK_ID>
-```
-
-## Additional Resources
-
-- [Centralized DevOps Structure](docs/centralized-devops-structure.md)
 - [AWS Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/)
 - [Terraform Best Practices](https://www.terraform.io/docs/cloud/guides/recommended-practices/)
 - [ECS Best Practices](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/)
