@@ -57,9 +57,9 @@ locals {
       port          = 8088
       cpu           = var.environment == "dev" ? 256 : 512
       memory        = var.environment == "dev" ? 512 : 1024
-      desired_count = var.environment == "dev" ? 1 : 2
-      min_capacity  = var.environment == "dev" ? 1 : 2
-      max_capacity  = var.environment == "dev" ? 1 : 4
+      desired_count = 1
+      min_capacity  = 1
+      max_capacity  = 1
     }
     notification = {
       name          = "notification-service"
@@ -712,6 +712,10 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "PAYMENT_STATUS_QUEUE_URL"
             value = lookup(var.sqs_queue_urls, "payment_status", "")
+          },
+          {
+            name  = "PAYMENT_STATUS_QUEUE"
+            value = lookup(var.sqs_queue_urls, "payment_status", "")
           }
         ] : [],
         each.key == "notification" ? [
@@ -849,6 +853,10 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "PAYMENT_STATUS_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "payment_status", "")
+          },
+          {
+            name  = "PAYMENT_STATUS_QUEUE"
             value = lookup(var.sqs_queue_urls, "payment_status", "")
           }
         ] : []

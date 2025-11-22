@@ -173,11 +173,13 @@ locals {
 
     # Payment status queue
     payment_status = {
-      name               = "${var.project_name}-${var.environment}-payment-status-queue"
+      name               = "${var.project_name}-${var.environment}-payment-status-queue.fifo"
       topic              = "payment"
       filter_policy      = { event_type = ["payment.status"] }
       visibility_timeout = 30
       message_retention  = 259200
+      fifo_queue         = true
+      content_based_deduplication = true
     }
   }
 
@@ -252,6 +254,10 @@ resource "aws_sqs_queue" "queues" {
   max_message_size           = 262144 # 256 KB
   receive_wait_time_seconds  = 20     # Long polling
   kms_master_key_id          = var.kms_key_arn
+  
+  # FIFO queue configuration
+  fifo_queue                  = lookup(each.value, "fifo_queue", false)
+  content_based_deduplication = lookup(each.value, "content_based_deduplication", false)
 
   # Dead letter queue configuration
   redrive_policy = jsonencode({
