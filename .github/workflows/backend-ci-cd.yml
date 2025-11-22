@@ -204,8 +204,16 @@ jobs:
     if: always() && needs.check-branch.outputs.should-deploy == 'true'
     runs-on: [self-hosted, backend]
     steps:
+      - name: Prepare Services List
+        id: services
+        run: |
+          SERVICES='${{ needs.prepare.outputs.services }}'
+          SERVICES_TEXT=$(echo "$SERVICES" | jq -r 'join(", ")' 2>/dev/null || echo "all services")
+          echo "list=$SERVICES_TEXT" >> $GITHUB_OUTPUT
+
       - name: Slack Notification
         uses: 8398a7/action-slack@v3
+        continue-on-error: true
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
@@ -218,7 +226,7 @@ jobs:
                 "fields": [
                   {"title": "Status", "value": "${{ contains(needs.*.result, 'failure') && 'Failed' || 'Succeeded' }}", "short": true},
                   {"title": "Environment", "value": "${{ env.ENVIRONMENT }}", "short": true},
-                  {"title": "Services", "value": "${{ needs.prepare.outputs.services }}", "short": true},
+                  {"title": "Services", "value": "${{ steps.services.outputs.list }}", "short": true},
                   {"title": "Commit SHA", "value": "${{ env.COMMIT_SHA }}", "short": true}
                 ]
               }]
