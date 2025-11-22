@@ -170,6 +170,15 @@ locals {
       visibility_timeout = 30
       message_retention  = 259200
     }
+
+    # Payment status queue
+    payment_status = {
+      name               = "${var.project_name}-${var.environment}-payment-status-queue"
+      topic              = "payment"
+      filter_policy      = { event_type = ["payment.status"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
   }
 
   common_tags = merge(

@@ -154,7 +154,7 @@ locals {
     }
     payment_webhook = {
       service_key  = "payment"
-      path_pattern = "/webhook*"
+      path_pattern = "/api/v1/webhook*"
       priority     = 50
     }
     payment_api = {

@@ -692,6 +692,14 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "SPRING_JPA_OPEN_IN_VIEW"
             value = "false"
+          },
+          {
+            name  = "PAYMENT_STATUS_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "payment_status", "")
+          },
+          {
+            name  = "PAYMENT_STATUS_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "payment_status", "")
           }
         ] : [],
         each.key == "notification" ? [
@@ -818,6 +826,14 @@ resource "aws_ecs_task_definition" "services" {
           {
             name  = "EVENT_CREATION_QUEUE"
             value = lookup(var.sqs_queue_urls, "event_creation_notification", "")
+          },
+          {
+            name  = "PAYMENT_STATUS_QUEUE_NAME"
+            value = lookup(var.sqs_queue_names, "payment_status", "")
+          },
+          {
+            name  = "PAYMENT_STATUS_QUEUE_URL"
+            value = lookup(var.sqs_queue_urls, "payment_status", "")
           }
         ] : []
       )
