@@ -117,11 +117,20 @@ locals {
       message_retention  = 259200
     }
 
-    # Payment completed event queue
+    # Payment completed event queue (for Event Service)
     payment_completed_event = {
       name               = "${var.project_name}-${var.environment}-payment-completed-event-queue"
       topic              = "payment"
       filter_policy      = { event_type = ["payment.completed"] }
+      visibility_timeout = 30
+      message_retention  = 259200
+    }
+
+    # Payment status queue (for Notification Service - direct SQS, no SNS)
+    payment_status = {
+      name               = "${var.project_name}-${var.environment}-payment-status-queue"
+      topic              = "event"  # Changed to event topic for consistency
+      filter_policy      = { event_type = ["payment.status.success", "payment.status.failed"] }
       visibility_timeout = 30
       message_retention  = 259200
     }
@@ -162,23 +171,7 @@ locals {
       message_retention  = 259200
     }
 
-    # Payment completed queue for payment service
-    payment_completed = {
-      name               = "${var.project_name}-${var.environment}-payment-completed-queue"
-      topic              = "payment"
-      filter_policy      = { event_type = ["payment.completed"] }
-      visibility_timeout = 30
-      message_retention  = 259200
-    }
 
-    # Payment status queue
-    payment_status = {
-      name               = "${var.project_name}-${var.environment}-payment-status-queue"
-      topic              = "payment"
-      filter_policy      = { event_type = ["payment.status"] }
-      visibility_timeout = 30
-      message_retention  = 259200
-    }
 
     # Withdrawal notification queue
     withdrawal_notification = {
