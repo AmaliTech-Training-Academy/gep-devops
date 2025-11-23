@@ -288,6 +288,9 @@ resource "aws_sqs_queue" "queues" {
 # SQS Queue Policies
 # ==============================================================================
 
+# Get current AWS account ID
+data "aws_caller_identity" "current" {}
+
 resource "aws_sqs_queue_policy" "queues" {
   for_each = local.queues
 
@@ -307,6 +310,20 @@ resource "aws_sqs_queue_policy" "queues" {
         Condition = {
           ArnEquals = {
             "aws:SourceArn" = aws_sns_topic.topics[each.value.topic].arn
+          }
+        }
+      },
+      {
+        Sid    = "AllowDirectSQSPublish"
+        Effect = "Allow"
+        Principal = {
+          AWS = "*"
+        }
+        Action   = "SQS:SendMessage"
+        Resource = aws_sqs_queue.queues[each.key].arn
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
           }
         }
       }
