@@ -1,9 +1,12 @@
-# Centralized GEP DevOps Repository Structure
+# Centralized DevOps Repository Structure
 
-## This Repository (gep_devops) - Central Control
+**Last Updated:** November 2025  
+**Version:** 2.0.0
+
+## This Repository (get-devops) - Central Control
 
 ```
-gep_devops/
+get-devops/
 ├── .github/
 │   └── workflows/
 │       ├── backend-ci-cd.yml            # Triggered by backend repo
@@ -88,21 +91,17 @@ gep_devops/
 
 ## External Repositories (Minimal Pipeline Structure)
 
-### Backend Repository (gep-backend)
+### Backend Repository (get-backend)
 ```
-gep-backend/
+get-backend/
 ├── .github/
 │   └── workflows/
 │       └── trigger-deployment.yml     # Intelligent change detection
 ├── services/
 │   ├── auth-service/
 │   ├── event-service/
-│   ├── notification-service/
-│   ├── booking-service/
 │   ├── payment-service/
-│   ├── api-gateway/
-│   ├── config-server/
-│   └── discovery-server/
+│   └── notification-service/
 ├── shared/
 │   ├── common-lib/
 │   ├── security-lib/
@@ -126,13 +125,13 @@ event-planner-frontend/
 ### Repository Dispatch Triggers
 ```yaml
 Backend Repo Events:
-├── push to dev → triggers backend-ci-cd.yml (dev)
+├── push to main → triggers backend-ci-cd.yml (dev)
 ├── push to staging → triggers backend-ci-cd.yml (staging)
 ├── push to prod → triggers backend-ci-cd.yml (prod)
 └── pull_request → triggers backend-ci-cd.yml (validation)
 
 Frontend Repo Events:
-├── push to dev → triggers frontend-ci-cd.yml (dev)
+├── push to main → triggers frontend-ci-cd.yml (dev)
 ├── push to staging → triggers frontend-ci-cd.yml (staging)
 ├── push to prod → triggers frontend-ci-cd.yml (prod)
 └── pull_request → triggers frontend-ci-cd.yml (validation)
@@ -208,12 +207,14 @@ Monitoring: full-stack
 
 ## Secrets Management Structure
 
-### Repository Secrets (gep_devops)
+### Repository Secrets (get-devops)
 ```yaml
 AWS:
   - AWS_ACCESS_KEY_ID
   - AWS_SECRET_ACCESS_KEY
   - AWS_REGION
+  - TF_STATE_BUCKET
+  - TF_STATE_DYNAMODB_TABLE
 
 Container Registry:
   - ECR_REGISTRY_URL
@@ -223,17 +224,16 @@ External Repos:
   - DEVOPS_REPO_OWNER
 
 Notifications:
-  - SLACK_WEBHOOK
-  - TEAMS_WEBHOOK
+  - SLACK_WEBHOOK_URL
 
-Security Tools:
-  - SONAR_TOKEN
-  - SNYK_TOKEN
+Payment Integration:
+  - PAYMENT_SERVICE_URL
 
 Environment Specific:
   - DB_PASSWORD_DEV
   - DB_PASSWORD_STAGING
   - DB_PASSWORD_PROD
+  - GRAFANA_ADMIN_PASSWORD
 ```
 
 ## Monitoring and Alerting

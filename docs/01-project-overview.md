@@ -1,256 +1,197 @@
-# Event Planner Platform - DevOps Infrastructure Documentation
-## Part 1: Project Overview & Architecture
+# Project Overview
 
-**Author:** DevOps Team  
-**Last Updated:** October 30, 2025  
-**Version:** 1.0.0  
-**Repository:** gep_devops
-
----
+**Last Updated:** November 2025  
+**Version:** 2.0.0
 
 ## Executive Summary
 
-This documentation covers the complete DevOps infrastructure implementation for the Event Planner Platform (GEP), a cloud-native microservices application deployed on AWS. The project implements a **centralized DevOps approach** where all infrastructure, CI/CD pipelines, and deployment orchestration are managed from a single repository (`gep_devops`), while application code resides in separate repositories.
+The Event Planner Platform is a cloud-native microservices application deployed on AWS, implementing a centralized DevOps approach where all infrastructure, CI/CD pipelines, and deployment orchestration are managed from a single repository.
 
-### Key Achievements
+### Key Features
 
-- ✅ **Centralized DevOps Architecture**: Single source of truth for all infrastructure and deployment pipelines
-- ✅ **Cost-Optimized Infrastructure**: Development environment running at ~$75-95/month (weekday-only) vs $248/month (24/7)
-- ✅ **Production-Ready Terraform Modules**: 15+ reusable modules for complete AWS infrastructure
-- ✅ **Automated CI/CD Pipelines**: Separate pipelines for backend (Java/Spring Boot) and frontend (Angular)
-- ✅ **Self-Hosted Runners**: Custom GitHub Actions runners with pre-installed tools for faster builds
-- ✅ **Service Discovery**: AWS Cloud Map integration for microservices communication
-- ✅ **Selective Deployment**: Deploy only changed services to reduce deployment time and costs
-- ✅ **Security-First Approach**: Secrets management, VPC endpoints, encryption at rest and in transit
-
----
+- Centralized DevOps architecture with single source of truth
+- Cost-optimized infrastructure (~$150-200/month for development)
+- Production-ready Terraform modules for complete AWS infrastructure
+- Automated CI/CD pipelines for infrastructure, backend, and frontend
+- Service discovery using AWS Cloud Map
+- Security-first approach with encryption and secrets management
 
 ## Architecture Overview
 
 ### High-Level Architecture
 
-The Event Planner Platform follows a **microservices architecture** deployed on AWS using:
+The platform follows a microservices architecture with:
 
 - **Frontend**: Angular SPA hosted on S3 + CloudFront (events.sankofagrid.com)
 - **Backend**: Java Spring Boot microservices on ECS Fargate (api.sankofagrid.com)
 - **Database**: PostgreSQL RDS with multi-schema approach
-- **Caching**: ElastiCache Redis for session management and caching
+- **Caching**: ElastiCache Redis for session management
 - **Messaging**: SQS/SNS for asynchronous communication
-- **Service Discovery**: AWS Cloud Map (eventplanner.local namespace)
+- **Service Discovery**: AWS Cloud Map (eventplanner.local)
 
 ### Infrastructure Components
 
-#### Frontend Infrastructure
-- **S3 Bucket**: Static website hosting for Angular application
-- **CloudFront**: Global CDN with custom SSL certificate
-- **Domain**: events.sankofagrid.com (external DNS, not Route53)
-- **SSL/TLS**: Manual certificate management for CloudFront
+**Frontend Infrastructure:**
+- S3 bucket for static website hosting
+- CloudFront CDN with SSL certificate
+- Domain managed by Cloudflare (events.sankofagrid.com)
 
-#### Backend Infrastructure
-- **VPC**: Custom VPC with public/private subnets
-  - Development: Single-AZ (eu-west-1a) for cost optimization
-  - Production: Multi-AZ (2 AZs) for high availability
-- **ECS Fargate**: Serverless container orchestration
-  - Currently Active: auth-service, notification-service
-  - Ready to Deploy: event-service, booking-service, payment-service
-- **Application Load Balancer**: HTTPS traffic routing (api.sankofagrid.com)
-- **RDS PostgreSQL**: Multi-schema database approach
-  - Currently Active: auth_db
-  - Ready to Deploy: event_db, booking_db, payment_db
-- **ElastiCache Redis**: Distributed caching and session storage
-- **AWS Cloud Map**: DNS-based service discovery (eventplanner.local)
+**Backend Infrastructure:**
+- VPC with public/private subnets
+  - Development: Single-AZ (eu-west-1a)
+  - Production: Multi-AZ (2 AZs)
+- ECS Fargate for serverless containers
+- Application Load Balancer with HTTPS
+- RDS PostgreSQL with multi-schema design
+- ElastiCache Redis for caching
+- AWS Cloud Map for service discovery
 
-#### Network Architecture
-- **Public Subnets**: ALB, NAT Gateway
-- **Private App Subnets**: ECS tasks
-- **Private Data Subnets**: RDS, ElastiCache
-- **NAT Gateway**: Required for external SMTP access (Gmail notifications)
-- **VPC Endpoints**: ECR, Secrets Manager, CloudWatch, S3 (saves ~$15/month)
-
----
+**Network Architecture:**
+- Public subnets: ALB, NAT Gateway
+- Private app subnets: ECS tasks
+- Private data subnets: RDS, ElastiCache
+- VPC endpoints for AWS services
 
 ## Centralized DevOps Approach
 
 ### Repository Structure
 
-The project uses a **centralized DevOps model** with three main repositories:
+The project uses three main repositories:
 
-1. **gep_devops** (This Repository) - Central Control
+1. **get-devops** (This Repository)
    - All Terraform infrastructure code
    - All CI/CD pipeline definitions
    - Configuration management
    - Monitoring and security workflows
 
-2. **gep-backend** (External Repository)
-   - Java Spring Boot microservices source code
-   - Minimal trigger workflow only
-   - Triggers deployments via repository_dispatch
+2. **Backend Repository**
+   - Java Spring Boot microservices
+   - Triggers deployments via repository dispatch
 
-3. **event-planner-frontend** (External Repository)
-   - Angular application source code
-   - Minimal trigger workflow only
-   - Triggers deployments via repository_dispatch
+3. **Frontend Repository**
+   - Angular application
+   - Triggers deployments via repository dispatch
 
-### Benefits of Centralized Approach
+### Benefits
 
-1. **Single Source of Truth**: All infrastructure and deployment logic in one place
-2. **Consistent Deployments**: Same pipeline logic across all environments
-3. **Easier Maintenance**: Update pipelines once, affects all services
-4. **Better Security**: Centralized secrets management
-5. **Cost Optimization**: Shared resources and unified monitoring
-6. **Simplified Onboarding**: New developers only need access to app repos
+- Single source of truth for infrastructure
+- Consistent deployments across environments
+- Easier maintenance and updates
+- Centralized secrets management
+- Simplified onboarding for developers
 
----
+## Active Services
 
-## Current Deployment Status
+### Currently Running
 
-### Active Services (Currently Running)
+| Service | Port | Purpose | Database |
+|---------|------|---------|----------|
+| auth-service | 8081 | User authentication | auth_schema |
+| event-service | 8082 | Event management | event_schema |
+| payment-service | 8088 | Payment processing | payment_schema |
+| notification-service | 8085 | Email/SMS notifications | N/A |
 
-| Service | Port | CPU | Memory | Status | Database |
-|---------|------|-----|--------|--------|----------|
-| auth-service | 8081 | 256 | 512MB | ✅ Active | auth_db (PostgreSQL) |
-| notification-service | 8085 | 256 | 512MB | ✅ Active | N/A (uses SQS) |
+### Service Discovery
 
-### Ready to Deploy (Infrastructure Provisioned)
-
-| Service | Port | CPU | Memory | Status | Database |
-|---------|------|-----|--------|--------|----------|
-| event-service | 8082 | 256 | 512MB | 🟡 Ready | event_db (commented in Terraform) |
-| booking-service | 8083 | 256 | 512MB | 🟡 Ready | booking_db (commented in Terraform) |
-| payment-service | 8084 | 256 | 512MB | 🟡 Ready | payment_db (commented in Terraform) |
-
-**Note**: To activate additional services, uncomment the relevant blocks in:
-- `terraform/modules/ecs/main.tf` (ECS service definitions)
-- `terraform/modules/rds/main.tf` (Database instances)
-- `.github/workflows/backend-ci-cd.yml` (CI/CD pipeline)
-
----
+Services communicate via AWS Cloud Map:
+- auth-service.eventplanner.local:8081
+- event-service.eventplanner.local:8082
+- payment-service.eventplanner.local:8088
+- notification-service.eventplanner.local:8085
 
 ## Technology Stack
 
-### Infrastructure as Code
-- **Terraform**: v1.5.0+ for infrastructure provisioning
-- **AWS Provider**: v5.0+ for AWS resource management
+### Infrastructure
+- Terraform v1.5.0+ for infrastructure as code
+- AWS as cloud platform
+- GitHub Actions for CI/CD
 
-### Cloud Platform
-- **AWS Services**:
-  - ECS Fargate (compute)
-  - RDS PostgreSQL (database)
-  - ElastiCache Redis (caching)
-  - S3 (storage)
-  - CloudFront (CDN)
-  - ALB (load balancing)
-  - ECR (container registry)
-  - Secrets Manager (secrets)
-  - CloudWatch (monitoring)
-  - SQS/SNS (messaging)
-  - Cloud Map (service discovery)
-  - VPC (networking)
-
-### CI/CD
-- **GitHub Actions**: Workflow orchestration
-- **Self-Hosted Runners**: Custom runners with pre-installed tools
-  - Backend runner: Java 21, Maven, Docker
-  - Frontend runner: Node.js 18, npm, AWS CLI
+### Cloud Services
+- ECS Fargate (compute)
+- RDS PostgreSQL (database)
+- ElastiCache Redis (caching)
+- S3 (storage)
+- CloudFront (CDN)
+- ALB (load balancing)
+- ECR (container registry)
+- Secrets Manager (secrets)
+- CloudWatch (monitoring)
+- SQS/SNS (messaging)
 
 ### Application Stack
-- **Backend**: Java 21, Spring Boot 3.x, Maven
-- **Frontend**: Angular 17+, TypeScript, Node.js 18
-- **Database**: PostgreSQL 15.12
-- **Cache**: Redis 7.1
-
----
+- Backend: Java 21, Spring Boot 3.x
+- Frontend: Angular 17+, TypeScript
+- Database: PostgreSQL 15.12
+- Cache: Redis 7.1
 
 ## Environment Strategy
 
-### Development Environment (Current)
-- **Purpose**: Active development and testing
-- **Configuration**:
-  - Single-AZ deployment (eu-west-1a)
-  - Minimal resource allocation
-  - 2 active microservices
-  - Single PostgreSQL instance (multi-schema)
-  - Single Redis node
-  - No read replicas
-- **Cost**: ~$75-95/month (weekday-only) or ~$248/month (24/7)
-- **Auto-Deploy**: Yes (on push to dev branch)
+### Development Environment
 
-### Staging Environment (Planned)
-- **Purpose**: Pre-production testing
-- **Configuration**:
-  - Multi-AZ deployment (2 AZs)
-  - Production-like resources
-  - All 5 microservices active
-  - Separate databases per service
-  - Redis cluster mode
-- **Cost**: ~$1,000-1,500/month
-- **Auto-Deploy**: No (manual approval required)
+**Configuration:**
+- Single-AZ deployment
+- Minimal resource allocation
+- 4 active microservices
+- Single PostgreSQL with multi-schema
+- Single Redis node
 
-### Production Environment (Ready to Deploy)
-- **Purpose**: Live customer-facing environment
-- **Configuration**:
-  - Multi-AZ deployment (2 AZs)
-  - High availability setup
-  - All 5 microservices active
-  - RDS Multi-AZ with read replicas
-  - Redis cluster with replicas
-  - Auto-scaling enabled
-  - Enhanced monitoring
-- **Cost**: ~$2,500-3,000/month
-- **Auto-Deploy**: No (manual approval + blue-green deployment)
+**Cost:** ~$150-200/month
 
----
+**Deployment:** Automatic on push to main branch
+
+### Production Environment
+
+**Configuration:**
+- Multi-AZ deployment (2 AZs)
+- High availability setup
+- All microservices active
+- RDS Multi-AZ with read replicas
+- Redis cluster with replicas
+- Auto-scaling enabled
+
+**Cost:** ~$800-1200/month
+
+**Deployment:** Manual approval with blue-green deployment
 
 ## Key Design Decisions
 
-### 1. Centralized DevOps Repository
-**Decision**: All infrastructure and CI/CD in one repository  
-**Rationale**: Single source of truth, easier maintenance, consistent deployments  
-**Trade-off**: Requires repository_dispatch triggers from app repos
+### Centralized DevOps Repository
+Single repository for all infrastructure and CI/CD provides consistency and easier maintenance.
 
-### 2. Multi-Schema PostgreSQL vs Multiple Databases
-**Decision**: Single PostgreSQL with multiple schemas (dev), separate instances (prod)  
-**Rationale**: Cost optimization for dev (~$60/month savings), isolation for prod  
-**Trade-off**: Schema management complexity in dev
+### Multi-Schema PostgreSQL
+Single PostgreSQL instance with multiple schemas in development reduces costs while maintaining isolation.
 
-### 3. Self-Hosted GitHub Runners
-**Decision**: Custom runners with pre-installed tools  
-**Rationale**: Faster builds (no tool installation), cost savings, better control  
-**Trade-off**: Runner maintenance and monitoring required
+### AWS Cloud Map
+DNS-based service discovery enables dynamic service resolution and easier scaling.
 
-### 4. Selective Service Deployment
-**Decision**: Deploy only changed services  
-**Rationale**: Faster deployments, reduced costs, less risk  
-**Trade-off**: More complex pipeline logic
+### VPC Endpoints
+Reduces NAT Gateway data transfer costs by ~$15/month for AWS service traffic.
 
-### 5. NAT Gateway for Dev Environment
-**Decision**: Keep NAT Gateway enabled despite cost  
-**Rationale**: Required for external SMTP (Gmail) for notification service  
-**Alternative**: VPC Endpoints for AWS services (saves ~$15/month on data transfer)
+### Cloudflare DNS
+External DNS management provides flexibility and additional security features.
 
-### 6. AWS Cloud Map for Service Discovery
-**Decision**: DNS-based service discovery vs hardcoded URLs  
-**Rationale**: Dynamic service resolution, easier scaling, better resilience  
-**Trade-off**: Additional AWS service cost (~$1/month per service)
+## Security Features
 
----
+- Encryption at rest and in transit
+- AWS Secrets Manager for credential management
+- VPC isolation with security groups
+- IAM roles with least privilege
+- SSL/TLS certificates for all endpoints
+- Audit logging in PostgreSQL JSONB format
+
+## Monitoring & Observability
+
+- CloudWatch for infrastructure metrics
+- Service-specific dashboards for each microservice
+- Grafana for unified monitoring and alerting
+- Audit logs stored in PostgreSQL
+- Custom alarms for critical metrics
 
 ## Next Steps
 
-This is Part 1 of the comprehensive documentation. The following parts cover:
-
-- **Part 2**: Terraform Infrastructure Deep Dive
-- **Part 3**: CI/CD Pipeline Implementation
-- **Part 4**: Deployment Workflows and Automation
-- **Part 5**: Monitoring, Security, and Operations
-- **Part 6**: Cost Optimization and Best Practices
-- **Part 7**: Troubleshooting and Runbooks
-
----
-
-## Quick Links
-
-- [Centralized DevOps Structure](../centralized-devops-structure.md)
-- [Main README](../README.md)
-- [Architecture Diagram](../Architecture%20Overview.png)
-- [GitHub Repository](https://github.com/AmaliTech-Training-Academy/gep-devops)
+For detailed information, refer to:
+- [Terraform Infrastructure](02-terraform-infrastructure.md)
+- [CI/CD Pipeline Implementation](03-cicd-pipeline-implementation.md)
+- [Deployment Workflows](04-deployment-workflows.md)
+- [Monitoring & Security Operations](05-monitoring-security-operations-I.md)
+- [Cost Optimization](06-cost-optimization-best-practices.md)

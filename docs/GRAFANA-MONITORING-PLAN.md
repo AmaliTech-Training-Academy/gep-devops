@@ -1,5 +1,8 @@
 # Grafana Monitoring Setup Plan
 
+**Last Updated:** November 2025  
+**Version:** 2.0.0
+
 ## Overview
 Deploy Grafana on EC2 to provide monitoring dashboards accessible to non-engineering teams without AWS console access. Grafana will be integrated with the existing ALB using path-based routing.
 
@@ -7,10 +10,13 @@ Deploy Grafana on EC2 to provide monitoring dashboards accessible to non-enginee
 
 ## Architecture
 
-```
-Users → ALB (existing) → /monitoring/* → EC2 Grafana → CloudWatch API
-                                                     → RDS (read-only, multi-schema)
-```
+See the detailed Grafana architecture diagram: [docs/diagrams/grafana-architecture.png](diagrams/grafana-architecture.png)
+
+**Key Components:**
+- Users access Grafana via ALB path-based routing (`/monitoring/*`)
+- EC2 instance hosts Grafana in private subnet
+- CloudWatch data source for infrastructure metrics
+- PostgreSQL data source for application and audit data (read-only, multi-schema)
 
 ---
 
@@ -233,21 +239,18 @@ GRANT CONNECT ON DATABASE eventplannerdb TO grafana_reader;
 -- Grant access to all schemas
 GRANT USAGE ON SCHEMA auth_schema TO grafana_reader;
 GRANT USAGE ON SCHEMA event_schema TO grafana_reader;
-GRANT USAGE ON SCHEMA booking_schema TO grafana_reader;
 GRANT USAGE ON SCHEMA payment_schema TO grafana_reader;
 GRANT USAGE ON SCHEMA audit_schema TO grafana_reader;
 
 -- Grant SELECT on all tables in all schemas
 GRANT SELECT ON ALL TABLES IN SCHEMA auth_schema TO grafana_reader;
 GRANT SELECT ON ALL TABLES IN SCHEMA event_schema TO grafana_reader;
-GRANT SELECT ON ALL TABLES IN SCHEMA booking_schema TO grafana_reader;
 GRANT SELECT ON ALL TABLES IN SCHEMA payment_schema TO grafana_reader;
 GRANT SELECT ON ALL TABLES IN SCHEMA audit_schema TO grafana_reader;
 
 -- Grant SELECT on future tables
 ALTER DEFAULT PRIVILEGES IN SCHEMA auth_schema GRANT SELECT ON TABLES TO grafana_reader;
 ALTER DEFAULT PRIVILEGES IN SCHEMA event_schema GRANT SELECT ON TABLES TO grafana_reader;
-ALTER DEFAULT PRIVILEGES IN SCHEMA booking_schema GRANT SELECT ON TABLES TO grafana_reader;
 ALTER DEFAULT PRIVILEGES IN SCHEMA payment_schema GRANT SELECT ON TABLES TO grafana_reader;
 ALTER DEFAULT PRIVILEGES IN SCHEMA audit_schema GRANT SELECT ON TABLES TO grafana_reader;
 ```
@@ -259,7 +262,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA audit_schema GRANT SELECT ON TABLES TO grafan
    - Database: `eventplannerdb`
    - User: `grafana_reader`
    - SSL Mode: `require`
-   - Search Path: `auth_schema,event_schema,booking_schema,payment_schema,audit_schema`
+   - Search Path: `auth_schema,event_schema,payment_schema,audit_schema`
 
 ### 4.3 Audit Logs Queries
 Audit logs are now stored in PostgreSQL JSONB format. Example queries:
@@ -298,10 +301,10 @@ ORDER BY created_at DESC;
 ### 5.1 Executive Dashboard
 **Metrics:**
 - Total events created (today, this week, this month)
-- Total bookings made
-- Total revenue (from payments)
+- Total payments processed
+- Total revenue (from payment_schema)
 - Active users (from auth_schema)
-- Conversion rate (bookings/events)
+- Payment success rate
 - Audit log activity by service
 
 **Panels:**
@@ -540,10 +543,10 @@ Create internal wiki page with:
 **Note:** No additional ALB cost (reusing existing)
 
 **Architecture Cost Savings:**
-- Consolidated RDS: Saves $34/month (4 instances → 1 instance)
-- No DocumentDB: Saves $70/month
-- No NAT Gateway: Saves $37/month
-- **Total Infrastructure Savings: $141/month**
+- Consolidated RDS: Saves ~$90/month (4 instances → 1 instance)
+- No DocumentDB: Saves ~$70/month (using PostgreSQL JSONB)
+- VPC Endpoints: Saves ~$30/month on NAT Gateway data transfer
+- **Total Infrastructure Savings: ~$190/month**
 
 ---
 
@@ -629,8 +632,4 @@ If issues occur:
 - Grafana logs: `/var/log/grafana/grafana.log`
 - System logs: `sudo journalctl -u grafana-server -f`
 
----
 
-## Conclusion
-
-This plan provides a complete, cost-effective monitoring solution that democratizes access to system metrics without requiring AWS console access. The setup leverages existing infrastructure (ALB) and uses Grafana's built-in authentication for simplicity.

@@ -1,8 +1,8 @@
 # AWS Infrastructure Architecture Plan
 ## Event Planner Backend - Production Deployment
 
-**Document Version:** 1.0  
-**Last Updated:** 2024  
+**Document Version:** 2.0  
+**Last Updated:** November 2025  
 **Application Type:** Java Spring Boot Microservices  
 **Deployment Model:** Multi-AZ, Highly Available, Auto-Scalable
 
@@ -57,18 +57,17 @@ This document outlines the AWS infrastructure architecture for deploying the Eve
 The Event Planner backend consists of 7 microservices deployed across 2 Availability Zones:
 
 **Microservices:**
-1. API Gateway Service (Port 8080) - Entry point
-2. Auth Service (Port 8081) - Authentication & Authorization
-3. Discovery Service (Port 8761) - Service Registry
-4. Event Service (Port 8082) - Event CRUD
-5. Booking Service (Port 8083) - Booking Management
-6. Payment Service (Port 8084) - Payment Processing
-7. Notification Service (Port 8085) - Email/SMS/Push
+1. Auth Service (Port 8081) - Authentication & Authorization
+2. Event Service (Port 8082) - Event CRUD
+3. Payment Service (Port 8088) - Payment Processing (Paystack)
+4. Notification Service (Port 8085) - Email/SMS
 
 **Data Stores:**
-- 4 PostgreSQL RDS instances (Auth, Event, Booking, Payment)
-- 1 DocumentDB cluster (Audit Logs)
+- 1 PostgreSQL RDS instance (Multi-schema: auth_schema, event_schema, payment_schema)
 - 1 ElastiCache Redis cluster (Caching)
+- Audit logs stored in PostgreSQL JSONB format
+
+**Note:** API Gateway and Discovery Service removed - using ALB path-based routing and AWS Cloud Map
 
 ---
 
@@ -134,12 +133,9 @@ Publisher Service → SNS Topic → SQS Queues (Fan-out) → Subscriber Services
 
 **Database Configuration:**
 
-| Database | Instance Type | Storage | Read Replicas | Purpose |
-|----------|--------------|---------|---------------|---------|
-| Auth DB | db.t4g.medium | 100 GB gp3 | 2 (cross-AZ) | User authentication |
-| Event DB | db.t4g.large | 200 GB gp3 | 2 (cross-AZ) | Event data (read-heavy) |
-| Booking DB | db.t4g.large | 200 GB gp3 | 2 (cross-AZ) | Booking data (read-heavy) |
-| Payment DB | db.t4g.medium | 100 GB gp3 | 2 (cross-AZ) | Payment transactions |
+| Database | Instance Type | Storage | Schemas | Read Replicas | Purpose |
+|----------|--------------|---------|---------|---------------|----------|
+| eventplannerdb | db.t4g.large | 100 GB gp3 | auth_schema, event_schema, payment_schema, audit_schema | 2 (cross-AZ) | Consolidated multi-schema database |
 
 **Read Replica Strategy:**
 - Primary: Write operations
@@ -147,23 +143,24 @@ Publisher Service → SNS Topic → SQS Queues (Fan-out) → Subscriber Services
 - Replica 2 (AZ-B): Read operations for services in AZ-B
 - Application-level read/write splitting using Spring Boot datasource routing
 
-### 3.4 Audit Logs: Amazon DocumentDB
+### 3.4 Audit Logs: PostgreSQL JSONB
 
-**Service:** Amazon DocumentDB (MongoDB-compatible)
+**Service:** PostgreSQL JSONB (within consolidated RDS)
 
 **Justification:**
-- **Document Model**: Perfect for flexible audit log schema
-- **Scalability**: Horizontal scaling with read replicas
-- **Performance**: Optimized for write-heavy workloads
-- **Managed**: Automated backups, patching, monitoring
-- **Cost-Effective**: Cheaper than DynamoDB for large document storage
-- **Compliance**: Audit logs require immutable, time-series storage
+- **Cost-Effective**: No separate DocumentDB cluster ($400/month savings)
+- **JSONB Support**: PostgreSQL JSONB provides flexible document storage
+- **Unified Management**: Single database to manage and backup
+- **Query Performance**: GIN indexes on JSONB for fast queries
+- **Scalability**: Read replicas support audit log queries
+- **Compliance**: Audit logs stored in audit_schema with JSONB format
 
 **Configuration:**
-- Cluster: 1 primary + 2 read replicas (across 2 AZs)
-- Instance Type: db.t4g.medium
-- Storage: Auto-scaling from 10 GB
-- Backup: Continuous backup with 7-day retention
+- Schema: audit_schema in consolidated RDS
+- Table: audit_log_jsonb with JSONB column
+- Indexes: GIN indexes on JSONB fields for performance
+- Read Replicas: Can query audit logs from replicas
+- Retention: Managed via application-level cleanup
 
 ### 3.5 Caching: Amazon ElastiCache for Redis
 

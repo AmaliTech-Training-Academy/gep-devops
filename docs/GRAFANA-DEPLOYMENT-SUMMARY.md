@@ -1,5 +1,8 @@
 # Grafana Monitoring - Deployment Summary
 
+**Last Updated:** November 2025  
+**Version:** 2.0.0
+
 ## Overview
 
 Grafana monitoring infrastructure has been provisioned in the `grafana-monitor` Terraform module. This provides monitoring dashboards accessible to non-engineering teams without AWS console access.
@@ -216,21 +219,18 @@ GRANT CONNECT ON DATABASE eventplannerdb TO grafana_reader;
 -- Grant schema access
 GRANT USAGE ON SCHEMA auth_schema TO grafana_reader;
 GRANT USAGE ON SCHEMA event_schema TO grafana_reader;
-GRANT USAGE ON SCHEMA booking_schema TO grafana_reader;
 GRANT USAGE ON SCHEMA payment_schema TO grafana_reader;
 GRANT USAGE ON SCHEMA audit_schema TO grafana_reader;
 
 -- Grant SELECT on all tables
 GRANT SELECT ON ALL TABLES IN SCHEMA auth_schema TO grafana_reader;
 GRANT SELECT ON ALL TABLES IN SCHEMA event_schema TO grafana_reader;
-GRANT SELECT ON ALL TABLES IN SCHEMA booking_schema TO grafana_reader;
 GRANT SELECT ON ALL TABLES IN SCHEMA payment_schema TO grafana_reader;
 GRANT SELECT ON ALL TABLES IN SCHEMA audit_schema TO grafana_reader;
 
 -- Grant SELECT on future tables
 ALTER DEFAULT PRIVILEGES IN SCHEMA auth_schema GRANT SELECT ON TABLES TO grafana_reader;
 ALTER DEFAULT PRIVILEGES IN SCHEMA event_schema GRANT SELECT ON TABLES TO grafana_reader;
-ALTER DEFAULT PRIVILEGES IN SCHEMA booking_schema GRANT SELECT ON TABLES TO grafana_reader;
 ALTER DEFAULT PRIVILEGES IN SCHEMA payment_schema GRANT SELECT ON TABLES TO grafana_reader;
 ALTER DEFAULT PRIVILEGES IN SCHEMA audit_schema GRANT SELECT ON TABLES TO grafana_reader;
 ```
@@ -250,8 +250,16 @@ WHERE DATE(created_at) = CURRENT_DATE;
 ```sql
 SELECT SUM(amount) 
 FROM payment_schema.payments 
-WHERE status = 'completed' 
+WHERE payment_status = 'success' 
   AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE);
+```
+
+**Payment Success Rate:**
+```sql
+SELECT 
+  COUNT(*) FILTER (WHERE payment_status = 'success') * 100.0 / COUNT(*) as success_rate
+FROM payment_schema.payments
+WHERE created_at > NOW() - INTERVAL '24 hours';
 ```
 
 **Active Users:**
@@ -271,7 +279,7 @@ WHERE is_active = true;
 **RDS Connections:**
 - Namespace: `AWS/RDS`
 - Metric: `DatabaseConnections`
-- Dimension: `DBInstanceIdentifier=event-planner-dev-auth-db`
+- Dimension: `DBInstanceIdentifier=event-planner-dev-db`
 
 **ElastiCache Hit Rate:**
 - Namespace: `AWS/ElastiCache`

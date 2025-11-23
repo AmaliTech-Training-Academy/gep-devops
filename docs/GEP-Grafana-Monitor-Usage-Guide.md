@@ -4,8 +4,8 @@
 ## Grafana Monitoring Usage Guidelines
 
 **Author:** DevOps Team  
-**Last Updated:** November 18, 2025  
-**Version:** 1.0.0
+**Last Updated:** November 2025  
+**Version:** 2.0.0
 
 This document provides practical guidance for using Grafana dashboards across different roles and responsibilities. Whether you're a DevOps engineer, developer, product manager, or business stakeholder, this guide helps you understand and interpret the available metrics.
 
@@ -303,30 +303,26 @@ Understand how your microservices are performing and interact with infrastructur
 #### Useful Queries to Create
 
 ```sql
--- Find slow queries from your service
+-- Recent audit logs by service
 SELECT 
-  query,
-  COUNT(*) as execution_count,
-  AVG(duration_ms) as avg_duration,
-  MAX(duration_ms) as max_duration
-FROM audit_schema.query_log
-WHERE service = 'your-service'
-  AND created_at > NOW() - INTERVAL '1 hour'
-GROUP BY query
-ORDER BY avg_duration DESC
-LIMIT 10;
+  audit_log_data_json->>'service' as service,
+  audit_log_data_json->>'action' as action,
+  COUNT(*) as count
+FROM audit_schema.audit_log_jsonb
+WHERE created_at > NOW() - INTERVAL '1 hour'
+GROUP BY service, action
+ORDER BY count DESC;
 
--- Track error rate trend
+-- Track payment success rate
 SELECT 
-  DATE_TRUNC('minute', created_at) as minute,
-  COUNT(*) as total_requests,
-  SUM(CASE WHEN status >= 500 THEN 1 ELSE 0 END) as errors,
-  ROUND(100.0 * SUM(CASE WHEN status >= 500 THEN 1 ELSE 0 END) / COUNT(*), 2) as error_rate_percent
-FROM audit_schema.request_log
-WHERE service = 'your-service'
-  AND created_at > NOW() - INTERVAL '24 hours'
-GROUP BY minute
-ORDER BY minute DESC;
+  DATE_TRUNC('hour', created_at) as hour,
+  COUNT(*) as total_payments,
+  COUNT(*) FILTER (WHERE payment_status = 'success') as successful,
+  ROUND(100.0 * COUNT(*) FILTER (WHERE payment_status = 'success') / COUNT(*), 2) as success_rate
+FROM payment_schema.payments
+WHERE created_at > NOW() - INTERVAL '24 hours'
+GROUP BY hour
+ORDER BY hour DESC;
 ```
 
 ---
@@ -357,9 +353,9 @@ High-level business metrics to understand platform performance and user engageme
   - Increasing = healthy platform engagement
   - Seasonal: Expect peaks around weekends, holidays
 
-- **Total Bookings**: Number of bookings made by users
-  - Direct indicator of revenue potential
-  - Booking Rate = Bookings / Events (conversion efficiency)
+- **Total Payments**: Number of payments processed
+  - Direct indicator of revenue and platform usage
+  - Payment Success Rate = Successful Payments / Total Attempts
   - Action: Track daily/weekly/monthly trends
 
 **Revenue Metrics:**
@@ -369,15 +365,15 @@ High-level business metrics to understand platform performance and user engageme
   - Compare month-over-month growth
   - Seasonal considerations (holidays, events)
 
-- **Average Order Value (AOV)**:
-  - Revenue / Bookings
-  - Increasing AOV = better monetization (premium bookings)
-  - Decreasing AOV = customers choosing cheaper options
+- **Average Transaction Value (ATV)**:
+  - Revenue / Successful Payments
+  - Increasing ATV = better monetization (higher-value events)
+  - Decreasing ATV = customers choosing lower-priced events
 
 - **Payment Success Rate**:
-  - Failed payments / Total payment attempts
-  - Target: > 99%
-  - Lower rate: Investigate payment processor issues
+  - Successful payments / Total payment attempts
+  - Target: > 95% (Paystack integration)
+  - Lower rate: Investigate payment processor issues or user payment methods
 
 **Platform Health:**
 
@@ -424,9 +420,9 @@ High-level business metrics to understand platform performance and user engageme
 
 **Example:**
 
-- October bookings: 1,200
-- November bookings: 1,340
-- December bookings: 1,510
+- October payments: 1,200
+- November payments: 1,340
+- December payments: 1,510
 - Average: 1,350
 - Target for January: 1,485 (10% above average)
 
@@ -439,39 +435,41 @@ Period: [Date Range]
 
 KEY METRICS:
 - Active Users: 12,500 (↑ 8% vs last week)
-- Total Bookings: 3,240 (↓ 2% vs last week)
+- Total Payments: 3,240 (↓ 2% vs last week)
 - Revenue: $485,600 (↑ 12% vs last week)
 - Platform Uptime: 99.98% (healthy)
+- Payment Success Rate: 96.5% (healthy)
 - Error Rate: 0.08% (healthy)
 
 NOTABLE TRENDS:
-- Weekend bookings 35% higher than weekdays
-- Payment success rate at 99.8% (excellent)
+- Weekend payments 35% higher than weekdays
+- Payment success rate at 96.5% (good - Paystack integration)
 - New user signups up 15% (likely from marketing campaign)
 
 ACTIONS REQUIRED:
 - None - all metrics healthy
 - Continue current marketing strategy
+- Monitor Paystack webhook processing
 ```
 
 #### Dashboard Drill-Down Guide
 
-**When total bookings decline:**
+**When total payments decline:**
 
 1. Check **Active Users**: If users are down, engagement issue
-2. Check **Booking Rate** (bookings per active user): If rate down, conversion issue
-3. Check **Event Count**: If events down, fewer opportunities to book
+2. Check **Payment Success Rate**: If rate down, payment processing issue
+3. Check **Event Count**: If events down, fewer opportunities to pay
 4. Check **Platform Health**: If errors high, platform stability issue
-5. Check **Payment Success Rate**: If down, payment processing issue
+5. Check **Paystack Integration**: Verify webhook processing and API connectivity
 
-**When revenue increases but bookings don't:**
+**When revenue increases but payments don't:**
 
-- Likely: Users booking more premium/expensive events
+- Likely: Users paying for more expensive events
 - Action: Celebrate! This means monetization is improving
 
-**When revenue decreases despite stable bookings:**
+**When revenue decreases despite stable payments:**
 
-- Likely: Users booking cheaper events
+- Likely: Users paying for cheaper events
 - Action: Review pricing strategy; consider value-added services
 
 ---

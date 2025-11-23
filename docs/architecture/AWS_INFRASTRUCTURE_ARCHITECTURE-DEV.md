@@ -1,8 +1,8 @@
 # AWS Infrastructure Architecture Plan
 ## Event Planner Backend - Development Deployment
 
-**Document Version:** 1.1  
-**Last Updated:** 2024  
+**Document Version:** 2.0  
+**Last Updated:** November 2025  
 **Application Type:** Java Spring Boot Microservices  
 **Deployment Model:** Single-AZ, Cost-Optimized, Minimal Resources
 
@@ -60,14 +60,13 @@ The Event Planner backend consists of 5 microservices deployed in a single Avail
 **Microservices:**
 1. Auth Service (Port 8081) - Authentication & Authorization - 1 task
 2. Event Service (Port 8082) - Event CRUD - 1 task
-3. Booking Service (Port 8083) - Booking Management - 1 task
-4. Payment Service (Port 8084) - Payment Processing - 1 task
-5. Notification Service (Port 8085) - Email/SMS/Push - 1 task
+3. Payment Service (Port 8088) - Payment Processing (Paystack) - 1 task
+4. Notification Service (Port 8085) - Email/SMS - 1 task
 
 **Data Stores:**
-- 4 PostgreSQL RDS instances (Auth, Event, Booking, Payment) - Single-AZ, no replicas
-- 1 DocumentDB single instance (Audit Logs)
+- 1 PostgreSQL RDS instance (Multi-schema: auth_schema, event_schema, payment_schema)
 - 1 ElastiCache Redis single node (Caching)
+- Audit logs stored in PostgreSQL JSONB format
 
 ---
 
@@ -134,33 +133,31 @@ Publisher Service → SNS Topic → SQS Queues (Fan-out) → Subscriber Services
 
 **Database Configuration:**
 
-| Database | Instance Type | Storage | Read Replicas | Purpose |
-|----------|--------------|---------|---------------|---------|
-| Auth DB | db.t4g.micro | 20 GB gp3 | 0 | User authentication |
-| Event DB | db.t4g.small | 20 GB gp3 | 0 | Event data |
-| Booking DB | db.t4g.small | 20 GB gp3 | 0 | Booking data |
-| Payment DB | db.t4g.micro | 20 GB gp3 | 0 | Payment transactions |
+| Database | Instance Type | Storage | Schemas | Purpose |
+|----------|--------------|---------|---------|----------|
+| eventplannerdb | db.t3.medium | 20 GB gp3 | auth_schema, event_schema, payment_schema, audit_schema | Consolidated multi-schema database |
 
 **Single Instance Strategy:**
 - Single instance per database
 - All read/write operations on primary
 - No application-level routing needed
 
-### 3.4 Audit Logs: Amazon DocumentDB
+### 3.4 Audit Logs: PostgreSQL JSONB
 
-**Service:** Amazon DocumentDB (MongoDB-compatible)
+**Service:** PostgreSQL JSONB (within consolidated RDS)
 
 **Justification:**
-- **Document Model**: Perfect for flexible audit log schema
-- **Managed**: Automated backups, patching, monitoring
-- **Cost-Effective**: Single instance for development
-- **Compliance**: Audit logs require immutable, time-series storage
+- **Cost-Effective**: No separate DocumentDB instance ($70/month savings)
+- **JSONB Support**: PostgreSQL JSONB provides flexible document storage
+- **Unified Management**: Single database to manage and backup
+- **Query Performance**: GIN indexes on JSONB for fast queries
+- **Compliance**: Audit logs stored in audit_schema with JSONB format
 
 **Configuration:**
-- Cluster: 1 primary instance only (Single-AZ)
-- Instance Type: db.t3.medium
-- Storage: 10 GB (minimum)
-- Backup: Daily snapshots with 7-day retention
+- Schema: audit_schema in consolidated RDS
+- Table: audit_log_jsonb with JSONB column
+- Indexes: GIN indexes on JSONB fields for performance
+- Retention: Managed via application-level cleanup
 
 ### 3.5 Caching: Amazon ElastiCache for Redis
 
