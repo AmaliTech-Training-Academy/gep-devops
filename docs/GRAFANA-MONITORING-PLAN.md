@@ -10,7 +10,7 @@ Deploy Grafana on EC2 to provide monitoring dashboards accessible to non-enginee
 
 ## Architecture
 
-See the detailed Grafana architecture diagram: [docs/diagrams/grafana-architecture.png](diagrams/grafana-architecture.png)
+![Grafana Architecture](diagrams/grafana-architecture.png)
 
 **Key Components:**
 - Users access Grafana via ALB path-based routing (`/monitoring/*`)
