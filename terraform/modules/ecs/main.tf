@@ -363,6 +363,10 @@ resource "aws_ecs_task_definition" "services" {
             value = lookup(var.sqs_queue_names, "user_login", "")
           },
           {
+            name  = "EVENT_SERVICE_URL"
+            value = "https://api.sankofagrid.com"
+          },
+          {
             name  = "USER_LOGIN_QUEUE"
             value = lookup(var.sqs_queue_urls, "user_login", "")
           },
@@ -845,15 +849,15 @@ resource "aws_ecs_task_definition" "services" {
           },
           {
             name  = "EVENT_CREATION_QUEUE_NAME"
-            value = lookup(var.sqs_queue_names, "event_creation_notification", "")
+            value = lookup(var.sqs_queue_names, "event_creation_event", "")
           },
           {
             name  = "EVENT_CREATION_QUEUE_URL"
-            value = lookup(var.sqs_queue_urls, "event_creation_notification", "")
+            value = lookup(var.sqs_queue_urls, "event_creation_event", "")
           },
           {
             name  = "EVENT_CREATION_QUEUE"
-            value = lookup(var.sqs_queue_urls, "event_creation_notification", "")
+            value = lookup(var.sqs_queue_urls, "event_creation_event", "")
           },
           {
             name  = "PAYMENT_STATUS_QUEUE_NAME"
