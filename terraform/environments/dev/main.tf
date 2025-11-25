@@ -659,3 +659,19 @@ module "ecs" {
 
   tags = local.common_tags
 }
+
+# ==============================================================================
+# AWS Budgets Module - Cost Management
+# ==============================================================================
+
+module "budgets" {
+  source = "../../modules/budgets"
+
+  project_name          = var.project_name
+  environment           = var.environment
+  monthly_budget_limit  = var.monthly_budget_limit
+  alert_email_addresses = var.alert_email_addresses
+  anomaly_threshold     = "25"
+
+  tags = local.common_tags
+}

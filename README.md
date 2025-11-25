@@ -119,6 +119,7 @@ get-devops/
 │   │   ├── ecr/                           # Container registry
 │   │   ├── cloudwatch/                    # Monitoring and logging
 │   │   ├── cloudwatch-dashboards/         # Service-specific dashboards
+│   │   ├── budgets/                       # AWS Budgets and cost alerts
 │   │   └── waf/                           # Web Application Firewall
 │   └── environments/
 │       ├── dev/                           # Development environment
@@ -447,13 +448,27 @@ ECS tasks automatically retrieve secrets at runtime via IAM roles. No manual con
 - Multiple NAT Gateways
 - Auto-scaling enabled
 
+### Cost Management & Alerts
+
+**AWS Budgets:**
+- Monthly budget: $200 (dev), $1200 (prod)
+- Email alerts at 80%, 90%, 100% thresholds
+- Forecasted spending alerts
+- Cost anomaly detection enabled
+
+**Alert Recipients:**
+- cletus.mangu@amalitechtraining.org
+- ishmael.gyamfi@amalitechtraining.org
+- joseph.abrokwah@amalitechtraining.org
+
 ### Cost Saving Tips
 
-1. Stop dev environment during off-hours
+1. Stop dev environment during off-hours (~$150-240/month savings)
 2. Use Fargate Spot for non-critical workloads (prod)
 3. Enable S3 lifecycle policies for logs
 4. Use Reserved Instances for RDS (prod)
 5. Optimize CloudFront cache hit ratio
+6. AWS Budgets and anomaly detection (FREE)
 
 ## Documentation
 

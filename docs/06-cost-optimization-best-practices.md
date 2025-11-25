@@ -284,29 +284,59 @@ tags = {
 }
 ```
 
-### Budget Alerts
+### AWS Budgets (Implemented)
 
-**Development Budget:**
-```bash
-aws budgets create-budget \
-  --account-id <account-id> \
-  --budget file://dev-budget.json \
-  --notifications-with-subscribers file://notifications.json
-```
+**Terraform Module:** `terraform/modules/budgets`
 
 **Budget Configuration:**
 - Development: $200/month
 - Production: $1200/month
-- Alert at 80% threshold
-- Alert at 100% threshold
+- Alert thresholds: 80%, 90%, 100% (actual), 100% (forecasted)
+- Cost: FREE (first 2 budgets)
 
-### Cost Anomaly Detection
+**Email Notifications:**
+- cletus.mangu@amalitechtraining.org
+- ishmael.gyamfi@amalitechtraining.org
+- joseph.abrokwah@amalitechtraining.org
 
-**AWS Cost Anomaly Detection:**
-- Enable for all services
-- Set alert threshold: $50
-- Review anomalies weekly
-- Investigate and remediate
+**Alert Examples:**
+- At $160 (80%): "Warning - Review spending"
+- At $180 (90%): "Critical - Immediate action needed"
+- At $200 (100%): "Budget exceeded"
+- Forecasted $200: "Projected to exceed budget"
+
+### Cost Anomaly Detection (Implemented)
+
+**Terraform Module:** `terraform/modules/budgets`
+
+**Configuration:**
+- Monitor type: Service-level (ECS, RDS, etc.)
+- Alert threshold: $25 (dev), $100 (prod)
+- Frequency: Immediate email alerts
+- Cost: FREE
+
+**Benefits:**
+- Detects unusual spending patterns automatically
+- Machine learning-based (learns normal patterns in 7-10 days)
+- Catches misconfigurations (e.g., forgot to stop resources)
+- Example: "NAT Gateway cost jumped from $1/day to $3/day"
+
+**Usage:**
+```hcl
+module "budgets" {
+  source = "../../modules/budgets"
+
+  project_name          = "event-planner"
+  environment           = "dev"
+  monthly_budget_limit  = 200
+  alert_email_addresses = [
+    "cletus.mangu@amalitechtraining.org",
+    "ishmael.gyamfi@amalitechtraining.org",
+    "joseph.abrokwah@amalitechtraining.org"
+  ]
+  anomaly_threshold     = "25"
+}
+```
 
 ## Best Practices
 
@@ -409,8 +439,9 @@ aws ecr list-images \
 3. Reduce log retention: ~$10-15/month
 4. Delete old snapshots: ~$5-10/month
 5. Use S3 lifecycle policies: ~$5-10/month
+6. AWS Budgets + Anomaly Detection: $0/month (FREE, prevents overruns)
 
-**Total Quick Wins: ~$90-140/month**
+**Total Quick Wins: ~$90-140/month + cost overrun prevention**
 
 ### Long-Term Savings
 1. Reserved Instances (production): ~$300-400/month

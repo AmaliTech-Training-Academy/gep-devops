@@ -58,7 +58,11 @@ variable "environment" {
 variable "alert_email_addresses" {
   description = "List of email addresses to receive CloudWatch alarm notifications (e.g., high CPU, database issues)"
   type        = list(string)
-  default     = [] # Add email addresses like: ["devops@example.com", "alerts@example.com"]
+  default     = [
+    "cletus.mangu@amalitechtraining.org",
+    "ishmael.gyamfi@amalitechtraining.org",
+    "joseph.abrokwah@amalitechtraining.org"
+  ]
 }
 
 # ==============================================================================
@@ -160,6 +164,12 @@ variable "payment_service_url" {
   description = "Payment service URL for event service"
   type        = string
   default     = "https://api.sankofagrid.com"
+}
+
+variable "monthly_budget_limit" {
+  description = "Monthly budget limit in USD for cost control"
+  type        = number
+  default     = 200
 }
 
 
