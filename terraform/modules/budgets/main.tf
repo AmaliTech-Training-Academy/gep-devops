@@ -245,9 +245,10 @@ resource "aws_ce_anomaly_subscription" "anomaly_alerts" {
   # Subscription name: event-planner-dev-anomaly-subscription
   name = "${var.project_name}-${var.environment}-anomaly-subscription"
 
-  # Frequency: IMMEDIATE (send alerts as soon as anomalies are detected)
-  # Alternatives: DAILY (daily summary), WEEKLY (weekly summary)
-  frequency = "IMMEDIATE"
+  # Frequency: DAILY (daily summary of anomalies)
+  # Note: IMMEDIATE frequency only supports 1 subscriber, so using DAILY for multiple emails
+  # DAILY sends a summary of all anomalies detected in the past 24 hours
+  frequency = "DAILY"
 
   # List of anomaly monitors to subscribe to
   # This subscription receives alerts from the service_monitor created above
@@ -258,6 +259,7 @@ resource "aws_ce_anomaly_subscription" "anomaly_alerts" {
   # Dynamic block: Create a subscriber for each email address in the list
   # This allows multiple team members to receive anomaly alerts
   # Each subscriber must confirm their email before receiving alerts
+  # Note: DAILY frequency supports multiple subscribers (IMMEDIATE only supports 1)
   dynamic "subscriber" {
     for_each = var.alert_email_addresses
     content {
