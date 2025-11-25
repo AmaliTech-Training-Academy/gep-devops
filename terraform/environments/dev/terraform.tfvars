@@ -27,16 +27,19 @@ domain_name = "sankofagrid.com"
 enable_flow_logs = true
 
 # Monitoring Configuration
-# Add email addresses for CloudWatch alerts
+# Email addresses for CloudWatch alerts and AWS Budgets notifications
 alert_email_addresses = [
-  "devops@sankofagrid.com",
-  # "alerts@sankofagrid.com"
+  "cletus.mangu@amalitechtraining.org",
+  "ishmael.gyamfi@amalitechtraining.org",
+  "joseph.abrokwah@amalitechtraining.org"
 ]
-# alert_email_addresses = ["your-email@example.com"]
 
 # JWT Configuration (Auth Service)
 jwt_access_expiration  = 3600000  # 1 hour in milliseconds
 jwt_refresh_expiration = 86400000 # 24 hours in milliseconds
+
+# Cost Management Configuration
+monthly_budget_limit = 200 # Monthly budget limit in USD for development
 
 
 # Tags
