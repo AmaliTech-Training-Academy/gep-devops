@@ -198,16 +198,8 @@ resource "aws_ce_anomaly_monitor" "service_monitor" {
 
   # Monitor dimension: SERVICE (monitors each AWS service separately)
   # This allows detection of anomalies in specific services (e.g., ECS, RDS, NAT Gateway)
+  # Note: Cannot use monitor_specification with monitor_dimension (mutually exclusive)
   monitor_dimension = "SERVICE"
-
-  # Monitor specification: Filter by Project tag to only monitor this project's resources
-  # This ensures anomaly detection only tracks costs for resources with the Project tag
-  monitor_specification = jsonencode({
-    Tags = {
-      Key    = "Project"              # Tag key to filter by
-      Values = [var.project_name]     # Tag value (e.g., event-planner)
-    }
-  })
 }
 
 # ==============================================================================
