@@ -150,10 +150,8 @@ get-devops/
 │   ├── 05-monitoring-security-operations-II.md # Security operations
 │   ├── 06-cost-optimization-best-practices.md  # Cost optimization
 │   ├── 07-troubleshooting-runbooks.md     # Troubleshooting guides
-│   ├── centralized-devops-structure.md    # DevOps structure
-│   ├── GRAFANA-MONITORING-PLAN.md         # Grafana setup
-│   ├── GRAFANA-DEPLOYMENT-SUMMARY.md      # Grafana deployment
-│   └── GEP-Grafana-Monitor-Usage-Guide.md # Grafana usage guide
+│   ├── 08-grafana-monitoring.md           # Grafana monitoring
+│   └── centralized-devops-structure.md    # DevOps structure
 └── README.md                              # This file
 ```
 
@@ -478,9 +476,7 @@ ECS tasks automatically retrieve secrets at runtime via IAM roles. No manual con
 
 ### Monitoring Documentation
 
-- **[Grafana Monitoring Plan](docs/GRAFANA-MONITORING-PLAN.md)** - Grafana setup and configuration
-- **[Grafana Deployment Summary](docs/GRAFANA-DEPLOYMENT-SUMMARY.md)** - Grafana deployment details
-- **[Grafana Usage Guide](docs/GEP-Grafana-Monitor-Usage-Guide.md)** - How to use Grafana dashboards
+- **[Grafana Monitoring](docs/08-grafana-monitoring.md)** - Grafana setup, configuration, and usage
 
 ### External Resources
 

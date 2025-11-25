@@ -1,8 +1,7 @@
-# terraform/environments/dev/variables.tf
+# terraform/environments/prod/variables.tf
 # ==============================================================================
-# Development Environment Variables
+# Production Environment Variables
 # ==============================================================================
-# Updated to test pipeline trigger - skip ACM module validation
 
 variable "aws_region" {
   description = "AWS region for infrastructure deployment"
@@ -19,13 +18,13 @@ variable "project_name" {
 variable "environment" {
   description = "Environment name"
   type        = string
-  default     = "dev"
+  default     = "prod"
 }
 
 variable "alert_email_addresses" {
   description = "List of email addresses to receive CloudWatch alerts"
   type        = list(string)
-  default     = [] # Or provide actual email addresses
+  default     = []
 }
 
 variable "vpc_cidr" {
@@ -35,27 +34,15 @@ variable "vpc_cidr" {
 }
 
 variable "availability_zones" {
-  description = "List of availability zones"
+  description = "List of availability zones for multi-AZ deployment"
   type        = list(string)
-  default     = ["eu-west-1a"]
+  default     = ["eu-west-1a", "eu-west-1b"]
 }
 
 variable "domain_name" {
   description = "Base domain name"
   type        = string
   default     = "sankofagrid.com"
-}
-
-variable "frontend_domain" {
-  description = "Frontend domain name"
-  type        = string
-  default     = "www.sankofagrid.com"
-}
-
-variable "backend_domain" {
-  description = "Backend API domain name"
-  type        = string
-  default     = "api.sankofagrid.com"
 }
 
 variable "enable_flow_logs" {
@@ -71,5 +58,23 @@ variable "tags" {
     CostCenter = "Engineering"
     Owner      = "DevOps Team"
   }
+}
+
+variable "payment_service_url" {
+  description = "Payment service URL for webhooks"
+  type        = string
+  default     = "https://api.sankofagrid.com"
+}
+
+variable "jwt_access_expiration" {
+  description = "JWT access token expiration in milliseconds"
+  type        = number
+  default     = 3600000
+}
+
+variable "jwt_refresh_expiration" {
+  description = "JWT refresh token expiration in milliseconds"
+  type        = number
+  default     = 86400000
 }
 

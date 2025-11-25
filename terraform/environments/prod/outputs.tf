@@ -1,6 +1,6 @@
-# terraform/environments/dev/outputs.tf
+# terraform/environments/prod/outputs.tf
 # ==============================================================================
-# Development Environment Outputs - Complete
+# Production Environment Outputs
 # ==============================================================================
 
 # ==============================================================================
@@ -79,18 +79,8 @@ output "cloudfront" {
 }
 
 # ==============================================================================
-# Route53 Outputs
+# Route53 Outputs - DNS managed by Cloudflare
 # ==============================================================================
-
-output "route53_hosted_zone_id" {
-  description = "Route53 hosted zone ID"
-  value       = module.route53.hosted_zone_id
-}
-
-output "route53_nameservers" {
-  description = "Route53 nameservers"
-  value       = module.route53.hosted_zone_name_servers
-}
 
 # ==============================================================================
 # ECR Outputs
@@ -106,9 +96,9 @@ output "ecr_repository_urls" {
 # RDS Outputs
 # ==============================================================================
 
-output "rds_endpoints" {
-  description = "RDS database endpoints"
-  value       = module.rds.primary_endpoints
+output "rds_endpoint" {
+  description = "RDS database endpoint"
+  value       = module.rds.primary_endpoint
   sensitive   = true
 }
 
@@ -213,13 +203,55 @@ output "backend_alb_url" {
 output "deployment_summary" {
   description = "Summary of deployed resources"
   value = {
-    vpc_id            = module.vpc.vpc_id
-    ecs_cluster       = module.ecs.cluster_name
-    alb_dns           = module.alb.alb_dns_name
-    cloudfront_domain = module.cloudfront.distribution_domain_name
-    route53_zone_id   = module.route53.hosted_zone_id
-    services_deployed = keys(module.ecs.service_names)
-    databases_created = keys(module.rds.primary_endpoints)
+    environment        = "production"
+    vpc_id             = module.vpc.vpc_id
+    availability_zones = var.availability_zones
+    ecs_cluster        = module.ecs.cluster_name
+    alb_dns            = module.alb.alb_dns_name
+    cloudfront_domain  = module.cloudfront.distribution_domain_name
+    services_deployed  = keys(module.ecs.service_names)
+    multi_az_enabled   = true
+    read_replicas      = true
+  }
+}
+
+# ==============================================================================
+# Disaster Recovery Information
+# ==============================================================================
+
+output "disaster_recovery_info" {
+  description = "Disaster recovery configuration"
+  value = {
+    strategy               = "Backup and Restore"
+    rto                    = "< 15 minutes"
+    rpo                    = "< 24 hours"
+    rds_backup_retention   = "30 days"
+    redis_backup_retention = "7 days"
+    multi_az_enabled       = true
+    read_replicas_enabled  = true
+    automated_backups      = "Daily"
+    manual_snapshots       = "Before deployments"
+  }
+}
+
+# ==============================================================================
+# Production Configuration Summary
+# ==============================================================================
+
+output "production_config" {
+  description = "Production environment configuration summary"
+  value = {
+    environment           = "production"
+    region                = var.aws_region
+    availability_zones    = var.availability_zones
+    multi_az              = true
+    auto_scaling          = true
+    fargate_spot_enabled  = true
+    deletion_protection   = true
+    enhanced_monitoring   = true
+    performance_insights  = true
+    log_retention_days    = 30
+    backup_retention_days = 30
   }
 }
 
@@ -228,42 +260,64 @@ output "deployment_summary" {
 # ==============================================================================
 
 output "next_steps" {
-  description = "Deployment next steps"
+  description = "Production deployment next steps"
   value       = <<-EOT
     ========================================
-    INFRASTRUCTURE DEPLOYMENT COMPLETE!
+    PRODUCTION INFRASTRUCTURE DEPLOYED!
     ========================================
     
-     Services Deployed:
-    - VPC with networking
-    - ECS Fargate cluster with 5 microservices
-    - RDS PostgreSQL databases (4)
-
-    - ElastiCache Redis
-    - Application Load Balancer
+    ✅ Services Deployed:
+    - Multi-AZ VPC (${join(", ", var.availability_zones)})
+    - ECS Fargate cluster with 4 microservices
+    - RDS PostgreSQL (Multi-AZ + Read Replicas)
+    - ElastiCache Redis (Cluster Mode, 6 nodes)
+    - Application Load Balancer (Multi-AZ)
     - S3 + CloudFront
-    - Route53 DNS
+    - DNS (Cloudflare)
     - SQS/SNS messaging
     - CloudWatch monitoring
     
-     Access Points:
-    Frontend: https://${module.cloudfront.distribution_domain_name}
-    Backend ALB: http://${module.alb.alb_dns_name}
+    🌐 Access Points:
+    Frontend: https://events.sankofagrid.com
+    Backend API: https://api.sankofagrid.com
+    ALB (internal): http://${module.alb.alb_dns_name}
     
-     Next Steps:
-    1. Configure DNS nameservers:
-       terraform output route53_nameservers
+    📋 Next Steps:
+    
+    1. Configure DNS (Cloudflare):
+       - events.sankofagrid.com → ${module.cloudfront.distribution_domain_name}
+       - api.sankofagrid.com → ${module.alb.alb_dns_name}
     
     2. Deploy application containers:
        - Build and push images to ECR
-       - ECS will automatically pull and deploy
+       - Update ECS task definitions
+       - ECS will auto-deploy with blue-green strategy
     
-    3. Configure Phase 2 (SSL certificates):
-       - Wait for DNS propagation (1-24 hours)
-       - Uncomment ACM module in main.tf
-       - Update CloudFront and ALB with certificates
+    3. Verify deployment:
+       - Check ECS service health
+       - Test API endpoints
+       - Verify database connectivity
+       - Test frontend application
     
-    4. Access logs and monitoring:
-       Dashboard: AWS Console > CloudWatch > Dashboards > ${module.cloudwatch.dashboard_name}
+    4. Configure monitoring:
+       - Set up alert routing (email, Slack, PagerDuty)
+       - Configure Grafana dashboards
+       - Test alarm notifications
+    
+    5. Backup verification:
+       - Verify RDS automated backups
+       - Verify ElastiCache snapshots
+       - Test restore procedure
+    
+    📊 Monitoring:
+    CloudWatch: AWS Console > CloudWatch > Dashboards > ${module.cloudwatch.dashboard_name}
+    Grafana: https://api.sankofagrid.com/monitoring/
+    
+    💰 Estimated Monthly Cost: $800-1200
+    
+    📖 Documentation:
+    - Architecture: docs/architecture/AWS_INFRASTRUCTURE_ARCHITECTURE-PROD.md
+    - Deployment: terraform/environments/prod/DEPLOYMENT_CHECKLIST.md
+    - Operations: terraform/environments/prod/QUICK_REFERENCE.md
   EOT
 }

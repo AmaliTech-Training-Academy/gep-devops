@@ -1,16 +1,6 @@
-# terraform/environments/dev/main.tf
+# terraform/environments/prod/main.tf
 # ==============================================================================
-# Development Environment - Main Configuration
-# ==============================================================================
-# This is the main entry point for the development environment infrastructure.
-# It orchestrates all modules to deploy a cost-optimized, single-AZ environment.
-#
-# Environment Characteristics:
-# - Single AZ deployment for cost optimization
-# - Minimal resource allocation
-# - No read replicas for databases
-# - Single ElastiCache node
-# - 1 ECS task per microservice
+# Production Environment - Main Configuration
 # ==============================================================================
 
 terraform {
@@ -42,8 +32,8 @@ provider "aws" {
 }
 
 provider "aws" {
-  alias  = "eu_west_1"
-  region = "eu-west-1"
+  alias  = "us_east_1"
+  region = "us-east-1"
 
   default_tags {
     tags = {
@@ -60,7 +50,6 @@ provider "aws" {
 # ==============================================================================
 
 data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
 
 # ==============================================================================
 # Local Variables
@@ -91,12 +80,12 @@ module "vpc" {
   aws_region         = var.aws_region
 
   enable_nat_gateway = true
-  single_nat_gateway = true
+  single_nat_gateway = false # Production: NAT Gateway per AZ
 
   enable_vpc_endpoints = true
 
   enable_flow_logs         = var.enable_flow_logs
-  flow_logs_retention_days = 7
+  flow_logs_retention_days = 30
   flow_logs_traffic_type   = "ALL"
 
   tags = local.common_tags
@@ -117,6 +106,31 @@ module "security_groups" {
 }
 
 # ==============================================================================
+# ACM Module
+# ==============================================================================
+
+module "acm" {
+  source = "../../modules/acm"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  create_alb_certificate        = true
+  alb_domain_name               = "api.sankofagrid.com"
+  alb_subject_alternative_names = []
+
+  create_cloudfront_certificate        = false
+  cloudfront_domain_name               = "events.sankofagrid.com"
+  cloudfront_subject_alternative_names = []
+
+  common_tags = local.common_tags
+
+  providers = {
+    aws.us_east_1 = aws.us_east_1
+  }
+}
+
+# ==============================================================================
 # S3 Module
 # ==============================================================================
 
@@ -125,33 +139,41 @@ module "s3" {
 
   project_name = var.project_name
   environment  = var.environment
+  account_id   = data.aws_caller_identity.current.account_id
 
-  account_id = data.aws_caller_identity.current.account_id
+  cloudfront_distribution_arn = ""
 
-  cloudfront_distribution_arn = "" # Will update after CloudFront
-
-  enable_versioning = false
-
+  enable_versioning      = true # Production: Enable versioning
   enable_lifecycle_rules = true
 
-  transition_to_ia_days = 90
+  transition_to_ia_days      = 30
+  transition_to_glacier_days = 90
 
-  transition_to_glacier_days = 180
-
-  enable_cors = true
-
-  cors_allowed_origins = ["*"] # Phase 1 - open CORS
+  enable_cors          = true
+  cors_allowed_origins = ["https://events.sankofagrid.com", "https://www.sankofagrid.com"]
 
   enable_access_logging = true
-
-  logs_expiration_days = 90
+  logs_expiration_days  = 365
 
   backup_retention_days = 365
 
   kms_key_arn = null
 
   common_tags = local.common_tags
+}
 
+# ==============================================================================
+# Secrets Manager Module
+# ==============================================================================
+
+module "secrets_manager" {
+  source = "../../modules/secrets-manager"
+
+  project_name            = var.project_name
+  environment             = var.environment
+  recovery_window_in_days = 30 # Production: Extended recovery window
+
+  tags = local.common_tags
 }
 
 # ==============================================================================
@@ -161,14 +183,16 @@ module "s3" {
 module "iam" {
   source = "../../modules/iam"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  frontend_bucket_arn = module.s3.assets_bucket_arn
+  project_name             = var.project_name
+  environment              = var.environment
+  frontend_bucket_arn      = module.s3.assets_bucket_arn
+  backend_files_bucket_arn = module.s3.backend_files_bucket_arn
 
-  # Use wildcard for flexibility - actual secrets created by RDS modules
   db_secrets_arns = [
     "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/*"
   ]
+
+  jwt_secret_arn = module.secrets_manager.jwt_secret_arn
 
   tags = local.common_tags
 }
@@ -184,10 +208,11 @@ module "cloudfront" {
   environment                    = var.environment
   s3_bucket_id                   = module.s3.assets_bucket_id
   s3_bucket_regional_domain_name = module.s3.assets_bucket_regional_domain_name
-  alb_domain_name                = "" # Will populate when ALB is ready
 
-  domain_aliases      = []
-  acm_certificate_arn = ""
+  alb_domain_name = "api.sankofagrid.com"
+
+  domain_aliases      = ["events.sankofagrid.com"]
+  acm_certificate_arn = "arn:aws:acm:us-east-1:904570587823:certificate/fa496bd5-865f-4b1e-a189-f30245b0373b"
 
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
@@ -212,9 +237,9 @@ module "cloudfront" {
   logging_bucket = module.s3.logs_bucket_id != null ? "${module.s3.logs_bucket_id}.s3.amazonaws.com" : ""
   logging_prefix = "cloudfront/"
 
-  cors_allowed_origins = ["*"]
+  cors_allowed_origins = ["https://events.sankofagrid.com", "https://www.sankofagrid.com"]
 
-  content_security_policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;"
+  content_security_policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com; connect-src 'self' https: https://api.sankofagrid.com;"
 
   enable_url_rewrite = true
 
@@ -237,50 +262,36 @@ module "cloudfront" {
 }
 
 # ==============================================================================
-# Route53 Module
+# S3 Bucket Policy for CloudFront
 # ==============================================================================
 
-module "route53" {
-  source = "../../modules/route53"
+resource "aws_s3_bucket_policy" "cloudfront_access" {
+  bucket = module.s3.assets_bucket_id
 
-  project_name       = var.project_name
-  environment        = var.environment
-  domain_name        = var.domain_name
-  create_hosted_zone = true
-
-  # Phase 1: CloudFront not configured yet
-  create_cloudfront_records = false
-  frontend_subdomain        = ""
-  cloudfront_domain_name    = ""
-  cloudfront_zone_id        = ""
-
-  # Backend ALB - will be configured when ALB is ready
-  create_alb_records = false
-  api_subdomain      = "api"
-  alb_dns_name       = ""
-  alb_zone_id        = ""
-
-  enable_ipv6       = true
-  create_www_record = false
-
-  enable_health_checks           = false
-  health_check_path              = "/health"
-  health_check_failure_threshold = 3
-  health_check_interval          = 30
-
-  alarm_actions        = []
-  verification_records = {}
-  mx_records           = []
-  spf_record           = ""
-  dkim_records         = {}
-  dmarc_record         = ""
-
-  caa_records = [
-    "0 issue \"amazon.com\"",
-    "0 issue \"letsencrypt.org\""
+  depends_on = [
+    module.cloudfront,
+    module.s3
   ]
 
-  common_tags = local.common_tags
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowCloudFrontServicePrincipal"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${module.s3.assets_bucket_arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = module.cloudfront.distribution_arn
+          }
+        }
+      }
+    ]
+  })
 }
 
 # ==============================================================================
@@ -295,20 +306,24 @@ module "cloudwatch" {
   aws_region            = var.aws_region
   alert_email_addresses = var.alert_email_addresses
 
-  # Resource identifiers - populated as resources are created
-  ecs_cluster_name       = module.ecs.cluster_name
-  alb_arn                = module.alb.alb_arn
-  alb_arn_suffix         = module.alb.alb_arn_suffix
-  rds_instance_id        = module.rds.primary_instance_ids["auth"] # Use auth DB for monitoring
-  elasticache_cluster_id = module.elasticache.replication_group_id
+  ecs_cluster_name           = module.ecs.cluster_name
+  alb_arn                    = module.alb.alb_arn
+  alb_arn_suffix             = module.alb.alb_arn_suffix
+  rds_instance_id            = module.rds.primary_instance_id
+  elasticache_cluster_id     = module.elasticache.replication_group_id
+  cloudfront_distribution_id = module.cloudfront.distribution_id
 
-  # Alarm thresholds
+  create_ecs_alarms         = true
+  create_alb_alarms         = true
+  create_rds_alarms         = true
+  create_elasticache_alarms = true
+
   ecs_cpu_threshold               = 80
-  ecs_memory_threshold            = 80
+  ecs_memory_threshold            = 85
   alb_5xx_threshold               = 10
   alb_response_time_threshold     = 2
   rds_cpu_threshold               = 80
-  rds_storage_threshold_bytes     = 5368709120
+  rds_storage_threshold_bytes     = 10737418240 # 10 GB
   rds_connections_threshold       = 80
   elasticache_cpu_threshold       = 75
   elasticache_memory_threshold    = 90
@@ -318,6 +333,28 @@ module "cloudwatch" {
   kms_key_arn        = null
 
   common_tags = local.common_tags
+}
+
+# ==============================================================================
+# CloudWatch Dashboards Module
+# ==============================================================================
+
+module "cloudwatch_dashboards" {
+  source = "../../modules/cloudwatch-dashboards"
+
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+
+  ecs_cluster_name              = module.ecs.cluster_name
+  auth_target_group_arn_suffix  = module.alb.target_group_arn_suffixes["auth"]
+  event_target_group_arn_suffix = lookup(module.alb.target_group_arn_suffixes, "event", "")
+  auth_db_instance_id           = module.rds.primary_instance_id
+  elasticache_cluster_id        = module.elasticache.replication_group_id
+  cloudfront_distribution_id    = module.cloudfront.distribution_id
+  s3_bucket_name                = module.s3.assets_bucket_id
+
+  tags = local.common_tags
 }
 
 # ==============================================================================
@@ -333,7 +370,7 @@ module "ecr" {
   image_tag_mutability          = "MUTABLE"
   enable_image_scanning         = true
   kms_key_arn                   = null
-  max_image_count               = 30
+  max_image_count               = 50 # Production: More images
   untagged_image_retention_days = 7
 
   enable_cross_account_access = false
@@ -357,60 +394,46 @@ module "rds" {
   subnet_ids        = module.vpc.private_data_subnet_ids
   security_group_id = module.security_groups.rds_security_group_id
 
-  # Dev: Smaller instances
-  auth_db_instance_class        = "db.t4g.micro"
-  auth_db_allocated_storage     = 20
-  auth_db_max_allocated_storage = 100
+  db_instance_class        = "db.t4g.large"
+  db_allocated_storage     = 100
+  db_max_allocated_storage = 1000
 
-  event_db_instance_class        = "db.t4g.small"
-  event_db_allocated_storage     = 20
-  event_db_max_allocated_storage = 100
-
-
-
-  payment_db_instance_class        = "db.t4g.micro"
-  payment_db_allocated_storage     = 20
-  payment_db_max_allocated_storage = 100
-
-  postgres_version = "15.5"
+  postgres_version = "15.12"
   postgres_family  = "postgres15"
   master_username  = "dbadmin"
-  max_connections  = "100"
+  max_connections  = "200"
 
   storage_type     = "gp3"
-  provisioned_iops = 3000
+  provisioned_iops = null
 
-  # Dev: Single-AZ, no replicas
-  multi_az             = false
-  create_read_replicas = false
+  multi_az             = true
+  create_read_replicas = true
 
-  backup_retention_days = 7
+  backup_retention_days = 30
   backup_window         = "03:00-04:00"
   maintenance_window    = "sun:04:00-sun:05:00"
-  skip_final_snapshot   = true
+  skip_final_snapshot   = false
 
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
   kms_key_arn = null
 
-  enable_enhanced_monitoring  = false
-  enable_performance_insights = false
+  enable_enhanced_monitoring  = true
+  enable_performance_insights = true
 
-  deletion_protection        = false
+  deletion_protection        = true
   auto_minor_version_upgrade = true
-  apply_immediately          = true
+  apply_immediately          = false
 
-  secret_recovery_window_days = 7
+  secret_recovery_window_days = 30
 
   cpu_alarm_threshold           = 80
-  storage_alarm_threshold_bytes = 5368709120
-  connections_alarm_threshold   = 80
+  storage_alarm_threshold_bytes = 10737418240
+  connections_alarm_threshold   = 160
   alarm_actions                 = [module.cloudwatch.sns_topic_arn]
 
   tags = local.common_tags
 }
-
-
 
 # ==============================================================================
 # ElastiCache Module
@@ -427,32 +450,28 @@ module "elasticache" {
   redis_version = "7.1"
   redis_family  = "redis7"
   redis_port    = 6379
-  node_type     = "cache.t3.micro"
+  node_type     = "cache.t4g.medium"
 
-  # Dev: Single node
-  cluster_mode_enabled    = false
+  cluster_mode_enabled    = true
   num_cache_nodes         = 1
   num_node_groups         = 3
-  replicas_per_node_group = 2
+  replicas_per_node_group = 1
 
-  automatic_failover_enabled = false
-  multi_az_enabled           = false
+  automatic_failover_enabled = true
+  multi_az_enabled           = true
 
   maintenance_window         = "sun:05:00-sun:06:00"
   snapshot_window            = "03:00-04:00"
-  snapshot_retention_limit   = 5
+  snapshot_retention_limit   = 7
   auto_minor_version_upgrade = true
-  apply_immediately          = true
+  apply_immediately          = false
 
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
-  auth_token                 = null
-
-  #kms_key_arn = null
+  auth_token                 = module.secrets_manager.redis_auth_token
 
   maxmemory_policy = "allkeys-lru"
   timeout          = "300"
-  # appendonly       = false
 
   slow_log_destination        = null
   slow_log_destination_type   = "cloudwatch-logs"
@@ -500,8 +519,7 @@ module "alb" {
   public_subnet_ids     = module.vpc.public_subnet_ids
   alb_security_group_id = module.security_groups.alb_security_group_id
 
-  # Placeholder certificate - will be updated in Phase 2
-  certificate_arn = ""
+  certificate_arn = module.acm.alb_certificate_arn
   ssl_policy      = "ELBSecurityPolicy-TLS-1-2-2017-01"
 
   health_check_healthy_threshold   = 2
@@ -515,7 +533,7 @@ module "alb" {
   access_logs_bucket = module.s3.logs_bucket_id
   access_logs_prefix = "alb"
 
-  enable_deletion_protection = false
+  enable_deletion_protection = true
 
   response_time_alarm_threshold = 2
   error_5xx_alarm_threshold     = 10
@@ -549,13 +567,28 @@ module "ecs" {
   db_secret_arns = module.rds.secret_arns
   redis_endpoint = module.elasticache.primary_endpoint_address
 
+  jwt_secret_arn         = module.secrets_manager.jwt_secret_arn
+  jwt_access_expiration  = 3600000
+  jwt_refresh_expiration = 86400000
+
+  google_credentials_secret_arn   = module.secrets_manager.google_credentials_secret_arn
+  paystack_credentials_secret_arn = module.secrets_manager.paystack_credentials_secret_arn
+  redis_credentials_secret_arn    = module.secrets_manager.redis_credentials_secret_arn
+
+  sqs_queue_urls               = module.sqs-sns.queue_urls
+  sqs_queue_names              = module.sqs-sns.queue_names
+  sns_topic_arns               = module.sqs-sns.topic_arns
+  s3_bucket_name               = module.s3.assets_bucket_id
+  s3_backend_files_bucket_name = module.s3.backend_files_bucket_id
+  alb_dns_name                 = module.alb.alb_dns_name
+
   target_group_arns = module.alb.target_group_arns
-  alb_listener_arn  = module.alb.https_listener_arn
+  alb_listener_arn  = module.alb.http_listener_arn
 
   enable_container_insights = true
-  enable_fargate_spot       = false
+  enable_fargate_spot       = true
 
-  log_retention_days = 7
+  log_retention_days = 30
   kms_key_arn        = null
 
   cpu_target_value    = 70
@@ -563,6 +596,7 @@ module "ecs" {
   scale_in_cooldown   = 300
   scale_out_cooldown  = 60
 
+  payment_service_url = "https://api.sankofagrid.com"
+
   tags = local.common_tags
 }
-
