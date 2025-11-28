@@ -14,6 +14,7 @@ variable "alb_domain_name" {
   type        = string
 }
 
+
 variable "alb_subject_alternative_names" {
   description = "List of SANs for ALB certificate"
   type        = list(string)

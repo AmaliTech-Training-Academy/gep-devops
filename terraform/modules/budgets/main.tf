@@ -85,15 +85,20 @@ resource "aws_budgets_budget" "monthly_cost" {
   # Budget tracking begins from this date
   time_period_start = "2024-12-01_00:00"
 
-  # Cost filter: Only track costs for resources with matching Project and Environment tags
-  # This ensures the budget only tracks costs for this specific project and environment
-  # Format: user:TagKey$TagValue (double $ is required for Terraform string interpolation)
-  # Example: user:Project$event-planner, user:Environment$dev
+  # Cost filter: Track costs for resources with matching tags
+  # AWS Budgets requires AND logic - resources must have BOTH tags
+  # Format: user:TagKey$TagValue
   cost_filter {
     name = "TagKeyValue"
     values = [
-      "user:Project$${var.project_name}",     # Filter by Project tag (e.g., event-planner)
-      "user:Environment$${var.environment}"   # Filter by Environment tag (e.g., dev, prod)
+      "user:Project$${var.project_name}"
+    ]
+  }
+  
+  cost_filter {
+    name = "TagKeyValue"
+    values = [
+      "user:Environment$${var.environment}"
     ]
   }
 
