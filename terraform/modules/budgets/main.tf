@@ -82,24 +82,12 @@ resource "aws_budgets_budget" "monthly_cost" {
   time_unit = "MONTHLY"
 
   # Budget start date (format: YYYY-MM-DD_HH:MM)
-  # Budget tracking begins from this date
-  time_period_start = "2024-12-01_00:00"
+  # Project started October 15, 2025 - budget tracks from October 1st monthly
+  time_period_start = "2025-10-01_00:00"
 
-  # Cost filter: Track costs for resources with matching tags
-  # AWS Budgets requires AND logic - resources must have BOTH tags
-  # Format: user:TagKey$TagValue
-  cost_filter {
-    name = "TagKeyValue"
-    values = [
-      "user:Project$${var.project_name}"
-    ]
-  }
-  
-  cost_filter {
-    name = "TagKeyValue"
-    values = [
-      "user:Environment$${var.environment}"
-    ]
+  # Cost types configuration - exclude credits to see actual spending
+  cost_types {
+    include_credit = false  # Exclude credits to see actual costs
   }
 
   # ==============================================================================
