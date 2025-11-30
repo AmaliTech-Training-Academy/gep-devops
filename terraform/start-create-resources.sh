@@ -1,12 +1,15 @@
 #!/bin/bash
 set -e
 
-AWS_PROFILE="gtp-cletus"
-AWS_REGION="eu-west-1"
-PROJECT="event-planner"
-ENV="dev"
+AWS_PROFILE="${AWS_PROFILE:-$(aws configure list-profiles | head -1)}"
+AWS_REGION="${AWS_REGION:-eu-west-1}"
+PROJECT="${PROJECT:-event-planner}"
+ENV="${ENV:-dev}"
 
 export AWS_PROFILE
+
+echo "Using AWS Profile: $AWS_PROFILE"
+echo "Region: $AWS_REGION | Environment: $ENV"
 
 echo "Starting Event Planner Infrastructure..."
 
